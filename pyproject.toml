@@ -1,0 +1,35 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "mcp-nettools"
+version = "0.1.0"
+description = "MCP server for network diagnostics — ping, DNS, port check, traceroute, speedtest, WoL, cert check, MAC lookup"
+readme = "README.md"
+requires-python = ">=3.12"
+license = {text = "MIT"}
+keywords = ["mcp", "networking", "homelab", "diagnostics"]
+classifiers = [
+    "Programming Language :: Python :: 3.12",
+    "License :: OSI Approved :: MIT License",
+]
+dependencies = [
+    "mcp>=1.0",
+    "dnspython>=2.6",
+    "speedtest-cli>=2.1",
+    "wakeonlan>=3.0",
+    "mac-vendor-lookup>=0.1.12",
+]
+
+[project.scripts]
+mcp-nettools = "mcp_nettools.server:main"
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/mcp_nettools"]
