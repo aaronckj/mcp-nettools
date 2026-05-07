@@ -52,10 +52,9 @@ def dns_lookup(host: str, record_type: str = "A") -> dict:
 def port_check(host: str, port: int, timeout: int = 5) -> dict:
     """Check if a TCP port is open on a host."""
     try:
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.settimeout(timeout)
-        result = sock.connect_ex((host, port))
-        sock.close()
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+            sock.settimeout(timeout)
+            result = sock.connect_ex((host, port))
         return {"host": host, "port": port, "open": result == 0}
     except Exception as e:
         return {"error": str(e), "tool": "port_check", "host": host, "port": port}

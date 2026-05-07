@@ -6,7 +6,7 @@ import subprocess
 from unittest.mock import MagicMock, patch
 
 import pytest
-from mcp_nettools.server import ping
+from mcp_nettools.server import dns_lookup, ping, port_check, traceroute
 
 
 def test_ping_reachable():
@@ -37,9 +37,6 @@ def test_ping_timeout_error():
     assert result["host"] == "192.0.2.1"
 
 
-from mcp_nettools.server import dns_lookup
-
-
 def test_dns_lookup_a_record():
     mock_record = MagicMock()
     mock_record.__str__ = lambda self: "8.8.8.8"
@@ -66,13 +63,11 @@ def test_dns_lookup_nxdomain():
     assert result["host"] == "nonexistent.invalid"
 
 
-import socket as _socket_module
-from mcp_nettools.server import port_check
-
-
 def test_port_check_open():
     mock_sock = MagicMock()
     mock_sock.connect_ex.return_value = 0
+    mock_sock.__enter__ = MagicMock(return_value=mock_sock)
+    mock_sock.__exit__ = MagicMock(return_value=None)
     with patch("socket.socket", return_value=mock_sock):
         result = port_check("8.8.8.8", 53)
     assert result["open"] is True
@@ -83,6 +78,8 @@ def test_port_check_open():
 def test_port_check_closed():
     mock_sock = MagicMock()
     mock_sock.connect_ex.return_value = 111
+    mock_sock.__enter__ = MagicMock(return_value=mock_sock)
+    mock_sock.__exit__ = MagicMock(return_value=None)
     with patch("socket.socket", return_value=mock_sock):
         result = port_check("8.8.8.8", 9999)
     assert result["open"] is False
@@ -94,9 +91,6 @@ def test_port_check_error():
     assert "error" in result
     assert result["tool"] == "port_check"
     assert result["port"] == 80
-
-
-from mcp_nettools.server import traceroute
 
 
 def test_traceroute_success():
