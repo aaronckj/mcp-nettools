@@ -94,3 +94,25 @@ def test_port_check_error():
     assert "error" in result
     assert result["tool"] == "port_check"
     assert result["port"] == 80
+
+
+from mcp_nettools.server import traceroute
+
+
+def test_traceroute_success():
+    mock_result = MagicMock()
+    mock_result.returncode = 0
+    mock_result.stdout = "traceroute to 8.8.8.8\n 1  10.0.0.1  1ms\n 2  8.8.8.8  5ms"
+    with patch("subprocess.run", return_value=mock_result):
+        result = traceroute("8.8.8.8")
+    assert result["host"] == "8.8.8.8"
+    assert "output" in result
+    assert result["returncode"] == 0
+
+
+def test_traceroute_timeout():
+    with patch("subprocess.run", side_effect=subprocess.TimeoutExpired("traceroute", 60)):
+        result = traceroute("192.0.2.1")
+    assert "error" in result
+    assert result["tool"] == "traceroute"
+    assert result["host"] == "192.0.2.1"

@@ -61,6 +61,25 @@ def port_check(host: str, port: int, timeout: int = 5) -> dict:
         return {"error": str(e), "tool": "port_check", "host": host, "port": port}
 
 
+@mcp.tool()
+def traceroute(host: str, max_hops: int = 30, timeout: int = 60) -> dict:
+    """Trace the network path to a host."""
+    try:
+        result = subprocess.run(
+            ["traceroute", "-m", str(max_hops), host],
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+        )
+        return {
+            "host": host,
+            "output": result.stdout,
+            "returncode": result.returncode,
+        }
+    except Exception as e:
+        return {"error": str(e), "tool": "traceroute", "host": host}
+
+
 def main() -> None:
     mcp.run()
 
