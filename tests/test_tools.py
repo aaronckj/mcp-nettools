@@ -118,7 +118,7 @@ def test_speedtest_success():
     mock_st.upload.return_value = 100_000_000
     mock_st.results.ping = 12.5
     mock_st.results.server = {"name": "Test Server"}
-    with patch("speedtest.Speedtest", return_value=mock_st):
+    with patch("mcp_nettools.server._speedtest_lib.Speedtest", return_value=mock_st):
         result = speedtest()
     assert result["download_mbps"] == 500.0
     assert result["upload_mbps"] == 100.0
@@ -127,7 +127,7 @@ def test_speedtest_success():
 
 
 def test_speedtest_error():
-    with patch("speedtest.Speedtest", side_effect=Exception("No servers")):
+    with patch("mcp_nettools.server._speedtest_lib.Speedtest", side_effect=Exception("No servers")):
         result = speedtest()
     assert "error" in result
     assert result["tool"] == "speedtest"
