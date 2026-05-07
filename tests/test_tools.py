@@ -35,3 +35,32 @@ def test_ping_timeout_error():
     assert "error" in result
     assert result["tool"] == "ping"
     assert result["host"] == "192.0.2.1"
+
+
+from mcp_nettools.server import dns_lookup
+
+
+def test_dns_lookup_a_record():
+    mock_record = MagicMock()
+    mock_record.__str__ = lambda self: "8.8.8.8"
+    with patch("dns.resolver.resolve", return_value=[mock_record]):
+        result = dns_lookup("google.com")
+    assert result["host"] == "google.com"
+    assert result["record_type"] == "A"
+    assert result["records"] == ["8.8.8.8"]
+
+
+def test_dns_lookup_custom_type():
+    mock_record = MagicMock()
+    mock_record.__str__ = lambda self: "v=spf1 include:_spf.google.com ~all"
+    with patch("dns.resolver.resolve", return_value=[mock_record]):
+        result = dns_lookup("google.com", record_type="TXT")
+    assert result["record_type"] == "TXT"
+
+
+def test_dns_lookup_nxdomain():
+    with patch("dns.resolver.resolve", side_effect=Exception("NXDOMAIN")):
+        result = dns_lookup("nonexistent.invalid")
+    assert "error" in result
+    assert result["tool"] == "dns_lookup"
+    assert result["host"] == "nonexistent.invalid"

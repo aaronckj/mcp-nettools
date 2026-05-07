@@ -33,6 +33,20 @@ def ping(host: str, count: int = 4, timeout: int = 5) -> dict:
         return {"error": str(e), "tool": "ping", "host": host}
 
 
+@mcp.tool()
+def dns_lookup(host: str, record_type: str = "A") -> dict:
+    """Look up DNS records for a hostname. record_type: A, AAAA, MX, TXT, NS, CNAME."""
+    try:
+        answers = dns.resolver.resolve(host, record_type)
+        return {
+            "host": host,
+            "record_type": record_type,
+            "records": [str(r) for r in answers],
+        }
+    except Exception as e:
+        return {"error": str(e), "tool": "dns_lookup", "host": host}
+
+
 def main() -> None:
     mcp.run()
 
