@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import socket
+import ssl
 import subprocess
 from datetime import datetime, timezone
 
@@ -77,6 +78,32 @@ def traceroute(host: str, max_hops: int = 30, timeout: int = 60) -> dict:
         }
     except Exception as e:
         return {"error": str(e), "tool": "traceroute", "host": host}
+
+
+@mcp.tool()
+def cert_check(host: str, port: int = 443) -> dict:
+    """Check the SSL certificate on a host — expiry, issuer, days remaining."""
+    try:
+        ctx = ssl.create_default_context()
+        with ctx.wrap_socket(socket.socket(), server_hostname=host) as s:
+            s.settimeout(10)
+            s.connect((host, port))
+            cert = s.getpeercert()
+        not_after = datetime.strptime(cert["notAfter"], "%b %d %H:%M:%S %Y %Z").replace(
+            tzinfo=timezone.utc
+        )
+        days_remaining = (not_after - datetime.now(timezone.utc)).days
+        return {
+            "host": host,
+            "port": port,
+            "subject": dict(x[0] for x in cert["subject"]),
+            "issuer": dict(x[0] for x in cert["issuer"]),
+            "expires": cert["notAfter"],
+            "days_remaining": days_remaining,
+            "valid": days_remaining > 0,
+        }
+    except Exception as e:
+        return {"error": str(e), "tool": "cert_check", "host": host}
 
 
 @mcp.tool()

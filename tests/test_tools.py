@@ -6,7 +6,7 @@ import subprocess
 from unittest.mock import MagicMock, patch
 
 import pytest
-from mcp_nettools.server import dns_lookup, ping, port_check, speedtest, traceroute, wake_on_lan
+from mcp_nettools.server import cert_check, dns_lookup, ping, port_check, speedtest, traceroute, wake_on_lan
 
 
 def test_ping_reachable():
@@ -155,3 +155,50 @@ def test_wake_on_lan_invalid_mac():
     assert "error" in result
     assert result["tool"] == "wake_on_lan"
     assert result["mac"] == "not-a-mac"
+
+
+def test_cert_check_valid():
+    mock_cert = {
+        "notAfter": "Dec 31 23:59:59 2099 GMT",
+        "subject": ((("commonName", "example.com"),),),
+        "issuer": ((("organizationName", "Let's Encrypt"),),),
+    }
+    mock_sock = MagicMock()
+    mock_sock.getpeercert.return_value = mock_cert
+    mock_sock.__enter__ = MagicMock(return_value=mock_sock)
+    mock_sock.__exit__ = MagicMock(return_value=False)
+    mock_ctx = MagicMock()
+    mock_ctx.wrap_socket.return_value = mock_sock
+    with patch("ssl.create_default_context", return_value=mock_ctx):
+        result = cert_check("example.com")
+    assert result["host"] == "example.com"
+    assert result["port"] == 443
+    assert result["valid"] is True
+    assert result["days_remaining"] > 0
+    assert result["subject"] == {"commonName": "example.com"}
+    assert result["issuer"] == {"organizationName": "Let's Encrypt"}
+
+
+def test_cert_check_custom_port():
+    mock_cert = {
+        "notAfter": "Dec 31 23:59:59 2099 GMT",
+        "subject": ((("commonName", "example.com"),),),
+        "issuer": ((("organizationName", "Self-Signed"),),),
+    }
+    mock_sock = MagicMock()
+    mock_sock.getpeercert.return_value = mock_cert
+    mock_sock.__enter__ = MagicMock(return_value=mock_sock)
+    mock_sock.__exit__ = MagicMock(return_value=False)
+    mock_ctx = MagicMock()
+    mock_ctx.wrap_socket.return_value = mock_sock
+    with patch("ssl.create_default_context", return_value=mock_ctx):
+        result = cert_check("example.com", port=8443)
+    assert result["port"] == 8443
+
+
+def test_cert_check_error():
+    with patch("ssl.create_default_context", side_effect=Exception("Connection refused")):
+        result = cert_check("nonexistent.invalid")
+    assert "error" in result
+    assert result["tool"] == "cert_check"
+    assert result["host"] == "nonexistent.invalid"
