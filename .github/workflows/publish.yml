@@ -40,5 +40,5 @@ jobs:
           context: .
           push: true
           tags: |
-            ghcr.io/aaronckjarrett/mcp-nettools:latest
-            ghcr.io/aaronckjarrett/mcp-nettools:${{ steps.tag.outputs.version }}
+            ghcr.io/aaronckj/mcp-nettools:latest
+            ghcr.io/aaronckj/mcp-nettools:${{ steps.tag.outputs.version }}

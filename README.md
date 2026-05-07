@@ -26,7 +26,7 @@ uvx mcp-nettools
 ### Docker
 
 ```bash
-docker run -i ghcr.io/aaronckjarrett/mcp-nettools:latest
+docker run -i ghcr.io/aaronckj/mcp-nettools:latest
 ```
 
 ### Claude Code
@@ -57,7 +57,7 @@ Or with Docker:
   "mcpServers": {
     "nettools": {
       "command": "docker",
-      "args": ["run", "-i", "--rm", "ghcr.io/aaronckjarrett/mcp-nettools:latest"]
+      "args": ["run", "-i", "--rm", "ghcr.io/aaronckj/mcp-nettools:latest"]
     }
   }
 }
