@@ -6,7 +6,7 @@ import subprocess
 from unittest.mock import MagicMock, patch
 
 import pytest
-from mcp_nettools.server import dns_lookup, ping, port_check, traceroute
+from mcp_nettools.server import dns_lookup, ping, port_check, speedtest, traceroute
 
 
 def test_ping_reachable():
@@ -110,3 +110,24 @@ def test_traceroute_timeout():
     assert "error" in result
     assert result["tool"] == "traceroute"
     assert result["host"] == "192.0.2.1"
+
+
+def test_speedtest_success():
+    mock_st = MagicMock()
+    mock_st.download.return_value = 500_000_000
+    mock_st.upload.return_value = 100_000_000
+    mock_st.results.ping = 12.5
+    mock_st.results.server = {"name": "Test Server"}
+    with patch("speedtest.Speedtest", return_value=mock_st):
+        result = speedtest()
+    assert result["download_mbps"] == 500.0
+    assert result["upload_mbps"] == 100.0
+    assert result["ping_ms"] == 12.5
+    assert result["server"] == "Test Server"
+
+
+def test_speedtest_error():
+    with patch("speedtest.Speedtest", side_effect=Exception("No servers")):
+        result = speedtest()
+    assert "error" in result
+    assert result["tool"] == "speedtest"

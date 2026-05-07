@@ -79,6 +79,22 @@ def traceroute(host: str, max_hops: int = 30, timeout: int = 60) -> dict:
         return {"error": str(e), "tool": "traceroute", "host": host}
 
 
+@mcp.tool()
+def speedtest() -> dict:
+    """Run a network speed test using the nearest server."""
+    try:
+        st = _speedtest_lib.Speedtest()
+        st.get_best_server()
+        return {
+            "download_mbps": round(st.download() / 1_000_000, 2),
+            "upload_mbps": round(st.upload() / 1_000_000, 2),
+            "ping_ms": st.results.ping,
+            "server": st.results.server.get("name"),
+        }
+    except Exception as e:
+        return {"error": str(e), "tool": "speedtest"}
+
+
 def main() -> None:
     mcp.run()
 
