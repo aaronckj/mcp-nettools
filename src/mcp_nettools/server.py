@@ -132,6 +132,17 @@ def speedtest() -> dict:
         return {"error": str(e), "tool": "speedtest"}
 
 
+@mcp.tool()
+async def mac_lookup(mac: str) -> dict:
+    """Look up the vendor/manufacturer for a MAC address (OUI database)."""
+    try:
+        lookup = AsyncMacLookup()
+        vendor = await lookup.lookup(mac)
+        return {"mac": mac, "vendor": vendor}
+    except Exception as e:
+        return {"error": str(e), "tool": "mac_lookup", "mac": mac}
+
+
 def main() -> None:
     mcp.run()
 

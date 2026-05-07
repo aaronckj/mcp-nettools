@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 import subprocess
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from mcp_nettools.server import cert_check, dns_lookup, ping, port_check, speedtest, traceroute, wake_on_lan
+from mcp_nettools.server import cert_check, dns_lookup, mac_lookup, ping, port_check, speedtest, traceroute, wake_on_lan
 
 
 def test_ping_reachable():
@@ -202,3 +202,24 @@ def test_cert_check_error():
     assert "error" in result
     assert result["tool"] == "cert_check"
     assert result["host"] == "nonexistent.invalid"
+
+
+@pytest.mark.asyncio
+async def test_mac_lookup_known_vendor():
+    mock_lookup = AsyncMock()
+    mock_lookup.lookup = AsyncMock(return_value="Apple, Inc.")
+    with patch("mcp_nettools.server.AsyncMacLookup", return_value=mock_lookup):
+        result = await mac_lookup("d0:11:e5:0f:be:b7")
+    assert result["mac"] == "d0:11:e5:0f:be:b7"
+    assert result["vendor"] == "Apple, Inc."
+
+
+@pytest.mark.asyncio
+async def test_mac_lookup_unknown():
+    mock_lookup = AsyncMock()
+    mock_lookup.lookup = AsyncMock(side_effect=Exception("Unknown vendor"))
+    with patch("mcp_nettools.server.AsyncMacLookup", return_value=mock_lookup):
+        result = await mac_lookup("ff:ff:ff:ff:ff:ff")
+    assert "error" in result
+    assert result["tool"] == "mac_lookup"
+    assert result["mac"] == "ff:ff:ff:ff:ff:ff"
