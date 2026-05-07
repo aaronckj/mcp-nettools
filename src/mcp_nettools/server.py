@@ -85,8 +85,9 @@ def cert_check(host: str, port: int = 443) -> dict:
     """Check the SSL certificate on a host — expiry, issuer, days remaining."""
     try:
         ctx = ssl.create_default_context()
-        with ctx.wrap_socket(socket.socket(), server_hostname=host) as s:
-            s.settimeout(10)
+        raw = socket.socket()
+        raw.settimeout(10)
+        with ctx.wrap_socket(raw, server_hostname=host) as s:
             s.connect((host, port))
             cert = s.getpeercert()
         not_after = datetime.strptime(cert["notAfter"], "%b %d %H:%M:%S %Y %Z").replace(
@@ -137,6 +138,7 @@ async def mac_lookup(mac: str) -> dict:
     """Look up the vendor/manufacturer for a MAC address (OUI database)."""
     try:
         lookup = AsyncMacLookup()
+        await lookup.load_vendors()
         vendor = await lookup.lookup(mac)
         return {"mac": mac, "vendor": vendor}
     except Exception as e:

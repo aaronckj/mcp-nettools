@@ -207,6 +207,7 @@ def test_cert_check_error():
 @pytest.mark.asyncio
 async def test_mac_lookup_known_vendor():
     mock_lookup = AsyncMock()
+    mock_lookup.load_vendors = AsyncMock()
     mock_lookup.lookup = AsyncMock(return_value="Apple, Inc.")
     with patch("mcp_nettools.server.AsyncMacLookup", return_value=mock_lookup):
         result = await mac_lookup("d0:11:e5:0f:be:b7")
@@ -217,6 +218,7 @@ async def test_mac_lookup_known_vendor():
 @pytest.mark.asyncio
 async def test_mac_lookup_unknown():
     mock_lookup = AsyncMock()
+    mock_lookup.load_vendors = AsyncMock()
     mock_lookup.lookup = AsyncMock(side_effect=Exception("Unknown vendor"))
     with patch("mcp_nettools.server.AsyncMacLookup", return_value=mock_lookup):
         result = await mac_lookup("ff:ff:ff:ff:ff:ff")
