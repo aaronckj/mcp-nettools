@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import socket
 import subprocess
 from datetime import datetime, timezone
 
@@ -45,6 +46,19 @@ def dns_lookup(host: str, record_type: str = "A") -> dict:
         }
     except Exception as e:
         return {"error": str(e), "tool": "dns_lookup", "host": host}
+
+
+@mcp.tool()
+def port_check(host: str, port: int, timeout: int = 5) -> dict:
+    """Check if a TCP port is open on a host."""
+    try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(timeout)
+        result = sock.connect_ex((host, port))
+        sock.close()
+        return {"host": host, "port": port, "open": result == 0}
+    except Exception as e:
+        return {"error": str(e), "tool": "port_check", "host": host, "port": port}
 
 
 def main() -> None:

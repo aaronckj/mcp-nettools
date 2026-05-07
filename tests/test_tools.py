@@ -64,3 +64,33 @@ def test_dns_lookup_nxdomain():
     assert "error" in result
     assert result["tool"] == "dns_lookup"
     assert result["host"] == "nonexistent.invalid"
+
+
+import socket as _socket_module
+from mcp_nettools.server import port_check
+
+
+def test_port_check_open():
+    mock_sock = MagicMock()
+    mock_sock.connect_ex.return_value = 0
+    with patch("socket.socket", return_value=mock_sock):
+        result = port_check("8.8.8.8", 53)
+    assert result["open"] is True
+    assert result["host"] == "8.8.8.8"
+    assert result["port"] == 53
+
+
+def test_port_check_closed():
+    mock_sock = MagicMock()
+    mock_sock.connect_ex.return_value = 111
+    with patch("socket.socket", return_value=mock_sock):
+        result = port_check("8.8.8.8", 9999)
+    assert result["open"] is False
+
+
+def test_port_check_error():
+    with patch("socket.socket", side_effect=OSError("Network unreachable")):
+        result = port_check("192.0.2.1", 80)
+    assert "error" in result
+    assert result["tool"] == "port_check"
+    assert result["port"] == 80
