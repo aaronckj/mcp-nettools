@@ -6,7 +6,7 @@ import subprocess
 from unittest.mock import MagicMock, patch
 
 import pytest
-from mcp_nettools.server import dns_lookup, ping, port_check, speedtest, traceroute
+from mcp_nettools.server import dns_lookup, ping, port_check, speedtest, traceroute, wake_on_lan
 
 
 def test_ping_reachable():
@@ -131,3 +131,27 @@ def test_speedtest_error():
         result = speedtest()
     assert "error" in result
     assert result["tool"] == "speedtest"
+
+
+def test_wake_on_lan_default_broadcast():
+    with patch("mcp_nettools.server.send_magic_packet") as mock_wol:
+        result = wake_on_lan("aa:bb:cc:dd:ee:ff")
+    mock_wol.assert_called_once_with("aa:bb:cc:dd:ee:ff", ip_address="255.255.255.255")
+    assert result["sent"] is True
+    assert result["mac"] == "aa:bb:cc:dd:ee:ff"
+    assert result["broadcast"] == "255.255.255.255"
+
+
+def test_wake_on_lan_custom_broadcast():
+    with patch("mcp_nettools.server.send_magic_packet") as mock_wol:
+        result = wake_on_lan("aa:bb:cc:dd:ee:ff", broadcast="10.0.0.255")
+    mock_wol.assert_called_once_with("aa:bb:cc:dd:ee:ff", ip_address="10.0.0.255")
+    assert result["broadcast"] == "10.0.0.255"
+
+
+def test_wake_on_lan_invalid_mac():
+    with patch("mcp_nettools.server.send_magic_packet", side_effect=ValueError("Invalid MAC")):
+        result = wake_on_lan("not-a-mac")
+    assert "error" in result
+    assert result["tool"] == "wake_on_lan"
+    assert result["mac"] == "not-a-mac"

@@ -80,6 +80,16 @@ def traceroute(host: str, max_hops: int = 30, timeout: int = 60) -> dict:
 
 
 @mcp.tool()
+def wake_on_lan(mac: str, broadcast: str = "255.255.255.255") -> dict:
+    """Send a Wake-on-LAN magic packet to a MAC address."""
+    try:
+        send_magic_packet(mac, ip_address=broadcast)
+        return {"mac": mac, "broadcast": broadcast, "sent": True}
+    except Exception as e:
+        return {"error": str(e), "tool": "wake_on_lan", "mac": mac}
+
+
+@mcp.tool()
 def speedtest() -> dict:
     """Run a network speed test using the nearest server."""
     try:
