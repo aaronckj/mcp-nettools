@@ -5523,6 +5523,132 @@ def check_bitwarden(host: str, port: int = 80, timeout: int = 5, https: bool = F
     return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy}}
 
 
+@mcp.tool()
+def check_ollama(host: str, port: int = 11434, timeout: int = 5, https: bool = False) -> dict:
+    """Check Ollama LLM server health via GET /api/version. Returns version string. Default port 11434."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_ollama"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    healthy = False
+    version: str | None = None
+    try:
+        req = urllib.request.Request(
+            f"{scheme}://{host}:{port}/api/version",
+            headers={"Accept": "application/json"},
+        )
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            if resp.status == 200:
+                healthy = True
+                data = json.loads(resp.read().decode())
+                version = data.get("version")
+    except Exception:
+        pass
+    if not healthy:
+        try:
+            req = urllib.request.Request(f"{scheme}://{host}:{port}/")
+            with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+                healthy = resp.status == 200 and b"Ollama" in resp.read()
+        except Exception:
+            pass
+    return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy, "version": version}}
+
+
+@mcp.tool()
+def check_open_webui(host: str, port: int = 3000, timeout: int = 5, https: bool = False) -> dict:
+    """Check Open WebUI (Ollama/LLM frontend) health via GET /health. Returns healthy status. Default port 3000."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_open_webui"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    healthy = False
+    try:
+        req = urllib.request.Request(
+            f"{scheme}://{host}:{port}/health",
+            headers={"Accept": "application/json"},
+        )
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            if resp.status == 200:
+                body = resp.read().decode()
+                try:
+                    data = json.loads(body)
+                    healthy = data.get("status") is True or data.get("status") == "ok" or data.get("healthy") is True
+                except Exception:
+                    healthy = True
+    except Exception:
+        pass
+    return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy}}
+
+
+@mcp.tool()
+def check_pocketbase(host: str, port: int = 8090, timeout: int = 5, https: bool = False) -> dict:
+    """Check PocketBase backend health via GET /api/health. Returns healthy status. Default port 8090."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_pocketbase"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    healthy = False
+    try:
+        req = urllib.request.Request(
+            f"{scheme}://{host}:{port}/api/health",
+            headers={"Accept": "application/json"},
+        )
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            if resp.status == 200:
+                data = json.loads(resp.read().decode())
+                healthy = data.get("code") == 200 or data.get("message", "").lower().find("healthy") >= 0
+    except Exception:
+        pass
+    return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy}}
+
+
+@mcp.tool()
+def check_anythingllm(host: str, port: int = 3001, timeout: int = 5, https: bool = False) -> dict:
+    """Check AnythingLLM (self-hosted RAG/AI workspace) health via GET /api/ping. Returns healthy status. Default port 3001."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_anythingllm"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    healthy = False
+    for path in ["/api/ping", "/api/v1/ping"]:
+        try:
+            req = urllib.request.Request(
+                f"{scheme}://{host}:{port}{path}",
+                headers={"Accept": "application/json"},
+            )
+            with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+                if resp.status == 200:
+                    healthy = True
+                    break
+        except urllib.error.HTTPError as e:
+            if e.code in (401, 403):
+                healthy = True
+                break
+        except Exception:
+            pass
+    return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy}}
+
+
 def main() -> None:
     mcp.run()
 
