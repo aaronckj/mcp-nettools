@@ -2684,7 +2684,7 @@ def check_docker_api(host: str, port: int = 2375, timeout: int = 5, https: bool 
     except urllib.error.URLError as e:
         return {"result": {"host": host, "port": port, "reachable": False, "error": str(e.reason)}}
     except Exception as e:
-        return {"error": str(e), "tool": "check_docker_api", "host": host, "detail": type(e).__name__}
+        return {"error": str(e), "tool": "check_docker_api", "host": host, "port": port, "detail": type(e).__name__}
 
 
 @mcp.tool()
@@ -2778,7 +2778,7 @@ def check_smb(host: str, port: int = 445, timeout: int = 5) -> dict:
     except ConnectionRefusedError:
         return {"result": {"host": host, "port": port, "reachable": False, "error": "connection refused"}}
     except Exception as e:
-        return {"error": str(e), "tool": "check_smb", "host": host, "detail": type(e).__name__}
+        return {"error": str(e), "tool": "check_smb", "host": host, "port": port, "detail": type(e).__name__}
 
 
 @mcp.tool()
@@ -2816,7 +2816,7 @@ def check_prometheus(host: str, port: int = 9090, timeout: int = 5, https: bool 
             pass
         return {"result": {"host": host, "port": port, "reachable": healthy or ready, "healthy": healthy, "ready": ready, "tsdb_stats": stats}}
     except Exception as e:
-        return {"error": str(e), "tool": "check_prometheus", "host": host, "detail": type(e).__name__}
+        return {"error": str(e), "tool": "check_prometheus", "host": host, "port": port, "detail": type(e).__name__}
 
 
 @mcp.tool()
@@ -2847,7 +2847,7 @@ def check_grafana(host: str, port: int = 3000, timeout: int = 5, https: bool = F
     except urllib.error.URLError as e:
         return {"result": {"host": host, "port": port, "reachable": False, "error": str(e.reason)}}
     except Exception as e:
-        return {"error": str(e), "tool": "check_grafana", "host": host, "detail": type(e).__name__}
+        return {"error": str(e), "tool": "check_grafana", "host": host, "port": port, "detail": type(e).__name__}
 
 
 @mcp.tool()
@@ -2897,7 +2897,7 @@ def check_kafka(host: str, port: int = 9092, timeout: int = 5) -> dict:
     except ConnectionRefusedError:
         return {"result": {"host": host, "port": port, "reachable": False, "error": "connection refused"}}
     except Exception as e:
-        return {"error": str(e), "tool": "check_kafka", "host": host, "detail": type(e).__name__}
+        return {"error": str(e), "tool": "check_kafka", "host": host, "port": port, "detail": type(e).__name__}
 
 
 @mcp.tool()
@@ -2928,7 +2928,7 @@ def check_couchdb(host: str, port: int = 5984, timeout: int = 5, https: bool = F
     except urllib.error.URLError as e:
         return {"result": {"host": host, "port": port, "reachable": False, "error": str(e.reason)}}
     except Exception as e:
-        return {"error": str(e), "tool": "check_couchdb", "host": host, "detail": type(e).__name__}
+        return {"error": str(e), "tool": "check_couchdb", "host": host, "port": port, "detail": type(e).__name__}
 
 
 @mcp.tool()
@@ -2955,7 +2955,7 @@ def check_cassandra(host: str, port: int = 9042, timeout: int = 5) -> dict:
     except ConnectionRefusedError:
         return {"result": {"host": host, "port": port, "reachable": False, "error": "connection refused"}}
     except Exception as e:
-        return {"error": str(e), "tool": "check_cassandra", "host": host, "detail": type(e).__name__}
+        return {"error": str(e), "tool": "check_cassandra", "host": host, "port": port, "detail": type(e).__name__}
 
 
 @mcp.tool()
@@ -2979,7 +2979,7 @@ def check_clickhouse(host: str, port: int = 8123, timeout: int = 5, https: bool 
     except urllib.error.URLError as e:
         return {"result": {"host": host, "port": port, "reachable": False, "error": str(e.reason)}}
     except Exception as e:
-        return {"error": str(e), "tool": "check_clickhouse", "host": host, "detail": type(e).__name__}
+        return {"error": str(e), "tool": "check_clickhouse", "host": host, "port": port, "detail": type(e).__name__}
 
 
 @mcp.tool()
@@ -3009,7 +3009,7 @@ def check_neo4j(host: str, port: int = 7474, timeout: int = 5, https: bool = Fal
     except urllib.error.URLError as e:
         return {"result": {"host": host, "port": port, "reachable": False, "error": str(e.reason)}}
     except Exception as e:
-        return {"error": str(e), "tool": "check_neo4j", "host": host, "detail": type(e).__name__}
+        return {"error": str(e), "tool": "check_neo4j", "host": host, "port": port, "detail": type(e).__name__}
 
 
 @mcp.tool()
@@ -3224,7 +3224,7 @@ def check_opensearch(host: str, port: int = 9200, timeout: int = 5, https: bool 
     except urllib.error.URLError as e:
         return {"result": {"host": host, "port": port, "reachable": False, "error": str(e.reason)}}
     except Exception as e:
-        return {"error": str(e), "tool": "check_opensearch", "host": host, "detail": type(e).__name__}
+        return {"error": str(e), "tool": "check_opensearch", "host": host, "port": port, "detail": type(e).__name__}
 
 
 @mcp.tool()
