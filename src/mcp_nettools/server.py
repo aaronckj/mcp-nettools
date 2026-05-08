@@ -697,6 +697,7 @@ def ftp_check(host: str, port: int = 21, timeout: int = 10) -> dict:
     import ftplib
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "ftp_check"}
+    host = host.strip()
     if not 1 <= port <= 65535:
         return {"error": f"Invalid port {port}: must be 1-65535", "tool": "ftp_check"}
     timeout = min(max(1, timeout), 30)
@@ -835,6 +836,7 @@ def imap_check(host: str, port: int = 143, timeout: int = 10) -> dict:
     import imaplib
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "imap_check"}
+    host = host.strip()
     if not 1 <= port <= 65535:
         return {"error": f"Invalid port {port}: must be 1-65535", "tool": "imap_check"}
     timeout = min(max(1, timeout), 30)
@@ -950,6 +952,7 @@ def pop3_check(host: str, port: int = 110, timeout: int = 10) -> dict:
     import poplib
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "pop3_check"}
+    host = host.strip()
     if not 1 <= port <= 65535:
         return {"error": f"Invalid port {port}: must be 1-65535", "tool": "pop3_check"}
     timeout = min(max(1, timeout), 30)
@@ -1047,6 +1050,7 @@ def mysql_check(host: str, port: int = 3306, timeout: int = 5) -> dict:
     """Connect to a MySQL/MariaDB server and read the server greeting to extract the server version. Does not authenticate. Useful for verifying database server reachability and version."""
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "mysql_check"}
+    host = host.strip()
     if not 1 <= port <= 65535:
         return {"error": f"Invalid port {port}: must be 1-65535", "tool": "mysql_check"}
     timeout = min(max(1, timeout), 30)
@@ -1085,6 +1089,7 @@ def redis_check(host: str, port: int = 6379, timeout: int = 5) -> dict:
     """Connect to a Redis server, send PING, and verify the +PONG response. Returns whether the server is up and responsive."""
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "redis_check"}
+    host = host.strip()
     if not 1 <= port <= 65535:
         return {"error": f"Invalid port {port}: must be 1-65535", "tool": "redis_check"}
     timeout = min(max(1, timeout), 30)
@@ -1118,6 +1123,7 @@ def ldap_check(host: str, port: int = 389, timeout: int = 5, use_tls: bool = Fal
     """Connect to an LDAP server and verify it responds with a valid LDAP response to a root DSE query. port: 389 (plain) or 636 (LDAPS). use_tls: wrap the connection in TLS (for LDAPS or STARTTLS). Returns whether the server is reachable and responding."""
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "ldap_check"}
+    host = host.strip()
     if not 1 <= port <= 65535:
         return {"error": f"Invalid port {port}: must be 1-65535", "tool": "ldap_check"}
     timeout = min(max(1, timeout), 30)
@@ -1127,13 +1133,13 @@ def ldap_check(host: str, port: int = 389, timeout: int = 5, use_tls: bool = Fal
     ])
     try:
         start = time.monotonic()
-        with socket.create_connection((host.strip(), port), timeout=timeout) as raw_sock:
+        with socket.create_connection((host, port), timeout=timeout) as raw_sock:
             raw_sock.settimeout(timeout)
             if use_tls:
                 ctx = ssl.create_default_context()
                 ctx.check_hostname = False
                 ctx.verify_mode = ssl.CERT_NONE
-                sock: socket.socket = ctx.wrap_socket(raw_sock, server_hostname=host.strip())
+                sock: socket.socket = ctx.wrap_socket(raw_sock, server_hostname=host)
             else:
                 sock = raw_sock
             sock.sendall(_LDAP_BIND_REQUEST)
@@ -1165,6 +1171,7 @@ def snmp_check(host: str, port: int = 161, timeout: int = 3, community: str = "p
     """Send an SNMPv2c GetRequest for sysDescr (OID 1.3.6.1.2.1.1.1.0) over UDP and verify the response. community: SNMP community string (default 'public'). Returns whether SNMP is reachable and the raw response bytes length."""
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "snmp_check"}
+    host = host.strip()
     if not 1 <= port <= 65535:
         return {"error": f"Invalid port {port}: must be 1-65535", "tool": "snmp_check"}
     timeout = min(max(1, timeout), 30)
@@ -1177,7 +1184,7 @@ def snmp_check(host: str, port: int = 161, timeout: int = 3, community: str = "p
         start = time.monotonic()
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         sock.settimeout(timeout)
-        sock.sendto(msg, (host.strip(), port))
+        sock.sendto(msg, (host, port))
         data, _ = sock.recvfrom(4096)
         sock.close()
         elapsed_ms = round((time.monotonic() - start) * 1000, 2)
