@@ -3347,6 +3347,95 @@ def check_portainer(host: str, port: int = 9443, timeout: int = 5, https: bool =
     return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy, "version": version}}
 
 
+@mcp.tool()
+def check_homeassistant(host: str, port: int = 8123, timeout: int = 5, https: bool = False, token: str = "") -> dict:
+    """Check Home Assistant health via GET /api/. Returns running state and version. token: optional long-lived access token for authenticated response (otherwise returns 401 which still confirms HA is running)."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_homeassistant"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    reachable = False
+    version: str | None = None
+    headers: dict = {"Accept": "application/json"}
+    if token:
+        headers["Authorization"] = f"Bearer {token.strip()}"
+    try:
+        req = urllib.request.Request(f"{scheme}://{host}:{port}/api/", headers=headers)
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            reachable = resp.status == 200
+            data = json.loads(resp.read().decode())
+            version = data.get("version")
+    except urllib.error.HTTPError as e:
+        reachable = e.code in (401, 403)
+    except Exception:
+        pass
+    return {"result": {"host": host, "port": port, "reachable": reachable, "version": version}}
+
+
+@mcp.tool()
+def check_authentik(host: str, port: int = 9000, timeout: int = 5, https: bool = False) -> dict:
+    """Check Authentik identity provider health via GET /-/health/live/ and /-/health/ready/. Returns live and ready states."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_authentik"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    live = False
+    ready = False
+    for endpoint, key in [("/-/health/live/", "live"), ("/-/health/ready/", "ready")]:
+        try:
+            req = urllib.request.Request(f"{scheme}://{host}:{port}{endpoint}")
+            with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+                if key == "live":
+                    live = resp.status == 200
+                else:
+                    ready = resp.status == 200
+        except Exception:
+            pass
+    return {"result": {"host": host, "port": port, "reachable": live, "live": live, "ready": ready}}
+
+
+@mcp.tool()
+def check_adguard(host: str, port: int = 3000, timeout: int = 5, https: bool = False, username: str = "", password: str = "") -> dict:
+    """Check AdGuard Home DNS filter health via GET /control/status. Returns running state and version. username/password: optional Basic auth credentials."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_adguard"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    healthy = False
+    version: str | None = None
+    try:
+        req = urllib.request.Request(
+            f"{scheme}://{host}:{port}/control/status",
+            headers={"Accept": "application/json"},
+        )
+        if username and password:
+            import base64
+            creds = base64.b64encode(f"{username}:{password}".encode()).decode()
+            req.add_header("Authorization", f"Basic {creds}")
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            healthy = resp.status == 200
+            data = json.loads(resp.read().decode())
+            version = data.get("version")
+    except Exception:
+        pass
+    return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy, "version": version}}
+
+
 def main() -> None:
     mcp.run()
 
