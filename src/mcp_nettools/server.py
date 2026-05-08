@@ -4909,6 +4909,8 @@ def check_netdata(host: str, port: int = 19999, timeout: int = 5, https: bool = 
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_netdata"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_netdata"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -4937,6 +4939,8 @@ def check_cockpit(host: str, port: int = 9090, timeout: int = 5, https: bool = F
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_cockpit"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_cockpit"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -4964,6 +4968,8 @@ def check_changedetection(host: str, port: int = 5000, timeout: int = 5, https: 
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_changedetection"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_changedetection"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -4994,6 +5000,8 @@ def check_flaresolverr(host: str, port: int = 8191, timeout: int = 5, https: boo
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_flaresolverr"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_flaresolverr"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -5024,6 +5032,8 @@ def check_penpot(host: str, port: int = 9001, timeout: int = 5, https: bool = Fa
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_penpot"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_penpot"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -5048,6 +5058,8 @@ def check_joplin_server(host: str, port: int = 22300, timeout: int = 5, https: b
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_joplin_server"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_joplin_server"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -5077,6 +5089,8 @@ def check_nocodb(host: str, port: int = 8080, timeout: int = 5, https: bool = Fa
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_nocodb"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_nocodb"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -5106,6 +5120,8 @@ def check_hoppscotch(host: str, port: int = 3170, timeout: int = 5, https: bool 
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_hoppscotch"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_hoppscotch"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -5133,6 +5149,8 @@ def check_n8n(host: str, port: int = 5678, timeout: int = 5, https: bool = False
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_n8n"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_n8n"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -5158,6 +5176,8 @@ def check_directus(host: str, port: int = 8055, timeout: int = 5, https: bool = 
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_directus"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_directus"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
