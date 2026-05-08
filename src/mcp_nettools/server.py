@@ -4623,6 +4623,8 @@ def check_readarr(host: str, port: int = 8787, timeout: int = 5, https: bool = F
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_readarr"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_readarr"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -4653,6 +4655,8 @@ def check_bazarr(host: str, port: int = 6767, timeout: int = 5, https: bool = Fa
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_bazarr"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_bazarr"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -4683,6 +4687,8 @@ def check_audiobookshelf(host: str, port: int = 13378, timeout: int = 5, https: 
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_audiobookshelf"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_audiobookshelf"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -4711,6 +4717,8 @@ def check_kavita(host: str, port: int = 5000, timeout: int = 5, https: bool = Fa
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_kavita"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_kavita"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -4733,6 +4741,8 @@ def check_transmission(host: str, port: int = 9091, timeout: int = 5, https: boo
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_transmission"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_transmission"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -4757,6 +4767,8 @@ def check_jellyseerr(host: str, port: int = 5055, timeout: int = 5, https: bool 
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_jellyseerr"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_jellyseerr"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -4785,6 +4797,8 @@ def check_sabnzbd(host: str, port: int = 8080, timeout: int = 5, https: bool = F
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_sabnzbd"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_sabnzbd"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -4813,6 +4827,8 @@ def check_nzbget(host: str, port: int = 6789, timeout: int = 5, https: bool = Fa
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_nzbget"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_nzbget"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -4837,6 +4853,8 @@ def check_calibre_web(host: str, port: int = 8083, timeout: int = 5, https: bool
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_calibre_web"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_calibre_web"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -4861,6 +4879,8 @@ def check_glances(host: str, port: int = 61208, timeout: int = 5, https: bool = 
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_glances"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_glances"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
