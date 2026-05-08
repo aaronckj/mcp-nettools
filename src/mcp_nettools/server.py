@@ -104,12 +104,16 @@ def reverse_dns(ip: str) -> dict:
     if not ip or not ip.strip():
         return {"error": "ip must not be empty", "tool": "reverse_dns"}
     try:
-        hostname, _, _ = socket.gethostbyaddr(ip)
-        return {"result": {"ip": ip, "hostname": hostname}}
+        ipaddress.ip_address(ip.strip())
+    except ValueError:
+        return {"error": f"Invalid IP address: '{ip}'. reverse_dns requires an IP, not a hostname. Use dns_lookup for forward lookups.", "tool": "reverse_dns"}
+    try:
+        hostname, _, _ = socket.gethostbyaddr(ip.strip())
+        return {"result": {"ip": ip.strip(), "hostname": hostname}}
     except socket.herror as e:
-        return {"error": str(e), "tool": "reverse_dns", "ip": ip}
+        return {"error": str(e), "tool": "reverse_dns", "ip": ip.strip()}
     except Exception as e:
-        return {"error": str(e), "tool": "reverse_dns", "ip": ip}
+        return {"error": str(e), "tool": "reverse_dns", "ip": ip.strip()}
 
 
 
@@ -199,7 +203,7 @@ def traceroute(host: str, max_hops: int = 30, timeout: int = 60) -> dict:
     timeout = min(max(1, timeout), 300)
     try:
         result = subprocess.run(
-            ["traceroute", "-m", str(max_hops), host],
+            ["traceroute", "-m", str(max_hops), "-w", "2", host],
             capture_output=True,
             text=True,
             timeout=timeout,
