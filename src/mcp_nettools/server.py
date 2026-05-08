@@ -6553,6 +6553,8 @@ def check_netbird(host: str, port: int = 8080, timeout: int = 5, https: bool = F
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_netbird"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_netbird"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -6577,6 +6579,8 @@ def check_linkding(host: str, port: int = 9090, timeout: int = 5, https: bool = 
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_linkding"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_linkding"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -6600,6 +6604,8 @@ def check_docmost(host: str, port: int = 3000, timeout: int = 5, https: bool = F
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_docmost"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_docmost"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -6624,6 +6630,8 @@ def check_docuseal(host: str, port: int = 3000, timeout: int = 5, https: bool = 
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_docuseal"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_docuseal"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -6648,6 +6656,8 @@ def check_grist(host: str, port: int = 8484, timeout: int = 5, https: bool = Fal
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_grist"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_grist"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -6672,6 +6682,8 @@ def check_baikal(host: str, port: int = 80, timeout: int = 5, https: bool = Fals
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_baikal"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_baikal"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -6696,6 +6708,8 @@ def check_firefly_iii(host: str, port: int = 8080, timeout: int = 5, https: bool
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_firefly_iii"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_firefly_iii"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -6720,6 +6734,8 @@ def check_listmonk(host: str, port: int = 9000, timeout: int = 5, https: bool = 
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_listmonk"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_listmonk"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -6744,6 +6760,8 @@ def check_healthchecks(host: str, port: int = 8000, timeout: int = 5, https: boo
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_healthchecks"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_healthchecks"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -6768,6 +6786,8 @@ def check_shiori(host: str, port: int = 8080, timeout: int = 5, https: bool = Fa
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_shiori"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_shiori"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
