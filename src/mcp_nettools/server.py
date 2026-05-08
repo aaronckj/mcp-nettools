@@ -14,6 +14,7 @@ import struct
 import subprocess
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from datetime import datetime, timezone
 
@@ -764,19 +765,15 @@ def ftp_check(host: str, port: int = 21, timeout: int = 10) -> dict:
         return {"error": f"Invalid port {port}: must be 1-65535", "tool": "ftp_check"}
     timeout = min(max(1, timeout), 30)
     try:
-        ftp = ftplib.FTP()
-        ftp.connect(host, port, timeout)
-        welcome = ftp.getwelcome()
-        anon_ok = False
-        try:
-            ftp.login()
-            anon_ok = True
-        except ftplib.all_errors:
-            pass
-        try:
-            ftp.quit()
-        except Exception:
-            pass
+        with ftplib.FTP() as ftp:
+            ftp.connect(host, port, timeout)
+            welcome = ftp.getwelcome()
+            anon_ok = False
+            try:
+                ftp.login()
+                anon_ok = True
+            except ftplib.all_errors:
+                pass
         return {
             "result": {
                 "host": host,
@@ -994,8 +991,7 @@ def http_redirect_chain(url: str, max_redirects: int = 10, timeout: int = 10) ->
                 if not location or e.code not in {301, 302, 303, 307, 308}:
                     break
                 if not location.startswith("http"):
-                    from urllib.parse import urljoin
-                    location = urljoin(current, location)
+                    location = urllib.parse.urljoin(current, location)
                 current = location
         except Exception as e:
             chain.append({"hop": hop, "url": current, "error": str(e), "final": True})
