@@ -37,10 +37,22 @@ def test_ping_timeout_error():
     assert result["host"] == "192.0.2.1"
 
 
+def _make_mock_resolver(records=None, error=None):
+    mock_resolver = MagicMock()
+    if error is not None:
+        mock_resolver.resolve.side_effect = error
+    else:
+        mock_answers = MagicMock()
+        mock_answers.rrset = None
+        mock_answers.__iter__ = MagicMock(return_value=iter(records or []))
+        mock_resolver.resolve.return_value = mock_answers
+    return mock_resolver
+
+
 def test_dns_lookup_a_record():
     mock_record = MagicMock()
     mock_record.__str__ = lambda self: "8.8.8.8"
-    with patch("dns.resolver.resolve", return_value=[mock_record]):
+    with patch("dns.resolver.Resolver", return_value=_make_mock_resolver(records=[mock_record])):
         result = dns_lookup("google.com")
     assert result["result"]["host"] == "google.com"
     assert result["result"]["record_type"] == "A"
@@ -50,13 +62,13 @@ def test_dns_lookup_a_record():
 def test_dns_lookup_custom_type():
     mock_record = MagicMock()
     mock_record.__str__ = lambda self: "v=spf1 include:_spf.google.com ~all"
-    with patch("dns.resolver.resolve", return_value=[mock_record]):
+    with patch("dns.resolver.Resolver", return_value=_make_mock_resolver(records=[mock_record])):
         result = dns_lookup("google.com", record_type="TXT")
     assert result["result"]["record_type"] == "TXT"
 
 
 def test_dns_lookup_nxdomain():
-    with patch("dns.resolver.resolve", side_effect=Exception("NXDOMAIN")):
+    with patch("dns.resolver.Resolver", return_value=_make_mock_resolver(error=Exception("NXDOMAIN"))):
         result = dns_lookup("nonexistent.invalid")
     assert "error" in result
     assert result["tool"] == "dns_lookup"
@@ -215,6 +227,8 @@ def test_cert_check_error():
 
 @pytest.mark.asyncio
 async def test_mac_lookup_known_vendor():
+    import mcp_nettools.server as srv
+    srv._mac_lookup_instance = None
     mock_lookup = AsyncMock()
     mock_lookup.load_vendors = AsyncMock()
     mock_lookup.lookup = AsyncMock(return_value="Apple, Inc.")
@@ -226,6 +240,8 @@ async def test_mac_lookup_known_vendor():
 
 @pytest.mark.asyncio
 async def test_mac_lookup_unknown():
+    import mcp_nettools.server as srv
+    srv._mac_lookup_instance = None
     mock_lookup = AsyncMock()
     mock_lookup.load_vendors = AsyncMock()
     mock_lookup.lookup = AsyncMock(side_effect=Exception("Unknown vendor"))
