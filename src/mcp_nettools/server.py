@@ -1296,7 +1296,7 @@ def snmp_check(host: str, port: int = 161, timeout: int = 3, community: str = "p
     if community_len > 120:
         return {"error": f"community string too long ({community_len} bytes); max 120 for BER short-form encoding", "tool": "snmp_check"}
     community_field = bytes([0x04, community_len]) + community_bytes
-    msg_inner = bytes([0x02, 0x01, 0x01]) + community_field + bytes([0xa0, 0x1c, 0x02, 0x01, 0x01, 0x02, 0x01, 0x00, 0x02, 0x01, 0x00, 0x30, 0x11, 0x30, 0x0f, 0x06, 0x0b, 0x2b, 0x06, 0x01, 0x02, 0x01, 0x01, 0x01, 0x00, 0x00, 0x05, 0x00])
+    msg_inner = bytes([0x02, 0x01, 0x01]) + community_field + bytes([0xa0, 0x19, 0x02, 0x01, 0x01, 0x02, 0x01, 0x00, 0x02, 0x01, 0x00, 0x30, 0x0e, 0x30, 0x0c, 0x06, 0x08, 0x2b, 0x06, 0x01, 0x02, 0x01, 0x01, 0x01, 0x00, 0x05, 0x00])
     msg = bytes([0x30, len(msg_inner)]) + msg_inner
     try:
         addrinfos = socket.getaddrinfo(host, port, socket.AF_UNSPEC, socket.SOCK_DGRAM)
@@ -1826,6 +1826,7 @@ def check_vnc(host: str, port: int = 5900, timeout: int = 5) -> dict:
             banner = banner_raw.decode("utf-8", errors="replace").rstrip("\n")
             security_types = []
             if banner.startswith("RFB "):
+                sock.sendall(banner_raw)  # RFB protocol requires client to echo version
                 # Read security type list (RFB 3.7+): 1 byte count, then count bytes
                 try:
                     count_byte = sock.recv(1)
@@ -2656,7 +2657,7 @@ def check_smb(host: str, port: int = 445, timeout: int = 5) -> dict:
                 b"\x00" * 16,  # Signature
             )
             negotiate_body = struct.pack(
-                "<HHHHiQHH",
+                "<HHHHiQHHH",
                 36,            # StructureSize
                 2,             # DialectCount
                 1,             # SecurityMode
