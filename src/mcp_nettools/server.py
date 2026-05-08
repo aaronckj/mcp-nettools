@@ -2946,6 +2946,9 @@ def http_put(url: str, body: str = "", content_type: str = "application/json", t
     if not url or not url.strip():
         return {"error": "url must not be empty", "tool": "http_put"}
     url = url.strip()
+    if not url.startswith(("http://", "https://")):
+        return {"error": "url must start with http:// or https://", "tool": "http_put", "url": url}
+    timeout = min(max(1, timeout), 60)
     extra_headers: dict[str, str] = {}
     if headers and headers.strip():
         for raw in re.split(r"[;\n]", headers):
@@ -2974,7 +2977,7 @@ def http_put(url: str, body: str = "", content_type: str = "application/json", t
         err_body = e.read().decode("utf-8", errors="replace")
         return {"error": str(e), "tool": "http_put", "detail": type(e).__name__, "status": e.code, "body": err_body[:500]}
     except Exception as e:
-        return {"error": str(e), "tool": "http_put", "detail": type(e).__name__}
+        return {"error": str(e), "tool": "http_put", "url": url, "detail": type(e).__name__}
 
 
 @mcp.tool()
@@ -2983,6 +2986,9 @@ def http_delete(url: str, body: str = "", content_type: str = "application/json"
     if not url or not url.strip():
         return {"error": "url must not be empty", "tool": "http_delete"}
     url = url.strip()
+    if not url.startswith(("http://", "https://")):
+        return {"error": "url must start with http:// or https://", "tool": "http_delete", "url": url}
+    timeout = min(max(1, timeout), 60)
     extra_headers: dict[str, str] = {}
     if headers and headers.strip():
         for raw in re.split(r"[;\n]", headers):
@@ -3012,7 +3018,7 @@ def http_delete(url: str, body: str = "", content_type: str = "application/json"
         err_body = e.read().decode("utf-8", errors="replace")
         return {"error": str(e), "tool": "http_delete", "detail": type(e).__name__, "status": e.code, "body": err_body[:500]}
     except Exception as e:
-        return {"error": str(e), "tool": "http_delete", "detail": type(e).__name__}
+        return {"error": str(e), "tool": "http_delete", "url": url, "detail": type(e).__name__}
 
 
 @mcp.tool()
