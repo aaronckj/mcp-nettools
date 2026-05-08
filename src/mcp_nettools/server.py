@@ -999,7 +999,7 @@ def check_rdp(host: str, port: int = 3389, timeout: int = 10) -> dict:
                 pass
         elapsed_ms = round((time.monotonic() - start) * 1000, 2)
         # Valid TPKT+X.224 Connection Confirm: 0x03 0x00 (TPKT v3), then CC TPDU = 0xd0
-        is_rdp = len(data) >= 6 and data[0] == 0x03 and data[1] == 0x00 and data[4] == 0xd0
+        is_rdp = len(data) >= 6 and data[0] == 0x03 and data[1] == 0x00 and data[5] == 0xd0
         return {
             "result": {
                 "host": host,
@@ -1042,7 +1042,7 @@ def imap_check(host: str, port: int = 143, timeout: int = 10) -> dict:
             caps = list(imap.capabilities) if imap.capabilities else []
 
             starttls = False
-            if not tls and b"STARTTLS" in imap.capabilities:
+            if not tls and b"STARTTLS" in (imap.capabilities or ()):
                 try:
                     imap.starttls()
                     starttls = True
@@ -2629,7 +2629,7 @@ def check_smb(host: str, port: int = 445, timeout: int = 5) -> dict:
             sock.settimeout(timeout)
             # Minimal SMB2 Negotiate request (RFC 8581): 4-byte NetBIOS header + SMB2 header + Negotiate body
             smb2_header = struct.pack(
-                "<4sHHIHHIQIIQ16s",
+                "<4sHHIHHIIQIIQ16s",
                 b"\xfeSMB",   # ProtocolId
                 64,            # StructureSize
                 0,             # CreditCharge
@@ -2637,8 +2637,8 @@ def check_smb(host: str, port: int = 445, timeout: int = 5) -> dict:
                 0,             # Command: Negotiate
                 0x1F,          # CreditResponse
                 0,             # Flags
-                0,             # NextCommand
-                0,             # MessageId
+                0,             # NextCommand (4 bytes per SMB2 spec)
+                0,             # MessageId (8 bytes)
                 0,             # Reserved
                 0xFFFFFFFF,    # TreeId
                 0,             # SessionId
