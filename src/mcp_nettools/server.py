@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ipaddress
 import re
 import socket
 import ssl
@@ -19,11 +20,13 @@ mcp = FastMCP("nettools")
 _VALID_RECORD_TYPES = {"A", "AAAA", "MX", "TXT", "NS", "CNAME", "PTR", "SOA", "SRV"}
 _mac_lookup_instance: AsyncMacLookup | None = None
 _MAC_RE = re.compile(r"^([0-9a-fA-F]{2}[:\-]){5}[0-9a-fA-F]{2}$")
+_PING_LOSS_RE = re.compile(r"(\d+(?:\.\d+)?)%\s+packet loss")
+_PING_RTT_RE = re.compile(r"(?:rtt|round-trip)[^\d]*([\d.]+)/([\d.]+)/([\d.]+)/([\d.]+)")
 
 
 @mcp.tool()
 def ping(host: str, count: int = 4, timeout: int = 5) -> dict:
-    """Ping a host and return reachability and round-trip times. count: 1-30. timeout: 1-60 s per packet."""
+    """Ping a host and return reachability, packet loss %, and RTT stats. count: 1-30. timeout: 1-60 s per packet."""
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "ping"}
     count = min(max(1, count), 30)
@@ -35,11 +38,20 @@ def ping(host: str, count: int = 4, timeout: int = 5) -> dict:
             text=True,
             timeout=timeout * count + 5,
         )
-        return {
+        out: dict = {
             "host": host,
             "reachable": result.returncode == 0,
             "output": result.stdout,
         }
+        loss_m = _PING_LOSS_RE.search(result.stdout)
+        if loss_m:
+            out["packet_loss_pct"] = float(loss_m.group(1))
+        rtt_m = _PING_RTT_RE.search(result.stdout)
+        if rtt_m:
+            out["rtt_min_ms"] = float(rtt_m.group(1))
+            out["rtt_avg_ms"] = float(rtt_m.group(2))
+            out["rtt_max_ms"] = float(rtt_m.group(3))
+        return out
     except Exception as e:
         return {"error": str(e), "tool": "ping", "host": host}
 
@@ -158,6 +170,10 @@ def wake_on_lan(mac: str, broadcast: str = "255.255.255.255") -> dict:
             "error": f"Invalid MAC address '{mac}'. Expected XX:XX:XX:XX:XX:XX or XX-XX-XX-XX-XX-XX",
             "tool": "wake_on_lan",
         }
+    try:
+        ipaddress.IPv4Address(broadcast)
+    except ValueError:
+        return {"error": f"Invalid broadcast address '{broadcast}': must be a valid IPv4 address", "tool": "wake_on_lan"}
     try:
         send_magic_packet(mac, ip_address=broadcast)
         return {"mac": mac, "broadcast": broadcast, "sent": True}
