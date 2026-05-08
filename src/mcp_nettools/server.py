@@ -13,8 +13,8 @@ import urllib.error
 import urllib.request
 from datetime import datetime, timezone
 
+import concurrent.futures
 import hashlib
-
 import smtplib
 import struct
 
@@ -111,6 +111,16 @@ def reverse_dns(ip: str) -> dict:
         return {"error": str(e), "tool": "reverse_dns", "ip": ip}
 
 
+
+def _probe_port(host: str, port: int, timeout: float) -> bool:
+    """Return True if TCP port is open."""
+    try:
+        with socket.create_connection((host, port), timeout=timeout):
+            return True
+    except (socket.timeout, ConnectionRefusedError, OSError):
+        return False
+
+
 @mcp.tool()
 def port_check(host: str, port: int, timeout: int = 5) -> dict:
     """Check if a TCP port is open on a host. port: 1-65535. timeout: 1-300 s. Supports IPv4 and IPv6."""
@@ -160,13 +170,13 @@ def port_scan(host: str, ports: str, timeout: int = 3) -> dict:
         return {"error": f"Ports out of range 1-65535: {out_of_range[:5]}", "tool": "port_scan"}
     if len(port_list) > 100:
         return {"error": f"Too many ports ({len(port_list)}). Maximum 100 per call.", "tool": "port_scan"}
-    results: dict[int, str] = {}
-    for port in port_list:
-        try:
-            with socket.create_connection((host, port), timeout=timeout):
-                results[port] = "open"
-        except (socket.timeout, ConnectionRefusedError, OSError):
-            results[port] = "closed"
+    workers = min(len(port_list), 50)
+    with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as pool:
+        future_to_port = {pool.submit(_probe_port, host, p, timeout): p for p in port_list}
+        results = {
+            future_to_port[f]: "open" if f.result() else "closed"
+            for f in concurrent.futures.as_completed(future_to_port)
+        }
     open_ports = sorted(p for p, state in results.items() if state == "open")
     return {
         "result": {
@@ -679,12 +689,13 @@ def scan_common_ports(host: str, timeout: int = 2) -> dict:
     timeout = min(max(1, timeout), 10)
     open_ports = []
     closed_ports = []
-    for port, service in sorted(_COMMON_PORTS.items()):
-        try:
-            with socket.create_connection((host, port), timeout=timeout):
-                open_ports.append({"port": port, "service": service})
-        except (ConnectionRefusedError, socket.timeout, OSError):
-            closed_ports.append({"port": port, "service": service})
+    with concurrent.futures.ThreadPoolExecutor(max_workers=len(_COMMON_PORTS)) as pool:
+        future_to_info = {pool.submit(_probe_port, host, p, timeout): (p, s) for p, s in _COMMON_PORTS.items()}
+        for f in concurrent.futures.as_completed(future_to_info):
+            port, service = future_to_info[f]
+            (open_ports if f.result() else closed_ports).append({"port": port, "service": service})
+    open_ports.sort(key=lambda x: x["port"])
+    closed_ports.sort(key=lambda x: x["port"])
     return {
         "result": {
             "host": host,
@@ -930,6 +941,77 @@ def check_security_headers(url: str, timeout: int = 10) -> dict:
             "score": f"{len(present)}/{len(_SECURITY_HEADERS)}",
         }
     }
+
+
+
+@mcp.tool()
+def mysql_check(host: str, port: int = 3306, timeout: int = 5) -> dict:
+    """Connect to a MySQL/MariaDB server and read the server greeting to extract the server version. Does not authenticate. Useful for verifying database server reachability and version."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "mysql_check"}
+    timeout = min(max(1, timeout), 30)
+    try:
+        start = time.monotonic()
+        with socket.create_connection((host, port), timeout=timeout) as sock:
+            sock.settimeout(timeout)
+            data = sock.recv(1024)
+        elapsed_ms = round((time.monotonic() - start) * 1000, 2)
+        # MySQL protocol: 4-byte packet length + 1-byte sequence, then protocol version byte,
+        # then null-terminated server version string starting at byte 5.
+        version = ""
+        if len(data) > 5 and data[4] in (9, 10):
+            null_pos = data.find(b" ", 5)
+            if null_pos > 5:
+                version = data[5:null_pos].decode("ascii", errors="replace")
+        return {
+            "result": {
+                "host": host,
+                "port": port,
+                "reachable": True,
+                "server_version": version,
+                "elapsed_ms": elapsed_ms,
+            }
+        }
+    except ConnectionRefusedError:
+        return {"result": {"host": host, "port": port, "reachable": False, "reason": "connection refused"}}
+    except socket.timeout:
+        return {"result": {"host": host, "port": port, "reachable": False, "reason": "timeout"}}
+    except Exception as e:
+        return {"error": str(e), "tool": "mysql_check", "host": host, "detail": type(e).__name__}
+
+
+@mcp.tool()
+def redis_check(host: str, port: int = 6379, timeout: int = 5) -> dict:
+    """Connect to a Redis server, send PING, and verify the +PONG response. Returns whether the server is up and responsive."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "redis_check"}
+    timeout = min(max(1, timeout), 30)
+    try:
+        start = time.monotonic()
+        with socket.create_connection((host, port), timeout=timeout) as sock:
+            sock.settimeout(timeout)
+            sock.sendall(b"*1
+$4
+PING
+")
+            response = sock.recv(256).decode("utf-8", errors="replace").strip()
+        elapsed_ms = round((time.monotonic() - start) * 1000, 2)
+        return {
+            "result": {
+                "host": host,
+                "port": port,
+                "reachable": True,
+                "pong": response.startswith("+PONG"),
+                "response": response,
+                "elapsed_ms": elapsed_ms,
+            }
+        }
+    except ConnectionRefusedError:
+        return {"result": {"host": host, "port": port, "reachable": False, "reason": "connection refused"}}
+    except socket.timeout:
+        return {"result": {"host": host, "port": port, "reachable": False, "reason": "timeout"}}
+    except Exception as e:
+        return {"error": str(e), "tool": "redis_check", "host": host, "detail": type(e).__name__}
 
 def main() -> None:
     mcp.run()
