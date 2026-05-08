@@ -47,6 +47,8 @@ def ping(host: str, count: int = 4, timeout: int = 5) -> dict:
 @mcp.tool()
 def dns_lookup(host: str, record_type: str = "A") -> dict:
     """Look up DNS records for a hostname. record_type: A, AAAA, MX, TXT, NS, CNAME, PTR, SOA, SRV."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "dns_lookup"}
     record_type = record_type.upper()
     if record_type not in _VALID_RECORD_TYPES:
         return {
@@ -67,6 +69,20 @@ def dns_lookup(host: str, record_type: str = "A") -> dict:
 
 
 @mcp.tool()
+def reverse_dns(ip: str) -> dict:
+    """Reverse DNS lookup for an IP address — returns the PTR hostname."""
+    if not ip or not ip.strip():
+        return {"error": "ip must not be empty", "tool": "reverse_dns"}
+    try:
+        hostname, _, _ = socket.gethostbyaddr(ip)
+        return {"ip": ip, "hostname": hostname}
+    except socket.herror as e:
+        return {"error": str(e), "tool": "reverse_dns", "ip": ip}
+    except Exception as e:
+        return {"error": str(e), "tool": "reverse_dns", "ip": ip}
+
+
+@mcp.tool()
 def port_check(host: str, port: int, timeout: int = 5) -> dict:
     """Check if a TCP port is open on a host. port: 1-65535. timeout: 1-300 s. Supports IPv4 and IPv6."""
     if not 1 <= port <= 65535:
@@ -84,8 +100,9 @@ def port_check(host: str, port: int, timeout: int = 5) -> dict:
 
 @mcp.tool()
 def traceroute(host: str, max_hops: int = 30, timeout: int = 60) -> dict:
-    """Trace the network path to a host. max_hops: 1-64."""
+    """Trace the network path to a host. max_hops: 1-64. timeout: 1-300 s."""
     max_hops = min(max(1, max_hops), 64)
+    timeout = min(max(1, timeout), 300)
     try:
         result = subprocess.run(
             ["traceroute", "-m", str(max_hops), host],
@@ -105,7 +122,7 @@ def traceroute(host: str, max_hops: int = 30, timeout: int = 60) -> dict:
 
 @mcp.tool()
 def cert_check(host: str, port: int = 443) -> dict:
-    """Check the SSL certificate on a host — expiry, issuer, SANs, and days remaining."""
+    """Check the SSL certificate on a host — expiry, issued date, issuer, SANs, and days remaining."""
     try:
         ctx = ssl.create_default_context()
         with socket.socket() as raw:
@@ -113,9 +130,9 @@ def cert_check(host: str, port: int = 443) -> dict:
             with ctx.wrap_socket(raw, server_hostname=host) as s:
                 s.connect((host, port))
                 cert = s.getpeercert()
-        not_after = datetime.strptime(cert["notAfter"], "%b %d %H:%M:%S %Y %Z").replace(
-            tzinfo=timezone.utc
-        )
+        fmt = "%b %d %H:%M:%S %Y %Z"
+        not_after = datetime.strptime(cert["notAfter"], fmt).replace(tzinfo=timezone.utc)
+        not_before = datetime.strptime(cert["notBefore"], fmt).replace(tzinfo=timezone.utc)
         days_remaining = (not_after - datetime.now(timezone.utc)).days
         sans = [v for _type, v in cert.get("subjectAltName", [])]
         return {
@@ -123,6 +140,7 @@ def cert_check(host: str, port: int = 443) -> dict:
             "port": port,
             "subject": dict(x[0] for x in cert["subject"]),
             "issuer": dict(x[0] for x in cert["issuer"]),
+            "not_before": cert["notBefore"],
             "expires": cert["notAfter"],
             "days_remaining": days_remaining,
             "valid": days_remaining > 0,
