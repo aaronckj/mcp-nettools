@@ -2914,6 +2914,8 @@ def check_couchdb(host: str, port: int = 5984, timeout: int = 5, https: bool = F
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_couchdb"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_couchdb"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -2945,6 +2947,8 @@ def check_cassandra(host: str, port: int = 9042, timeout: int = 5) -> dict:
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_cassandra"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_cassandra"}
     try:
         sock = socket.create_connection((host, port), timeout=timeout)
         sock.settimeout(timeout)
@@ -2972,6 +2976,8 @@ def check_clickhouse(host: str, port: int = 8123, timeout: int = 5, https: bool 
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_clickhouse"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_clickhouse"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -2996,6 +3002,8 @@ def check_neo4j(host: str, port: int = 7474, timeout: int = 5, https: bool = Fal
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_neo4j"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_neo4j"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -3056,6 +3064,8 @@ def check_traefik(host: str, port: int = 8080, timeout: int = 5, https: bool = F
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_traefik"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_traefik"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -3207,6 +3217,8 @@ def check_opensearch(host: str, port: int = 9200, timeout: int = 5, https: bool 
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_opensearch"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_opensearch"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -3241,6 +3253,8 @@ def check_loki(host: str, port: int = 3100, timeout: int = 5, https: bool = Fals
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_loki"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_loki"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -3271,6 +3285,8 @@ def check_alertmanager(host: str, port: int = 9093, timeout: int = 5, https: boo
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_alertmanager"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_alertmanager"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
