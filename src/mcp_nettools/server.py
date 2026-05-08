@@ -6243,6 +6243,8 @@ def check_dashdot(host: str, port: int = 3001, timeout: int = 5, https: bool = F
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_dashdot"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_dashdot"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -6278,6 +6280,8 @@ def check_victoriametrics(host: str, port: int = 8428, timeout: int = 5, https: 
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_victoriametrics"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_victoriametrics"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -6312,6 +6316,8 @@ def check_zipkin(host: str, port: int = 9411, timeout: int = 5, https: bool = Fa
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_zipkin"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_zipkin"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -6349,6 +6355,8 @@ def check_komga(host: str, port: int = 25600, timeout: int = 5, https: bool = Fa
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_komga"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_komga"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -6384,6 +6392,8 @@ def check_tubearchivist(host: str, port: int = 8000, timeout: int = 5, https: bo
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_tubearchivist"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_tubearchivist"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -6413,6 +6423,8 @@ def check_mylar3(host: str, port: int = 8090, timeout: int = 5, https: bool = Fa
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_mylar3"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_mylar3"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -6438,6 +6450,8 @@ def check_karakeep(host: str, port: int = 3000, timeout: int = 5, https: bool = 
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_karakeep"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_karakeep"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -6462,6 +6476,8 @@ def check_maybe(host: str, port: int = 3000, timeout: int = 5, https: bool = Fal
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_maybe"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_maybe"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -6486,6 +6502,8 @@ def check_headscale(host: str, port: int = 8080, timeout: int = 5, https: bool =
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_headscale"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_headscale"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -6509,6 +6527,8 @@ def check_gitness(host: str, port: int = 3000, timeout: int = 5, https: bool = F
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_gitness"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_gitness"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
