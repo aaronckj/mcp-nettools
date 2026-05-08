@@ -6812,6 +6812,8 @@ def check_openproject(host: str, port: int = 80, timeout: int = 5, https: bool =
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_openproject"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_openproject"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -6836,6 +6838,8 @@ def check_dozzle(host: str, port: int = 8080, timeout: int = 5, https: bool = Fa
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_dozzle"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_dozzle"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -6859,6 +6863,8 @@ def check_scrutiny(host: str, port: int = 8080, timeout: int = 5, https: bool = 
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_scrutiny"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_scrutiny"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -6883,6 +6889,8 @@ def check_radicale(host: str, port: int = 5232, timeout: int = 5, https: bool = 
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_radicale"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_radicale"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -6907,6 +6915,8 @@ def check_archivebox(host: str, port: int = 8000, timeout: int = 5, https: bool 
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_archivebox"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_archivebox"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -6931,6 +6941,8 @@ def check_leantime(host: str, port: int = 80, timeout: int = 5, https: bool = Fa
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_leantime"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_leantime"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -6955,6 +6967,8 @@ def check_authelia(host: str, port: int = 9091, timeout: int = 5, https: bool = 
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_authelia"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_authelia"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -6979,6 +6993,8 @@ def check_whoogle(host: str, port: int = 5000, timeout: int = 5, https: bool = F
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_whoogle"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_whoogle"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -7003,6 +7019,8 @@ def check_emby(host: str, port: int = 8096, timeout: int = 5, https: bool = Fals
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_emby"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_emby"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -7027,6 +7045,8 @@ def check_jackett(host: str, port: int = 9117, timeout: int = 5, https: bool = F
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_jackett"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_jackett"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
