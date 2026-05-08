@@ -32,7 +32,6 @@ _MAC_RE = re.compile(r"^([0-9a-fA-F]{2}[:\-]){5}[0-9a-fA-F]{2}$")
 _PING_LOSS_RE = re.compile(r"(\d+(?:\.\d+)?)%\s+packet loss")
 _PING_RTT_RE = re.compile(r"(?:rtt|round-trip)[^\d]*([\d.]+)/([\d.]+)/([\d.]+)/([\d.]+)")
 
-
 @mcp.tool()
 def ping(host: str, count: int = 4, timeout: int = 5) -> dict:
     """Ping a host and return reachability, packet loss %, and RTT stats. count: 1-30. timeout: 1-60 s per packet."""
@@ -66,7 +65,6 @@ def ping(host: str, count: int = 4, timeout: int = 5) -> dict:
         return {"result": out}
     except Exception as e:
         return {"error": str(e), "tool": "ping", "host": host}
-
 
 @mcp.tool()
 def dns_lookup(host: str, record_type: str = "A", nameserver: str = "") -> dict:
@@ -102,7 +100,6 @@ def dns_lookup(host: str, record_type: str = "A", nameserver: str = "") -> dict:
     except Exception as e:
         return {"error": str(e), "tool": "dns_lookup", "host": host}
 
-
 @mcp.tool()
 def reverse_dns(ip: str) -> dict:
     """Reverse DNS lookup for an IP address — returns the PTR hostname."""
@@ -120,8 +117,6 @@ def reverse_dns(ip: str) -> dict:
         return {"error": str(e), "tool": "reverse_dns", "ip": ip}
     except Exception as e:
         return {"error": str(e), "tool": "reverse_dns", "ip": ip}
-
-
 
 @mcp.tool()
 def reverse_dns_bulk(ips: str) -> dict:
@@ -159,7 +154,6 @@ def reverse_dns_bulk(ips: str) -> dict:
     resolved = sum(1 for r in results.values() if "hostname" in r and r["hostname"])
     return {"result": {"resolved": resolved, "total": len(ip_list), "ips": results}}
 
-
 def _probe_port(host: str, port: int, timeout: float) -> bool:
     """Return True if TCP port is open."""
     try:
@@ -167,7 +161,6 @@ def _probe_port(host: str, port: int, timeout: float) -> bool:
             return True
     except (socket.timeout, ConnectionRefusedError, OSError):
         return False
-
 
 @mcp.tool()
 def port_check(host: str, port: int, timeout: int = 5) -> dict:
@@ -186,7 +179,6 @@ def port_check(host: str, port: int, timeout: int = 5) -> dict:
         return {"result": {"host": host, "port": port, "open": False}}
     except OSError as e:
         return {"error": str(e), "tool": "port_check", "host": host, "port": port}
-
 
 @mcp.tool()
 def port_scan(host: str, ports: str, timeout: int = 3, open_only: bool = False) -> dict:
@@ -241,7 +233,6 @@ def port_scan(host: str, ports: str, timeout: int = 3, open_only: bool = False) 
         }
     }
 
-
 @mcp.tool()
 def traceroute(host: str, max_hops: int = 30, timeout: int = 60, wait: int = 2) -> dict:
     """Trace the network path to a host. max_hops: 1-64. timeout: overall timeout in seconds. wait: per-hop probe wait time in seconds (1-10, default 2; increase to 5-10 for high-latency satellite/VPN links)."""
@@ -268,7 +259,6 @@ def traceroute(host: str, max_hops: int = 30, timeout: int = 60, wait: int = 2) 
         }
     except Exception as e:
         return {"error": str(e), "tool": "traceroute", "host": host}
-
 
 @mcp.tool()
 def cert_check(host: str, port: int = 443, timeout: int = 10) -> dict:
@@ -344,7 +334,6 @@ def cert_check(host: str, port: int = 443, timeout: int = 10) -> dict:
     except Exception as e:
         return {"error": str(e), "tool": "cert_check", "host": host}
 
-
 @mcp.tool()
 def http_check(url: str, method: str = "HEAD", timeout: int = 10, expected_status: int = 0, contains: str = "", headers: str = "") -> dict:
     """Check an HTTP/HTTPS URL: status code, response time, content type, and server header. method: HEAD (default, efficient), GET, or OPTIONS. Use GET if HEAD returns 405. expected_status: if non-zero, also checks response matches this code. contains: optional string that must appear in response body (GET only). headers: optional extra request headers as 'Name: Value' pairs separated by newlines or semicolons (e.g. 'Authorization: Bearer token123;X-Custom: value')."""
@@ -416,7 +405,6 @@ def http_check(url: str, method: str = "HEAD", timeout: int = 10, expected_statu
     except Exception as e:
         return {"error": str(e), "tool": "http_check", "url": url, "detail": type(e).__name__}
 
-
 @mcp.tool()
 def subnet_info(cidr: str) -> dict:
     """Parse an IPv4 or IPv6 CIDR block: network address, host range, host count, and whether it is a private range. IPv4 also returns broadcast and netmask."""
@@ -470,7 +458,6 @@ def subnet_info(cidr: str) -> dict:
             }
         }
 
-
 @mcp.tool()
 def geolocation(ip: str) -> dict:
     """Look up geolocation data for a public IP address: country, region, city, ISP, and coordinates. Uses ipinfo.io (no API key required for basic lookups)."""
@@ -494,7 +481,6 @@ def geolocation(ip: str) -> dict:
     except Exception as e:
         return {"error": str(e), "tool": "geolocation", "detail": type(e).__name__}
 
-
 @mcp.tool()
 def get_public_ip() -> dict:
     """Return the public IP address of the machine running this MCP server, plus basic geolocation (country, region, city, ISP). Useful for verifying internet connectivity, checking what IP external services see, and confirming NAT is working as expected."""
@@ -508,7 +494,6 @@ def get_public_ip() -> dict:
         return {"result": data}
     except Exception as e:
         return {"error": str(e), "tool": "get_public_ip", "detail": type(e).__name__}
-
 
 @mcp.tool()
 def arp_table(interface: str = "") -> dict:
@@ -554,7 +539,6 @@ def arp_table(interface: str = "") -> dict:
     except Exception as e:
         return {"error": str(e), "tool": "arp_table", "detail": type(e).__name__}
 
-
 @mcp.tool()
 def wake_on_lan(mac: str, broadcast: str = "255.255.255.255") -> dict:
     """Send a Wake-on-LAN magic packet to a MAC address."""
@@ -578,7 +562,6 @@ def wake_on_lan(mac: str, broadcast: str = "255.255.255.255") -> dict:
     except Exception as e:
         return {"error": str(e), "tool": "wake_on_lan", "mac": mac}
 
-
 @mcp.tool()
 def speedtest() -> dict:
     """Run a network speed test using the nearest server."""
@@ -596,7 +579,6 @@ def speedtest() -> dict:
         }
     except Exception as e:
         return {"error": str(e), "tool": "speedtest"}
-
 
 @mcp.tool()
 def whois(host: str) -> dict:
@@ -627,7 +609,6 @@ def whois(host: str) -> dict:
     except Exception as e:
         return {"error": str(e), "tool": "whois", "host": host}
 
-
 @mcp.tool()
 async def mac_lookup(mac: str) -> dict:
     """Look up the vendor/manufacturer for a MAC address (OUI database)."""
@@ -649,8 +630,6 @@ async def mac_lookup(mac: str) -> dict:
         return {"result": {"mac": mac, "vendor": vendor}}
     except Exception as e:
         return {"error": str(e), "tool": "mac_lookup", "mac": mac}
-
-
 
 @mcp.tool()
 def smtp_check(host: str, port: int = 25, timeout: int = 10, check_starttls: bool = True) -> dict:
@@ -695,7 +674,6 @@ def smtp_check(host: str, port: int = 25, timeout: int = 10, check_starttls: boo
         return {"error": str(e), "tool": "smtp_check", "host": host, "port": port}
     except Exception as e:
         return {"error": str(e), "tool": "smtp_check", "host": host, "port": port, "detail": type(e).__name__}
-
 
 @mcp.tool()
 def check_ldap(host: str, port: int = 389, timeout: int = 5, use_ssl: bool = False) -> dict:
@@ -762,7 +740,6 @@ def check_ldap(host: str, port: int = 389, timeout: int = 5, use_ssl: bool = Fal
     except Exception as e:
         return {"error": str(e), "tool": "check_ldap", "host": host, "port": port, "detail": type(e).__name__}
 
-
 @mcp.tool()
 def ntp_check(host: str, port: int = 123, timeout: int = 5) -> dict:
     """Check an NTP server: reachability and clock offset relative to local system time. Uses NTPv3 client packet over UDP. offset_seconds > 0 means server is ahead of local clock."""
@@ -810,7 +787,6 @@ def ntp_check(host: str, port: int = 123, timeout: int = 5) -> dict:
     except Exception as e:
         return {"error": str(e), "tool": "ntp_check", "host": host, "port": port, "detail": type(e).__name__}
 
-
 @mcp.tool()
 def dns_bulk_lookup(hosts: str, record_type: str = "A", nameserver: str = "") -> dict:
     """Look up DNS records for multiple hostnames in one call. hosts: comma-separated list (e.g., 'google.com,github.com,cloudflare.com'). Max 20 hosts. record_type: A, AAAA, MX, TXT, etc. nameserver: optional custom resolver IP."""
@@ -853,14 +829,12 @@ def dns_bulk_lookup(hosts: str, record_type: str = "A", nameserver: str = "") ->
 
     return {"result": {"record_type": record_type, "nameserver": nameserver.strip() if nameserver and nameserver.strip() else None, "hosts": results}}
 
-
 _COMMON_PORTS: dict[int, str] = {
     21: "ftp", 22: "ssh", 23: "telnet", 25: "smtp", 53: "dns",
     80: "http", 110: "pop3", 143: "imap", 443: "https", 445: "smb",
     993: "imaps", 995: "pop3s", 3306: "mysql", 3389: "rdp",
     5432: "postgresql", 8080: "http-alt", 8443: "https-alt",
 }
-
 
 @mcp.tool()
 def ftp_check(host: str, port: int = 21, timeout: int = 10) -> dict:
@@ -898,7 +872,6 @@ def ftp_check(host: str, port: int = 21, timeout: int = 10) -> dict:
     except Exception as e:
         return {"error": str(e), "tool": "ftp_check", "host": host, "port": port, "detail": type(e).__name__}
 
-
 @mcp.tool()
 def tcp_banner(host: str, port: int, timeout: int = 5) -> dict:
     """Connect to any TCP port and read the initial server banner. Useful for identifying unknown services or verifying custom TCP servers. Returns raw banner text."""
@@ -934,7 +907,6 @@ def tcp_banner(host: str, port: int, timeout: int = 5) -> dict:
     except Exception as e:
         return {"error": str(e), "tool": "tcp_banner", "host": host, "port": port, "detail": type(e).__name__}
 
-
 @mcp.tool()
 def scan_common_ports(host: str, timeout: int = 2) -> dict:
     """Scan 17 commonly used ports on a host and report which are open (FTP, SSH, HTTP, HTTPS, SMTP, DNS, MySQL, PostgreSQL, RDP, SMB, etc.). Faster alternative to running port_check 17 times."""
@@ -959,9 +931,6 @@ def scan_common_ports(host: str, timeout: int = 2) -> dict:
             "open_count": len(open_ports),
         }
     }
-
-
-
 
 @mcp.tool()
 def ssh_check(host: str, port: int = 22, timeout: int = 10) -> dict:
@@ -998,7 +967,6 @@ def ssh_check(host: str, port: int = 22, timeout: int = 10) -> dict:
         return {"result": {"host": host, "port": port, "reachable": False, "reason": "timeout"}}
     except Exception as e:
         return {"error": str(e), "tool": "ssh_check", "host": host, "port": port, "detail": type(e).__name__}
-
 
 @mcp.tool()
 def check_rdp(host: str, port: int = 3389, timeout: int = 10) -> dict:
@@ -1044,7 +1012,6 @@ def check_rdp(host: str, port: int = 3389, timeout: int = 10) -> dict:
         return {"result": {"host": host, "port": port, "reachable": False, "reason": "timeout"}}
     except Exception as e:
         return {"error": str(e), "tool": "check_rdp", "host": host, "port": port, "detail": type(e).__name__}
-
 
 @mcp.tool()
 def imap_check(host: str, port: int = 143, timeout: int = 10) -> dict:
@@ -1104,7 +1071,6 @@ def imap_check(host: str, port: int = 143, timeout: int = 10) -> dict:
     except Exception as e:
         return {"error": str(e), "tool": "imap_check", "host": host, "port": port, "detail": type(e).__name__}
 
-
 @mcp.tool()
 def http_redirect_chain(url: str, max_redirects: int = 10, timeout: int = 10) -> dict:
     """Follow an HTTP/HTTPS URL through all redirects and return every hop with status code and Location header. Useful for debugging redirect loops or verifying HTTPS redirect configuration."""
@@ -1159,8 +1125,6 @@ def http_redirect_chain(url: str, max_redirects: int = 10, timeout: int = 10) ->
             "chain": chain,
         }
     }
-
-
 
 @mcp.tool()
 def pop3_check(host: str, port: int = 110, timeout: int = 10) -> dict:
@@ -1217,7 +1181,6 @@ def pop3_check(host: str, port: int = 110, timeout: int = 10) -> dict:
     except Exception as e:
         return {"error": str(e), "tool": "pop3_check", "host": host, "port": port, "detail": type(e).__name__}
 
-
 _SECURITY_HEADERS = [
     "strict-transport-security",
     "content-security-policy",
@@ -1227,7 +1190,6 @@ _SECURITY_HEADERS = [
     "permissions-policy",
     "x-xss-protection",
 ]
-
 
 @mcp.tool()
 def check_security_headers(url: str, timeout: int = 10) -> dict:
@@ -1273,8 +1235,6 @@ def check_security_headers(url: str, timeout: int = 10) -> dict:
         }
     }
 
-
-
 @mcp.tool()
 def mysql_check(host: str, port: int = 3306, timeout: int = 5) -> dict:
     """Connect to a MySQL/MariaDB server and read the server greeting to extract the server version. Does not authenticate. Useful for verifying database server reachability and version."""
@@ -1312,89 +1272,6 @@ def mysql_check(host: str, port: int = 3306, timeout: int = 5) -> dict:
         return {"result": {"host": host, "port": port, "reachable": False, "reason": "timeout"}}
     except Exception as e:
         return {"error": str(e), "tool": "mysql_check", "host": host, "port": port, "detail": type(e).__name__}
-
-
-@mcp.tool()
-def redis_check(host: str, port: int = 6379, timeout: int = 5) -> dict:
-    """Connect to a Redis server, send PING, and verify the +PONG response. Returns whether the server is up and responsive."""
-    if not host or not host.strip():
-        return {"error": "host must not be empty", "tool": "redis_check"}
-    host = host.strip()
-    if not 1 <= port <= 65535:
-        return {"error": f"Invalid port {port}: must be 1-65535", "tool": "redis_check"}
-    timeout = min(max(1, timeout), 30)
-    try:
-        start = time.monotonic()
-        with socket.create_connection((host, port), timeout=timeout) as sock:
-            sock.settimeout(timeout)
-            sock.sendall(b"*1\r\n$4\r\nPING\r\n")
-            response = sock.recv(256).decode("utf-8", errors="replace").strip()
-        elapsed_ms = round((time.monotonic() - start) * 1000, 2)
-        return {
-            "result": {
-                "host": host,
-                "port": port,
-                "reachable": True,
-                "pong": response.startswith("+PONG"),
-                "response": response,
-                "elapsed_ms": elapsed_ms,
-            }
-        }
-    except ConnectionRefusedError:
-        return {"result": {"host": host, "port": port, "reachable": False, "reason": "connection refused"}}
-    except socket.timeout:
-        return {"result": {"host": host, "port": port, "reachable": False, "reason": "timeout"}}
-    except Exception as e:
-        return {"error": str(e), "tool": "redis_check", "host": host, "port": port, "detail": type(e).__name__}
-
-
-@mcp.tool()
-def ldap_check(host: str, port: int = 389, timeout: int = 5, use_tls: bool = False) -> dict:
-    """Connect to an LDAP server and verify it responds with a valid LDAP response to a root DSE query. port: 389 (plain) or 636 (LDAPS). use_tls: wrap the connection in TLS (for LDAPS or STARTTLS). Returns whether the server is reachable and responding."""
-    if not host or not host.strip():
-        return {"error": "host must not be empty", "tool": "ldap_check"}
-    host = host.strip()
-    if not 1 <= port <= 65535:
-        return {"error": f"Invalid port {port}: must be 1-65535", "tool": "ldap_check"}
-    timeout = min(max(1, timeout), 30)
-    _LDAP_BIND_REQUEST = bytes([
-        0x30, 0x0c, 0x02, 0x01, 0x01, 0x60, 0x07, 0x02,
-        0x01, 0x03, 0x04, 0x00, 0x80, 0x00,
-    ])
-    try:
-        start = time.monotonic()
-        with socket.create_connection((host, port), timeout=timeout) as raw_sock:
-            raw_sock.settimeout(timeout)
-            if use_tls:
-                ctx = ssl.create_default_context()
-                ctx.check_hostname = False
-                ctx.verify_mode = ssl.CERT_NONE
-                sock: socket.socket = ctx.wrap_socket(raw_sock, server_hostname=host)
-            else:
-                sock = raw_sock
-            sock.sendall(_LDAP_BIND_REQUEST)
-            banner = sock.recv(256)
-        elapsed_ms = round((time.monotonic() - start) * 1000, 2)
-        is_ldap = len(banner) >= 2 and banner[0] == 0x30
-        return {
-            "result": {
-                "host": host,
-                "port": port,
-                "reachable": True,
-                "ldap_response": is_ldap,
-                "tls": use_tls,
-                "elapsed_ms": elapsed_ms,
-            }
-        }
-    except ConnectionRefusedError:
-        return {"result": {"host": host, "port": port, "reachable": False, "reason": "connection refused"}}
-    except socket.timeout:
-        return {"result": {"host": host, "port": port, "reachable": False, "reason": "timeout"}}
-    except ssl.SSLError as e:
-        return {"result": {"host": host, "port": port, "reachable": True, "ldap_response": False, "tls_error": str(e)}}
-    except Exception as e:
-        return {"error": str(e), "tool": "ldap_check", "host": host, "port": port, "detail": type(e).__name__}
-
 
 @mcp.tool()
 def snmp_check(host: str, port: int = 161, timeout: int = 3, community: str = "public") -> dict:
@@ -1435,7 +1312,6 @@ def snmp_check(host: str, port: int = 161, timeout: int = 3, community: str = "p
         return {"result": {"host": host, "port": port, "reachable": False, "reason": str(e)}}
     except Exception as e:
         return {"error": str(e), "tool": "snmp_check", "host": host, "port": port, "detail": type(e).__name__}
-
 
 @mcp.tool()
 def ping_sweep(network: str, timeout: int = 1) -> dict:
@@ -1483,14 +1359,12 @@ def ping_sweep(network: str, timeout: int = 1) -> dict:
         }
     }
 
-
 _DNS_RESOLVERS = {
     "google": "8.8.8.8",
     "cloudflare": "1.1.1.1",
     "quad9": "9.9.9.9",
     "opendns": "208.67.222.222",
 }
-
 
 @mcp.tool()
 def dns_propagation(domain: str, record_type: str = "A") -> dict:
@@ -1535,8 +1409,6 @@ def dns_propagation(domain: str, record_type: str = "A") -> dict:
         }
     }
 
-
-
 @mcp.tool()
 def local_ports(protocol: str = "all", show_processes: bool = True) -> dict:
     """List listening TCP and UDP ports on the local machine. protocol: 'tcp', 'udp', or 'all'. show_processes: include process names (requires root on some systems; set to false to skip). Uses ss (Linux) with fallback to netstat."""
@@ -1574,7 +1446,6 @@ def local_ports(protocol: str = "all", show_processes: bool = True) -> dict:
             return {"error": str(e2), "tool": "local_ports"}
     except Exception as e:
         return {"error": str(e), "tool": "local_ports", "detail": type(e).__name__}
-
 
 @mcp.tool()
 def network_interfaces() -> dict:
@@ -1646,7 +1517,6 @@ def bgp_lookup(ip: str) -> dict:
     except Exception as e:
         return {"error": str(e), "tool": "bgp_lookup", "ip": ip, "detail": type(e).__name__}
 
-
 @mcp.tool()
 def tls_version_check(host: str, port: int = 443, timeout: int = 10) -> dict:
     """Test which TLS protocol versions a server accepts (TLS 1.2, TLS 1.3). Also returns the negotiated cipher suite and certificate subject for each accepted version. Useful for security audits — TLS 1.0 and 1.1 should be disabled."""
@@ -1692,7 +1562,6 @@ def tls_version_check(host: str, port: int = 443, timeout: int = 10) -> dict:
             "tls13_accepted": results.get("TLSv1.3", {}).get("accepted", False),
         }
     }
-
 
 @mcp.tool()
 def cert_check_bulk(hosts: str, port: int = 443, timeout: int = 10) -> dict:
@@ -1751,7 +1620,6 @@ def cert_check_bulk(hosts: str, port: int = 443, timeout: int = 10) -> dict:
         if isinstance(d.get("days_remaining"), int) and 0 < d["days_remaining"] <= 30
     ]
     return {"result": {"port": port, "hosts": results, "expiring_soon_30d": expiring_soon}}
-
 
 @mcp.tool()
 def check_sip(host: str, port: int = 5060, timeout: int = 5, transport: str = "udp") -> dict:
@@ -1822,7 +1690,6 @@ def check_sip(host: str, port: int = 5060, timeout: int = 5, transport: str = "u
     except Exception as e:
         return {"error": str(e), "tool": "check_sip", "host": host, "port": port, "detail": type(e).__name__}
 
-
 @mcp.tool()
 def dnssec_check(domain: str, nameserver: str = "") -> dict:
     """Check DNSSEC status for a domain: whether DNSKEY records are published, RRSIG signatures are present on A records, and the DS (Delegation Signer) record exists in the parent zone. Returns key algorithm, key tag, and whether validation appears correct. nameserver: optional custom resolver IP."""
@@ -1878,7 +1745,6 @@ def dnssec_check(domain: str, nameserver: str = "") -> dict:
     except Exception as e:
         return {"error": str(e), "tool": "dnssec_check", "domain": domain, "detail": type(e).__name__}
 
-
 @mcp.tool()
 def check_mongodb(host: str, port: int = 27017, timeout: int = 5) -> dict:
     """Connect to a MongoDB server and send a hello command via the MongoDB wire protocol (OP_MSG). Returns whether the server is reachable and responds as a MongoDB instance. Does not authenticate. Useful for verifying MongoDB/Atlas-compatible server availability."""
@@ -1926,7 +1792,6 @@ def check_mongodb(host: str, port: int = 27017, timeout: int = 5) -> dict:
     except Exception as e:
         return {"error": str(e), "tool": "check_mongodb", "host": host, "port": port, "detail": type(e).__name__}
 
-
 @mcp.tool()
 def check_vnc(host: str, port: int = 5900, timeout: int = 5) -> dict:
     """Connect to a VNC server and read the RFB protocol banner. Returns whether the server is reachable, the RFB version string (e.g. 'RFB 003.008'), and the supported security types. Does not authenticate. port: 5900 (default), 5901, 5902, etc. Useful for verifying remote desktop service availability."""
@@ -1973,7 +1838,6 @@ def check_vnc(host: str, port: int = 5900, timeout: int = 5) -> dict:
         return {"result": {"host": host, "port": port, "reachable": False, "reason": "timeout"}}
     except Exception as e:
         return {"error": str(e), "tool": "check_vnc", "host": host, "port": port, "detail": type(e).__name__}
-
 
 @mcp.tool()
 def check_postgres(host: str, port: int = 5432, timeout: int = 5) -> dict:
@@ -2029,7 +1893,6 @@ def check_postgres(host: str, port: int = 5432, timeout: int = 5) -> dict:
     except Exception as e:
         return {"error": str(e), "tool": "check_postgres", "host": host, "port": port, "detail": type(e).__name__}
 
-
 @mcp.tool()
 def check_redis(host: str, port: int = 6379, timeout: int = 5, password: str = "") -> dict:
     """Connect to a Redis server, send PING, and verify the PONG response. Optionally authenticate with AUTH before pinging. Returns whether the server is reachable, the Redis server version (from INFO server), and response time. password: optional Redis AUTH password (empty = no auth). port: 6379 (default) or custom."""
@@ -2043,26 +1906,38 @@ def check_redis(host: str, port: int = 6379, timeout: int = 5, password: str = "
         start = time.monotonic()
         with socket.create_connection((host, port), timeout=timeout) as sock:
             sock.settimeout(timeout)
-            f = sock.makefile("rwb", buffering=0)
+            def _readline(s: socket.socket) -> str:
+                buf = b""
+                while not buf.endswith(b"\r\n"):
+                    ch = s.recv(1)
+                    if not ch:
+                        break
+                    buf += ch
+                return buf.decode("utf-8", errors="replace").strip()
+            def _readbytes(s: socket.socket, n: int) -> bytes:
+                data = b""
+                while len(data) < n:
+                    chunk = s.recv(n - len(data))
+                    if not chunk:
+                        break
+                    data += chunk
+                return data
             if password:
-                f.write(f"*2\r\n$4\r\nAUTH\r\n${len(password)}\r\n{password}\r\n".encode())
-                f.flush()
-                auth_resp = f.readline().decode("utf-8", errors="replace").strip()
+                sock.sendall(f"*2\r\n$4\r\nAUTH\r\n${len(password)}\r\n{password}\r\n".encode())
+                auth_resp = _readline(sock)
                 if not auth_resp.startswith("+OK"):
                     return {"result": {"host": host, "port": port, "reachable": True, "authenticated": False, "auth_error": auth_resp}}
-            f.write(b"*1\r\n$4\r\nPING\r\n")
-            f.flush()
-            pong = f.readline().decode("utf-8", errors="replace").strip()
+            sock.sendall(b"*1\r\n$4\r\nPING\r\n")
+            pong = _readline(sock)
             elapsed_ms = round((time.monotonic() - start) * 1000, 2)
             if not pong.startswith("+PONG"):
                 return {"result": {"host": host, "port": port, "reachable": True, "ping_ok": False, "response": pong, "elapsed_ms": elapsed_ms}}
-            f.write(b"*2\r\n$4\r\nINFO\r\n$6\r\nserver\r\n")
-            f.flush()
+            sock.sendall(b"*2\r\n$4\r\nINFO\r\n$6\r\nserver\r\n")
             info_lines = []
-            header = f.readline().decode("utf-8", errors="replace").strip()
+            header = _readline(sock)
             if header.startswith("$"):
                 byte_count = int(header[1:])
-                info_data = f.read(byte_count).decode("utf-8", errors="replace")
+                info_data = _readbytes(sock, byte_count).decode("utf-8", errors="replace")
                 info_lines = info_data.splitlines()
         server_version = None
         redis_mode = None
@@ -2088,7 +1963,6 @@ def check_redis(host: str, port: int = 6379, timeout: int = 5, password: str = "
         return {"result": {"host": host, "port": port, "reachable": False, "reason": "timeout"}}
     except Exception as e:
         return {"error": str(e), "tool": "check_redis", "host": host, "port": port, "detail": type(e).__name__}
-
 
 @mcp.tool()
 def check_memcached(host: str, port: int = 11211, timeout: int = 5) -> dict:
@@ -2125,7 +1999,6 @@ def check_memcached(host: str, port: int = 11211, timeout: int = 5) -> dict:
         return {"result": {"host": host, "port": port, "reachable": False, "reason": "timeout"}}
     except Exception as e:
         return {"error": str(e), "tool": "check_memcached", "host": host, "port": port, "detail": type(e).__name__}
-
 
 @mcp.tool()
 def check_mqtt(host: str, port: int = 1883, timeout: int = 5, client_id: str = "mcp-probe") -> dict:
@@ -2177,7 +2050,6 @@ def check_mqtt(host: str, port: int = 1883, timeout: int = 5, client_id: str = "
     except Exception as e:
         return {"error": str(e), "tool": "check_mqtt", "host": host, "port": port, "detail": type(e).__name__}
 
-
 @mcp.tool()
 def check_spf(domain: str, nameserver: str = "") -> dict:
     """Check the SPF (Sender Policy Framework) record for a domain. Looks up TXT records at the domain root and extracts the v=spf1 policy. nameserver: optional custom resolver IP. Multiple SPF records is a misconfiguration (RFC 7208 §3.2)."""
@@ -2217,7 +2089,6 @@ def check_spf(domain: str, nameserver: str = "") -> dict:
         return {"result": {"domain": domain, "spf_found": False, "record": None}}
     except Exception as e:
         return {"error": str(e), "tool": "check_spf", "domain": domain, "detail": type(e).__name__}
-
 
 @mcp.tool()
 def check_dkim(domain: str, selector: str, nameserver: str = "") -> dict:
@@ -2261,7 +2132,6 @@ def check_dkim(domain: str, selector: str, nameserver: str = "") -> dict:
         return {"result": {"domain": domain, "selector": selector, "dkim_host": dkim_host, "dkim_found": False, "record": None}}
     except Exception as e:
         return {"error": str(e), "tool": "check_dkim", "domain": domain, "detail": type(e).__name__}
-
 
 @mcp.tool()
 def check_dmarc(domain: str, nameserver: str = "") -> dict:
@@ -2317,7 +2187,6 @@ def check_dmarc(domain: str, nameserver: str = "") -> dict:
     except Exception as e:
         return {"error": str(e), "tool": "check_dmarc", "domain": domain, "detail": type(e).__name__}
 
-
 @mcp.tool()
 def check_vault(host: str, port: int = 8200, timeout: int = 5, https: bool = True) -> dict:
     """Check HashiCorp Vault server health. Returns initialized/sealed/standby state and Vault version. Handles all Vault health status codes: 200=active, 429=standby, 472=DR secondary active, 473=performance standby, 501=uninitialized, 503=sealed. host: IP or hostname. port: default 8200. https: use HTTPS (default True — Vault almost always runs HTTPS; set False for dev mode)."""
@@ -2367,7 +2236,6 @@ def check_vault(host: str, port: int = 8200, timeout: int = 5, https: bool = Tru
     except Exception as e:
         return {"error": str(e), "tool": "check_vault", "host": host, "port": port, "detail": type(e).__name__}
 
-
 @mcp.tool()
 def check_zookeeper(host: str, port: int = 2181, timeout: int = 5) -> dict:
     """Check ZooKeeper server health using the 'ruok' four-letter word command. Also attempts 'stat' to return mode (leader/follower/standalone) and client count. host: IP or hostname. port: default 2181."""
@@ -2410,7 +2278,6 @@ def check_zookeeper(host: str, port: int = 2181, timeout: int = 5) -> dict:
         return {"result": {"host": host, "port": port, "reachable": False, "error": "connection refused"}}
     except Exception as e:
         return {"error": str(e), "tool": "check_zookeeper", "host": host, "port": port, "detail": type(e).__name__}
-
 
 @mcp.tool()
 def check_influxdb(host: str, port: int = 8086, timeout: int = 5, https: bool = False) -> dict:
@@ -2457,7 +2324,6 @@ def check_influxdb(host: str, port: int = 8086, timeout: int = 5, https: bool = 
     except Exception as e:
         return {"error": str(e), "tool": "check_influxdb", "host": host, "port": port, "detail": type(e).__name__}
 
-
 @mcp.tool()
 def check_rabbitmq(host: str, port: int = 15672, timeout: int = 5, username: str = "guest", password: str = "guest") -> dict:
     """Check RabbitMQ server health via the management plugin API. Returns node name, RabbitMQ version, Erlang version, message counts, and running state. host: IP or hostname. port: default 15672 (management HTTP port — enable with 'rabbitmq-plugins enable rabbitmq_management'). username/password: management credentials (default guest/guest)."""
@@ -2499,7 +2365,6 @@ def check_rabbitmq(host: str, port: int = 15672, timeout: int = 5, username: str
         return {"result": {"host": host, "port": port, "reachable": False, "error": str(e.reason)}}
     except Exception as e:
         return {"error": str(e), "tool": "check_rabbitmq", "host": host, "port": port, "detail": type(e).__name__}
-
 
 @mcp.tool()
 def check_kubernetes_api(host: str, port: int = 6443, timeout: int = 5, https: bool = True) -> dict:
@@ -2550,7 +2415,6 @@ def check_kubernetes_api(host: str, port: int = 6443, timeout: int = 5, https: b
     except Exception as e:
         return {"error": str(e), "tool": "check_kubernetes_api", "host": host, "detail": type(e).__name__}
 
-
 @mcp.tool()
 def check_elasticsearch(host: str, port: int = 9200, timeout: int = 5, https: bool = False) -> dict:
     """Connect to an Elasticsearch or OpenSearch node and check cluster health. Returns cluster name, status (green/yellow/red), node counts, shard counts, and unassigned shards. host: IP or hostname. port: default 9200. https: use HTTPS instead of HTTP (default False)."""
@@ -2589,7 +2453,6 @@ def check_elasticsearch(host: str, port: int = 9200, timeout: int = 5, https: bo
         return {"result": {"host": host, "port": port, "reachable": False, "error": str(e.reason)}}
     except Exception as e:
         return {"error": str(e), "tool": "check_elasticsearch", "host": host, "port": port, "detail": type(e).__name__}
-
 
 @mcp.tool()
 def check_etcd(host: str, port: int = 2379, timeout: int = 5) -> dict:
@@ -2633,7 +2496,6 @@ def check_etcd(host: str, port: int = 2379, timeout: int = 5) -> dict:
     except Exception as e:
         return {"error": str(e), "tool": "check_etcd", "host": host, "port": port, "detail": type(e).__name__}
 
-
 @mcp.tool()
 def check_consul(host: str, port: int = 8500, timeout: int = 5) -> dict:
     """Check Consul agent health and cluster leader. Returns agent node name, datacenter, server/client role, leader address, and Consul version. host: IP or hostname. port: default 8500 (Consul HTTP API port)."""
@@ -2669,7 +2531,6 @@ def check_consul(host: str, port: int = 8500, timeout: int = 5) -> dict:
     except Exception as e:
         return {"error": str(e), "tool": "check_consul", "host": host, "port": port, "detail": type(e).__name__}
 
-
 @mcp.tool()
 def check_docker_api(host: str, port: int = 2375, timeout: int = 5, https: bool = False) -> dict:
     """Check Docker daemon REST API availability via GET /_ping. Port 2375 = unencrypted, 2376 = TLS. Returns daemon version info from the response headers."""
@@ -2701,7 +2562,6 @@ def check_docker_api(host: str, port: int = 2375, timeout: int = 5, https: bool 
         return {"result": {"host": host, "port": port, "reachable": False, "error": str(e.reason)}}
     except Exception as e:
         return {"error": str(e), "tool": "check_docker_api", "host": host, "port": port, "detail": type(e).__name__}
-
 
 @mcp.tool()
 def http_post(url: str, body: str = "", content_type: str = "application/json", timeout: int = 10, headers: str = "") -> dict:
@@ -2741,7 +2601,6 @@ def http_post(url: str, body: str = "", content_type: str = "application/json", 
         return {"error": str(e), "tool": "http_post", "detail": type(e).__name__, "status": e.code, "body": err_body[:500]}
     except Exception as e:
         return {"error": str(e), "tool": "http_post", "url": url, "detail": type(e).__name__}
-
 
 @mcp.tool()
 def check_smb(host: str, port: int = 445, timeout: int = 5) -> dict:
@@ -2797,7 +2656,6 @@ def check_smb(host: str, port: int = 445, timeout: int = 5) -> dict:
     except Exception as e:
         return {"error": str(e), "tool": "check_smb", "host": host, "port": port, "detail": type(e).__name__}
 
-
 @mcp.tool()
 def check_prometheus(host: str, port: int = 9090, timeout: int = 5, https: bool = False) -> dict:
     """Check Prometheus monitoring service health. Queries /-/healthy and /-/ready endpoints and returns status. Also fetches basic TSDB stats from /api/v1/status/tsdb if healthy."""
@@ -2837,7 +2695,6 @@ def check_prometheus(host: str, port: int = 9090, timeout: int = 5, https: bool 
     except Exception as e:
         return {"error": str(e), "tool": "check_prometheus", "host": host, "port": port, "detail": type(e).__name__}
 
-
 @mcp.tool()
 def check_grafana(host: str, port: int = 3000, timeout: int = 5, https: bool = False) -> dict:
     """Check Grafana observability platform health via GET /api/health. Returns version, commit hash, database status, and memory usage."""
@@ -2870,7 +2727,6 @@ def check_grafana(host: str, port: int = 3000, timeout: int = 5, https: bool = F
     except Exception as e:
         return {"error": str(e), "tool": "check_grafana", "host": host, "port": port, "detail": type(e).__name__}
 
-
 @mcp.tool()
 def check_nfs(host: str, portmapper_port: int = 111, nfs_port: int = 2049, timeout: int = 5) -> dict:
     """Check NFS file server availability. Verifies TCP connectivity on both the portmapper (111) and NFS (2049) ports. Both ports must be reachable for NFS mounts to work."""
@@ -2895,7 +2751,6 @@ def check_nfs(host: str, portmapper_port: int = 111, nfs_port: int = 2049, timeo
             results[label] = {"port": port, "reachable": False, "error": str(e)}
     reachable = all(v["reachable"] for v in results.values())
     return {"result": {"host": host, "reachable": reachable, "ports": results}}
-
 
 @mcp.tool()
 def check_kafka(host: str, port: int = 9092, timeout: int = 5) -> dict:
@@ -2923,7 +2778,6 @@ def check_kafka(host: str, port: int = 9092, timeout: int = 5) -> dict:
         return {"result": {"host": host, "port": port, "reachable": False, "error": "connection refused"}}
     except Exception as e:
         return {"error": str(e), "tool": "check_kafka", "host": host, "port": port, "detail": type(e).__name__}
-
 
 @mcp.tool()
 def check_couchdb(host: str, port: int = 5984, timeout: int = 5, https: bool = False) -> dict:
@@ -2957,7 +2811,6 @@ def check_couchdb(host: str, port: int = 5984, timeout: int = 5, https: bool = F
     except Exception as e:
         return {"error": str(e), "tool": "check_couchdb", "host": host, "port": port, "detail": type(e).__name__}
 
-
 @mcp.tool()
 def check_cassandra(host: str, port: int = 9042, timeout: int = 5) -> dict:
     """Check Apache Cassandra availability using the CQL binary protocol. Sends a CQL OPTIONS request and verifies a SUPPORTED response, confirming the Cassandra node is accepting connections."""
@@ -2986,7 +2839,6 @@ def check_cassandra(host: str, port: int = 9042, timeout: int = 5) -> dict:
     except Exception as e:
         return {"error": str(e), "tool": "check_cassandra", "host": host, "port": port, "detail": type(e).__name__}
 
-
 @mcp.tool()
 def check_clickhouse(host: str, port: int = 8123, timeout: int = 5, https: bool = False) -> dict:
     """Check ClickHouse OLAP database availability via HTTP /ping endpoint. Returns 'Ok.' on success. Port 8123 = HTTP interface, 8443 = HTTPS. Also returns version from the response header."""
@@ -3011,7 +2863,6 @@ def check_clickhouse(host: str, port: int = 8123, timeout: int = 5, https: bool 
         return {"result": {"host": host, "port": port, "reachable": False, "error": str(e.reason)}}
     except Exception as e:
         return {"error": str(e), "tool": "check_clickhouse", "host": host, "port": port, "detail": type(e).__name__}
-
 
 @mcp.tool()
 def check_neo4j(host: str, port: int = 7474, timeout: int = 5, https: bool = False) -> dict:
@@ -3044,7 +2895,6 @@ def check_neo4j(host: str, port: int = 7474, timeout: int = 5, https: bool = Fal
     except Exception as e:
         return {"error": str(e), "tool": "check_neo4j", "host": host, "port": port, "detail": type(e).__name__}
 
-
 @mcp.tool()
 def check_minio(host: str, port: int = 9000, timeout: int = 5, https: bool = False) -> dict:
     """Check MinIO object storage availability via GET /minio/health/live (liveness) and /minio/health/ready (readiness). Port 9000 = default, 9001 = console. Returns liveness and readiness status separately."""
@@ -3076,7 +2926,6 @@ def check_minio(host: str, port: int = 9000, timeout: int = 5, https: bool = Fal
             errors[key] = str(e)
     return {"result": {"host": host, "port": port, "reachable": live, "live": live, "ready": ready, "errors": errors or None}}
 
-
 @mcp.tool()
 def check_traefik(host: str, port: int = 8080, timeout: int = 5, https: bool = False) -> dict:
     """Check Traefik reverse proxy health via GET /ping (returns 'OK') and GET /api/version. Port 8080 is the default Traefik dashboard/API port. Returns Traefik version if the API is accessible."""
@@ -3107,7 +2956,6 @@ def check_traefik(host: str, port: int = 8080, timeout: int = 5, https: bool = F
     except Exception:
         pass
     return {"result": {"host": host, "port": port, "reachable": ping_ok, "ping_ok": ping_ok, "version": version}}
-
 
 @mcp.tool()
 def http_put(url: str, body: str = "", content_type: str = "application/json", timeout: int = 10, headers: str = "") -> dict:
@@ -3147,7 +2995,6 @@ def http_put(url: str, body: str = "", content_type: str = "application/json", t
         return {"error": str(e), "tool": "http_put", "detail": type(e).__name__, "status": e.code, "body": err_body[:500]}
     except Exception as e:
         return {"error": str(e), "tool": "http_put", "url": url, "detail": type(e).__name__}
-
 
 @mcp.tool()
 def http_delete(url: str, body: str = "", content_type: str = "application/json", timeout: int = 10, headers: str = "") -> dict:
@@ -3189,7 +3036,6 @@ def http_delete(url: str, body: str = "", content_type: str = "application/json"
     except Exception as e:
         return {"error": str(e), "tool": "http_delete", "url": url, "detail": type(e).__name__}
 
-
 @mcp.tool()
 def http_patch(url: str, body: str = "", content_type: str = "application/json", timeout: int = 10, headers: str = "") -> dict:
     """Send an HTTP PATCH request with a body. Use for partial resource updates in REST APIs (unlike PUT which replaces the whole resource). body: raw string (JSON patch, merge patch, etc). headers: extra request headers as 'Name: Value' pairs separated by newlines or semicolons. Returns status code, response body, and parsed JSON if applicable."""
@@ -3229,7 +3075,6 @@ def http_patch(url: str, body: str = "", content_type: str = "application/json",
     except Exception as e:
         return {"error": str(e), "tool": "http_patch", "url": url, "detail": type(e).__name__}
 
-
 @mcp.tool()
 def check_opensearch(host: str, port: int = 9200, timeout: int = 5, https: bool = False) -> dict:
     """Check OpenSearch (or Elasticsearch-compatible) cluster health via GET /_cluster/health. Returns cluster name, status (green/yellow/red), node counts, and shard stats. Port 9200 = default HTTP, 9300 = transport."""
@@ -3265,7 +3110,6 @@ def check_opensearch(host: str, port: int = 9200, timeout: int = 5, https: bool 
     except Exception as e:
         return {"error": str(e), "tool": "check_opensearch", "host": host, "port": port, "detail": type(e).__name__}
 
-
 @mcp.tool()
 def check_loki(host: str, port: int = 3100, timeout: int = 5, https: bool = False) -> dict:
     """Check Grafana Loki log aggregation service via GET /ready and /loki/api/v1/status/buildinfo. Returns readiness status and build version."""
@@ -3296,7 +3140,6 @@ def check_loki(host: str, port: int = 3100, timeout: int = 5, https: bool = Fals
     except Exception:
         pass
     return {"result": {"host": host, "port": port, "reachable": ready, "ready": ready, "version": version}}
-
 
 @mcp.tool()
 def check_alertmanager(host: str, port: int = 9093, timeout: int = 5, https: bool = False) -> dict:
@@ -3334,7 +3177,6 @@ def check_alertmanager(host: str, port: int = 9093, timeout: int = 5, https: boo
         pass
     return {"result": {"host": host, "port": port, "reachable": healthy or ready, "healthy": healthy, "ready": ready, "version": version}}
 
-
 @mcp.tool()
 def check_tempo(host: str, port: int = 3200, timeout: int = 5, https: bool = False) -> dict:
     """Check Grafana Tempo distributed tracing service via GET /ready and /api/echo. Returns readiness status and whether the API is responding. port: 3200 (default HTTP), 9095 (gRPC — use port_check for gRPC)."""
@@ -3365,7 +3207,6 @@ def check_tempo(host: str, port: int = 3200, timeout: int = 5, https: bool = Fal
     except Exception:
         pass
     return {"result": {"host": host, "port": port, "reachable": ready or api_ok, "ready": ready, "api_ok": api_ok}}
-
 
 @mcp.tool()
 def check_jaeger(host: str, port: int = 16686, timeout: int = 5, https: bool = False) -> dict:
@@ -3410,7 +3251,6 @@ def check_jaeger(host: str, port: int = 16686, timeout: int = 5, https: bool = F
         }
     }
 
-
 @mcp.tool()
 def check_uptime_kuma(host: str, port: int = 3001, timeout: int = 5, https: bool = False) -> dict:
     """Check Uptime Kuma monitoring service health via GET /api/health. Returns health status and version if available."""
@@ -3440,7 +3280,6 @@ def check_uptime_kuma(host: str, port: int = 3001, timeout: int = 5, https: bool
         pass
     return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy, "version": version}}
 
-
 @mcp.tool()
 def check_vaultwarden(host: str, port: int = 8080, timeout: int = 5, https: bool = False) -> dict:
     """Check Vaultwarden (Bitwarden-compatible) password manager health via GET /alive. Returns health status."""
@@ -3463,7 +3302,6 @@ def check_vaultwarden(host: str, port: int = 8080, timeout: int = 5, https: bool
     except Exception:
         pass
     return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy}}
-
 
 @mcp.tool()
 def check_syncthing(host: str, port: int = 8384, timeout: int = 5, https: bool = False, api_key: str = "") -> dict:
@@ -3505,7 +3343,6 @@ def check_syncthing(host: str, port: int = 8384, timeout: int = 5, https: bool =
             pass
     return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy, "version": version}}
 
-
 @mcp.tool()
 def check_gitea(host: str, port: int = 3000, timeout: int = 5, https: bool = False) -> dict:
     """Check Gitea/Forgejo git server health via GET /api/healthz. Returns status and availability."""
@@ -3533,7 +3370,6 @@ def check_gitea(host: str, port: int = 3000, timeout: int = 5, https: bool = Fal
     except Exception:
         pass
     return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy}}
-
 
 @mcp.tool()
 def check_nextcloud(host: str, port: int = 443, timeout: int = 5, https: bool = True) -> dict:
@@ -3565,7 +3401,6 @@ def check_nextcloud(host: str, port: int = 443, timeout: int = 5, https: bool = 
     except Exception:
         pass
     return {"result": {"host": host, "port": port, "reachable": installed, "installed": installed, "maintenance": maintenance, "version": version}}
-
 
 @mcp.tool()
 def check_jellyfin(host: str, port: int = 8096, timeout: int = 5, https: bool = False) -> dict:
@@ -3601,7 +3436,6 @@ def check_jellyfin(host: str, port: int = 8096, timeout: int = 5, https: bool = 
         pass
     return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy, "version": version}}
 
-
 @mcp.tool()
 def check_immich(host: str, port: int = 2283, timeout: int = 5, https: bool = False) -> dict:
     """Check Immich photo management server health via GET /api/server-info/ping. Returns ping response."""
@@ -3629,7 +3463,6 @@ def check_immich(host: str, port: int = 2283, timeout: int = 5, https: bool = Fa
     except Exception:
         pass
     return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy}}
-
 
 @mcp.tool()
 def check_portainer(host: str, port: int = 9443, timeout: int = 5, https: bool = True) -> dict:
@@ -3659,7 +3492,6 @@ def check_portainer(host: str, port: int = 9443, timeout: int = 5, https: bool =
     except Exception:
         pass
     return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy, "version": version}}
-
 
 @mcp.tool()
 def check_homeassistant(host: str, port: int = 8123, timeout: int = 5, https: bool = False, token: str = "") -> dict:
@@ -3692,7 +3524,6 @@ def check_homeassistant(host: str, port: int = 8123, timeout: int = 5, https: bo
         pass
     return {"result": {"host": host, "port": port, "reachable": reachable, "version": version}}
 
-
 @mcp.tool()
 def check_authentik(host: str, port: int = 9000, timeout: int = 5, https: bool = False) -> dict:
     """Check Authentik identity provider health via GET /-/health/live/ and /-/health/ready/. Returns live and ready states."""
@@ -3720,7 +3551,6 @@ def check_authentik(host: str, port: int = 9000, timeout: int = 5, https: bool =
         except Exception:
             pass
     return {"result": {"host": host, "port": port, "reachable": live, "live": live, "ready": ready}}
-
 
 @mcp.tool()
 def check_adguard(host: str, port: int = 3000, timeout: int = 5, https: bool = False, username: str = "", password: str = "") -> dict:
@@ -3755,7 +3585,6 @@ def check_adguard(host: str, port: int = 3000, timeout: int = 5, https: bool = F
         pass
     return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy, "version": version}}
 
-
 @mcp.tool()
 def check_paperless(host: str, port: int = 8000, timeout: int = 5, https: bool = False) -> dict:
     """Check Paperless-NGX document management health. Attempts GET /api/ (returns 401 without auth, confirming service is running). Returns reachable state."""
@@ -3781,7 +3610,6 @@ def check_paperless(host: str, port: int = 8000, timeout: int = 5, https: bool =
         pass
     return {"result": {"host": host, "port": port, "reachable": reachable}}
 
-
 @mcp.tool()
 def check_miniflux(host: str, port: int = 8080, timeout: int = 5, https: bool = False) -> dict:
     """Check Miniflux RSS reader health via GET /healthcheck. Returns healthy state."""
@@ -3805,7 +3633,6 @@ def check_miniflux(host: str, port: int = 8080, timeout: int = 5, https: bool = 
     except Exception:
         pass
     return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy}}
-
 
 @mcp.tool()
 def check_mealie(host: str, port: int = 9000, timeout: int = 5, https: bool = False) -> dict:
@@ -3835,7 +3662,6 @@ def check_mealie(host: str, port: int = 9000, timeout: int = 5, https: bool = Fa
     except Exception:
         pass
     return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy, "version": version}}
-
 
 @mcp.tool()
 def check_keycloak(host: str, port: int = 8080, timeout: int = 5, https: bool = False) -> dict:
@@ -3879,7 +3705,6 @@ def check_keycloak(host: str, port: int = 8080, timeout: int = 5, https: bool = 
             pass
     return {"result": {"host": host, "port": port, "reachable": live, "live": live, "ready": ready}}
 
-
 @mcp.tool()
 def check_ntfy(host: str, port: int = 80, timeout: int = 5, https: bool = False) -> dict:
     """Check ntfy push notification server health via GET /v1/health. Returns healthy state and version."""
@@ -3908,7 +3733,6 @@ def check_ntfy(host: str, port: int = 80, timeout: int = 5, https: bool = False)
     except Exception:
         pass
     return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy, "version": version}}
-
 
 @mcp.tool()
 def check_gotify(host: str, port: int = 80, timeout: int = 5, https: bool = False) -> dict:
@@ -3939,7 +3763,6 @@ def check_gotify(host: str, port: int = 80, timeout: int = 5, https: bool = Fals
         pass
     return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy, "version": version}}
 
-
 @mcp.tool()
 def check_searxng(host: str, port: int = 8080, timeout: int = 5, https: bool = False) -> dict:
     """Check SearXNG meta-search engine availability via GET /healthz. Falls back to checking the homepage returns 200."""
@@ -3964,7 +3787,6 @@ def check_searxng(host: str, port: int = 8080, timeout: int = 5, https: bool = F
         except Exception:
             pass
     return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy}}
-
 
 @mcp.tool()
 def check_freshrss(host: str, port: int = 80, timeout: int = 5, https: bool = False) -> dict:
@@ -3995,7 +3817,6 @@ def check_freshrss(host: str, port: int = 80, timeout: int = 5, https: bool = Fa
             pass
     return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy}}
 
-
 @mcp.tool()
 def check_bookstack(host: str, port: int = 80, timeout: int = 5, https: bool = False) -> dict:
     """Check BookStack wiki platform health via GET /status. Returns health status."""
@@ -4022,7 +3843,6 @@ def check_bookstack(host: str, port: int = 80, timeout: int = 5, https: bool = F
         pass
     return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy}}
 
-
 @mcp.tool()
 def check_monica(host: str, port: int = 80, timeout: int = 5, https: bool = False) -> dict:
     """Check Monica personal CRM availability. Monica has no dedicated health endpoint; checks if the main page returns HTTP 200 or redirect."""
@@ -4047,7 +3867,6 @@ def check_monica(host: str, port: int = 80, timeout: int = 5, https: bool = Fals
     except Exception:
         pass
     return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy}}
-
 
 @mcp.tool()
 def check_vikunja(host: str, port: int = 3456, timeout: int = 5, https: bool = False) -> dict:
@@ -4077,7 +3896,6 @@ def check_vikunja(host: str, port: int = 3456, timeout: int = 5, https: bool = F
     except Exception:
         pass
     return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy, "version": version}}
-
 
 @mcp.tool()
 def check_stirling_pdf(host: str, port: int = 8080, timeout: int = 5, https: bool = False) -> dict:
@@ -4111,7 +3929,6 @@ def check_stirling_pdf(host: str, port: int = 8080, timeout: int = 5, https: boo
             pass
     return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy, "version": version}}
 
-
 @mcp.tool()
 def check_grocy(host: str, port: int = 9283, timeout: int = 5, https: bool = False) -> dict:
     """Check Grocy grocery and household management server via GET /api/system/info. Returns version and PHP info."""
@@ -4143,7 +3960,6 @@ def check_grocy(host: str, port: int = 9283, timeout: int = 5, https: bool = Fal
         pass
     return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy, "version": version}}
 
-
 @mcp.tool()
 def check_actual_budget(host: str, port: int = 5006, timeout: int = 5, https: bool = False) -> dict:
     """Check Actual Budget personal finance server health via GET /health. Returns healthy state."""
@@ -4166,7 +3982,6 @@ def check_actual_budget(host: str, port: int = 5006, timeout: int = 5, https: bo
     except Exception:
         pass
     return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy}}
-
 
 @mcp.tool()
 def check_linkwarden(host: str, port: int = 3000, timeout: int = 5, https: bool = False) -> dict:
@@ -4192,7 +4007,6 @@ def check_linkwarden(host: str, port: int = 3000, timeout: int = 5, https: bool 
     except Exception:
         pass
     return {"result": {"host": host, "port": port, "reachable": reachable}}
-
 
 @mcp.tool()
 def check_photoprism(host: str, port: int = 2342, timeout: int = 5, https: bool = False) -> dict:
@@ -4222,7 +4036,6 @@ def check_photoprism(host: str, port: int = 2342, timeout: int = 5, https: bool 
     except Exception:
         pass
     return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy, "version": version}}
-
 
 @mcp.tool()
 def check_wallabag(host: str, port: int = 80, timeout: int = 5, https: bool = False) -> dict:
@@ -4256,7 +4069,6 @@ def check_wallabag(host: str, port: int = 80, timeout: int = 5, https: bool = Fa
             pass
     return {"result": {"host": host, "port": port, "reachable": reachable}}
 
-
 @mcp.tool()
 def check_tandoor(host: str, port: int = 8080, timeout: int = 5, https: bool = False) -> dict:
     """Check Tandoor recipe manager health via GET /api/schema/ (public OpenAPI schema endpoint). Returns reachable state."""
@@ -4286,7 +4098,6 @@ def check_tandoor(host: str, port: int = 8080, timeout: int = 5, https: bool = F
             pass
     return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy}}
 
-
 @mcp.tool()
 def check_outline(host: str, port: int = 3000, timeout: int = 5, https: bool = False) -> dict:
     """Check Outline wiki/knowledge base health via GET /api/_healthcheck. Returns healthy state."""
@@ -4311,7 +4122,6 @@ def check_outline(host: str, port: int = 3000, timeout: int = 5, https: bool = F
         except Exception:
             pass
     return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy}}
-
 
 @mcp.tool()
 def check_plausible(host: str, port: int = 8000, timeout: int = 5, https: bool = False) -> dict:
@@ -4344,7 +4154,6 @@ def check_plausible(host: str, port: int = 8000, timeout: int = 5, https: bool =
         pass
     return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy, "postgres": postgres_ok, "clickhouse": clickhouse_ok}}
 
-
 @mcp.tool()
 def check_mattermost(host: str, port: int = 8065, timeout: int = 5, https: bool = False) -> dict:
     """Check Mattermost team messaging server health via GET /api/v4/system/ping. Returns status and database health."""
@@ -4375,7 +4184,6 @@ def check_mattermost(host: str, port: int = 8065, timeout: int = 5, https: bool 
         pass
     return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy, "version": version}}
 
-
 @mcp.tool()
 def check_forgejo(host: str, port: int = 3000, timeout: int = 5, https: bool = False) -> dict:
     """Check Forgejo (Gitea fork) git server health via GET /api/healthz. Returns status."""
@@ -4403,7 +4211,6 @@ def check_forgejo(host: str, port: int = 3000, timeout: int = 5, https: bool = F
     except Exception:
         pass
     return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy}}
-
 
 @mcp.tool()
 def check_matrix_synapse(host: str, port: int = 8008, timeout: int = 5, https: bool = False) -> dict:
@@ -4434,7 +4241,6 @@ def check_matrix_synapse(host: str, port: int = 8008, timeout: int = 5, https: b
         pass
     return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy, "version": version}}
 
-
 @mcp.tool()
 def check_zipline(host: str, port: int = 3000, timeout: int = 5, https: bool = False) -> dict:
     """Check Zipline file sharing server health via GET /api/server/info. Returns version and build info."""
@@ -4463,7 +4269,6 @@ def check_zipline(host: str, port: int = 3000, timeout: int = 5, https: bool = F
     except Exception:
         pass
     return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy, "version": version}}
-
 
 @mcp.tool()
 def check_guacamole(host: str, port: int = 8080, timeout: int = 5, https: bool = False, path: str = "/guacamole") -> dict:
@@ -4497,7 +4302,6 @@ def check_guacamole(host: str, port: int = 8080, timeout: int = 5, https: bool =
         pass
     return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy, "version": version}}
 
-
 @mcp.tool()
 def check_navidrome(host: str, port: int = 4533, timeout: int = 5, https: bool = False) -> dict:
     """Check Navidrome music streaming server health via GET /app/manifest.json (public endpoint). Returns reachable state."""
@@ -4522,7 +4326,6 @@ def check_navidrome(host: str, port: int = 4533, timeout: int = 5, https: bool =
         except Exception:
             pass
     return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy}}
-
 
 @mcp.tool()
 def check_qbittorrent(host: str, port: int = 8080, timeout: int = 5, https: bool = False) -> dict:
@@ -4550,7 +4353,6 @@ def check_qbittorrent(host: str, port: int = 8080, timeout: int = 5, https: bool
     except Exception:
         pass
     return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy, "version": version}}
-
 
 @mcp.tool()
 def check_prowlarr(host: str, port: int = 9696, timeout: int = 5, https: bool = False) -> dict:
@@ -4583,7 +4385,6 @@ def check_prowlarr(host: str, port: int = 9696, timeout: int = 5, https: bool = 
         pass
     return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy, "version": version}}
 
-
 @mcp.tool()
 def check_lidarr(host: str, port: int = 8686, timeout: int = 5, https: bool = False) -> dict:
     """Check Lidarr music collection manager health via GET /api/v1/system/status. Returns version and startup time. Default port 8686."""
@@ -4614,7 +4415,6 @@ def check_lidarr(host: str, port: int = 8686, timeout: int = 5, https: bool = Fa
     except Exception:
         pass
     return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy, "version": version}}
-
 
 @mcp.tool()
 def check_readarr(host: str, port: int = 8787, timeout: int = 5, https: bool = False) -> dict:
@@ -4647,7 +4447,6 @@ def check_readarr(host: str, port: int = 8787, timeout: int = 5, https: bool = F
         pass
     return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy, "version": version}}
 
-
 @mcp.tool()
 def check_bazarr(host: str, port: int = 6767, timeout: int = 5, https: bool = False) -> dict:
     """Check Bazarr subtitle management server health via GET /api/system/status. Returns version string. 401 = running but API key required (still healthy). Default port 6767."""
@@ -4679,7 +4478,6 @@ def check_bazarr(host: str, port: int = 6767, timeout: int = 5, https: bool = Fa
         pass
     return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy, "version": version}}
 
-
 @mcp.tool()
 def check_audiobookshelf(host: str, port: int = 13378, timeout: int = 5, https: bool = False) -> dict:
     """Check Audiobookshelf audiobook and podcast server health via GET /api/health. Returns server version. Default port 13378."""
@@ -4709,7 +4507,6 @@ def check_audiobookshelf(host: str, port: int = 13378, timeout: int = 5, https: 
         pass
     return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy, "version": version}}
 
-
 @mcp.tool()
 def check_kavita(host: str, port: int = 5000, timeout: int = 5, https: bool = False) -> dict:
     """Check Kavita manga, comic, and book reader server health via GET /api/health. Default port 5000."""
@@ -4732,7 +4529,6 @@ def check_kavita(host: str, port: int = 5000, timeout: int = 5, https: bool = Fa
     except Exception:
         pass
     return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy}}
-
 
 @mcp.tool()
 def check_transmission(host: str, port: int = 9091, timeout: int = 5, https: bool = False) -> dict:
@@ -4758,7 +4554,6 @@ def check_transmission(host: str, port: int = 9091, timeout: int = 5, https: boo
     except Exception:
         pass
     return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy}}
-
 
 @mcp.tool()
 def check_jellyseerr(host: str, port: int = 5055, timeout: int = 5, https: bool = False) -> dict:
@@ -4789,7 +4584,6 @@ def check_jellyseerr(host: str, port: int = 5055, timeout: int = 5, https: bool 
         pass
     return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy, "version": version}}
 
-
 @mcp.tool()
 def check_sabnzbd(host: str, port: int = 8080, timeout: int = 5, https: bool = False, path: str = "/sabnzbd") -> dict:
     """Check SABnzbd usenet downloader health via GET /sabnzbd/. 200 or redirect to login page = healthy. path: context path if non-default (e.g. '/sabnzbd'). Default port 8080."""
@@ -4819,7 +4613,6 @@ def check_sabnzbd(host: str, port: int = 8080, timeout: int = 5, https: bool = F
             pass
     return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy}}
 
-
 @mcp.tool()
 def check_nzbget(host: str, port: int = 6789, timeout: int = 5, https: bool = False) -> dict:
     """Check NZBGet usenet downloader health via GET /. 200 or 401 (basic auth) = healthy. Default port 6789."""
@@ -4845,7 +4638,6 @@ def check_nzbget(host: str, port: int = 6789, timeout: int = 5, https: bool = Fa
         pass
     return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy}}
 
-
 @mcp.tool()
 def check_calibre_web(host: str, port: int = 8083, timeout: int = 5, https: bool = False) -> dict:
     """Check Calibre-Web ebook library server health via GET /. 200 or redirect to /login = healthy. Default port 8083."""
@@ -4870,7 +4662,6 @@ def check_calibre_web(host: str, port: int = 8083, timeout: int = 5, https: bool
     except Exception:
         pass
     return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy}}
-
 
 @mcp.tool()
 def check_glances(host: str, port: int = 61208, timeout: int = 5, https: bool = False) -> dict:
@@ -4901,7 +4692,6 @@ def check_glances(host: str, port: int = 61208, timeout: int = 5, https: bool = 
         pass
     return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy, "version": version}}
 
-
 @mcp.tool()
 def check_netdata(host: str, port: int = 19999, timeout: int = 5, https: bool = False) -> dict:
     """Check Netdata real-time performance monitoring server health via GET /api/v1/info. Returns version and operating system. Default port 19999."""
@@ -4931,7 +4721,6 @@ def check_netdata(host: str, port: int = 19999, timeout: int = 5, https: bool = 
         pass
     return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy, "version": version}}
 
-
 @mcp.tool()
 def check_cockpit(host: str, port: int = 9090, timeout: int = 5, https: bool = False) -> dict:
     """Check Cockpit Linux server management web UI health. Tries GET /cockpit/login — 200, 302, or 401 = healthy. Default port 9090 (most installs use HTTPS)."""
@@ -4959,7 +4748,6 @@ def check_cockpit(host: str, port: int = 9090, timeout: int = 5, https: bool = F
         except Exception:
             pass
     return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy}}
-
 
 @mcp.tool()
 def check_changedetection(host: str, port: int = 5000, timeout: int = 5, https: bool = False) -> dict:
@@ -4992,7 +4780,6 @@ def check_changedetection(host: str, port: int = 5000, timeout: int = 5, https: 
         pass
     return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy, "version": version}}
 
-
 @mcp.tool()
 def check_flaresolverr(host: str, port: int = 8191, timeout: int = 5, https: bool = False) -> dict:
     """Check FlareSolverr Cloudflare bypass proxy health via GET /v1. Returns version and number of active sessions. Default port 8191."""
@@ -5024,7 +4811,6 @@ def check_flaresolverr(host: str, port: int = 8191, timeout: int = 5, https: boo
         pass
     return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy, "version": version, "sessions": sessions}}
 
-
 @mcp.tool()
 def check_penpot(host: str, port: int = 9001, timeout: int = 5, https: bool = False) -> dict:
     """Check Penpot open-source design tool health via GET /api/rpc/command/get-profile. 401 = running (auth required). Default port 9001."""
@@ -5049,7 +4835,6 @@ def check_penpot(host: str, port: int = 9001, timeout: int = 5, https: bool = Fa
     except Exception:
         pass
     return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy}}
-
 
 @mcp.tool()
 def check_joplin_server(host: str, port: int = 22300, timeout: int = 5, https: bool = False) -> dict:
@@ -5081,7 +4866,6 @@ def check_joplin_server(host: str, port: int = 22300, timeout: int = 5, https: b
         pass
     return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy, "status": status}}
 
-
 @mcp.tool()
 def check_nocodb(host: str, port: int = 8080, timeout: int = 5, https: bool = False) -> dict:
     """Check NocoDB no-code database platform health via GET /api/v1/health. Returns status 'ok'. Default port 8080."""
@@ -5112,7 +4896,6 @@ def check_nocodb(host: str, port: int = 8080, timeout: int = 5, https: bool = Fa
         pass
     return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy}}
 
-
 @mcp.tool()
 def check_hoppscotch(host: str, port: int = 3170, timeout: int = 5, https: bool = False) -> dict:
     """Check Hoppscotch self-hosted API testing platform backend health via GET /api/health or root path. Default backend port 3170 (frontend is 3000)."""
@@ -5141,7 +4924,6 @@ def check_hoppscotch(host: str, port: int = 3170, timeout: int = 5, https: bool 
             pass
     return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy}}
 
-
 @mcp.tool()
 def check_n8n(host: str, port: int = 5678, timeout: int = 5, https: bool = False) -> dict:
     """Check n8n workflow automation platform health via GET /healthz. Returns status 'ok'. Default port 5678."""
@@ -5167,7 +4949,6 @@ def check_n8n(host: str, port: int = 5678, timeout: int = 5, https: bool = False
     except Exception:
         pass
     return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy}}
-
 
 @mcp.tool()
 def check_directus(host: str, port: int = 8055, timeout: int = 5, https: bool = False) -> dict:
@@ -5199,7 +4980,6 @@ def check_directus(host: str, port: int = 8055, timeout: int = 5, https: bool = 
         pass
     return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy, "status": status}}
 
-
 @mcp.tool()
 def check_appwrite(host: str, port: int = 80, timeout: int = 5, https: bool = False) -> dict:
     """Check Appwrite open-source BaaS health via GET /v1/health. Returns HTTP status. Default port 80 (HTTPS on 443)."""
@@ -5228,7 +5008,6 @@ def check_appwrite(host: str, port: int = 80, timeout: int = 5, https: bool = Fa
         pass
     return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy}}
 
-
 @mcp.tool()
 def check_windmill(host: str, port: int = 8000, timeout: int = 5, https: bool = False) -> dict:
     """Check Windmill workflow automation platform health via GET /api/version. Returns version string. Default port 8000."""
@@ -5254,7 +5033,6 @@ def check_windmill(host: str, port: int = 8000, timeout: int = 5, https: bool = 
         pass
     return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy, "version": version}}
 
-
 @mcp.tool()
 def check_umami(host: str, port: int = 3000, timeout: int = 5, https: bool = False) -> dict:
     """Check Umami privacy-focused analytics server health via GET /api/heartbeat. Returns 'OK' text response. Default port 3000."""
@@ -5277,7 +5055,6 @@ def check_umami(host: str, port: int = 3000, timeout: int = 5, https: bool = Fal
     except Exception:
         pass
     return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy}}
-
 
 @mcp.tool()
 def check_planka(host: str, port: int = 1337, timeout: int = 5, https: bool = False) -> dict:
@@ -5306,7 +5083,6 @@ def check_planka(host: str, port: int = 1337, timeout: int = 5, https: bool = Fa
         except Exception:
             pass
     return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy}}
-
 
 @mcp.tool()
 def check_kimai(host: str, port: int = 80, timeout: int = 5, https: bool = False) -> dict:
@@ -5339,7 +5115,6 @@ def check_kimai(host: str, port: int = 80, timeout: int = 5, https: bool = False
         pass
     return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy, "version": version}}
 
-
 @mcp.tool()
 def check_snipe_it(host: str, port: int = 80, timeout: int = 5, https: bool = False) -> dict:
     """Check Snipe-IT IT asset management application health via GET /api/v1/settings/general (401 without token = running). Default port 80."""
@@ -5368,7 +5143,6 @@ def check_snipe_it(host: str, port: int = 80, timeout: int = 5, https: bool = Fa
             pass
     return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy}}
 
-
 @mcp.tool()
 def check_code_server(host: str, port: int = 8080, timeout: int = 5, https: bool = False) -> dict:
     """Check code-server (VSCode in browser) health via GET /healthz. Returns 'OK'. Default port 8080."""
@@ -5391,7 +5165,6 @@ def check_code_server(host: str, port: int = 8080, timeout: int = 5, https: bool
     except Exception:
         pass
     return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy}}
-
 
 @mcp.tool()
 def check_filebrowser(host: str, port: int = 80, timeout: int = 5, https: bool = False) -> dict:
@@ -5420,7 +5193,6 @@ def check_filebrowser(host: str, port: int = 80, timeout: int = 5, https: bool =
         except Exception:
             pass
     return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy}}
-
 
 @mcp.tool()
 def check_memos(host: str, port: int = 5230, timeout: int = 5, https: bool = False) -> dict:
@@ -5451,7 +5223,6 @@ def check_memos(host: str, port: int = 5230, timeout: int = 5, https: bool = Fal
         pass
     return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy, "version": version}}
 
-
 @mcp.tool()
 def check_rallly(host: str, port: int = 3000, timeout: int = 5, https: bool = False) -> dict:
     """Check Rallly open-source scheduling and polls application health via GET /api/health or root. Default port 3000."""
@@ -5480,7 +5251,6 @@ def check_rallly(host: str, port: int = 3000, timeout: int = 5, https: bool = Fa
             pass
     return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy}}
 
-
 @mcp.tool()
 def check_seafile(host: str, port: int = 80, timeout: int = 5, https: bool = False) -> dict:
     """Check Seafile file sync and share server health via GET /api2/ping/. Returns 'pong' on success. Default port 80."""
@@ -5503,7 +5273,6 @@ def check_seafile(host: str, port: int = 80, timeout: int = 5, https: bool = Fal
     except Exception:
         pass
     return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy}}
-
 
 @mcp.tool()
 def check_onlyoffice(host: str, port: int = 80, timeout: int = 5, https: bool = False) -> dict:
@@ -5529,7 +5298,6 @@ def check_onlyoffice(host: str, port: int = 80, timeout: int = 5, https: bool = 
     except Exception:
         pass
     return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy}}
-
 
 @mcp.tool()
 def check_hedgedoc(host: str, port: int = 3000, timeout: int = 5, https: bool = False) -> dict:
@@ -5560,7 +5328,6 @@ def check_hedgedoc(host: str, port: int = 3000, timeout: int = 5, https: bool = 
         pass
     return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy, "version": version}}
 
-
 @mcp.tool()
 def check_collabora(host: str, port: int = 9980, timeout: int = 5, https: bool = False) -> dict:
     """Check Collabora Online Office server health via GET /api/v1/config. 200 or 400 = server running. Default port 9980."""
@@ -5588,7 +5355,6 @@ def check_collabora(host: str, port: int = 9980, timeout: int = 5, https: bool =
         except Exception:
             pass
     return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy}}
-
 
 @mcp.tool()
 def check_wordpress(host: str, port: int = 80, timeout: int = 5, https: bool = False) -> dict:
@@ -5618,7 +5384,6 @@ def check_wordpress(host: str, port: int = 80, timeout: int = 5, https: bool = F
     except Exception:
         pass
     return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy, "site_name": site_name}}
-
 
 @mcp.tool()
 def check_ghost(host: str, port: int = 2368, timeout: int = 5, https: bool = False) -> dict:
@@ -5658,7 +5423,6 @@ def check_ghost(host: str, port: int = 2368, timeout: int = 5, https: bool = Fal
         except Exception:
             pass
     return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy, "version": version, "title": title}}
-
 
 @mcp.tool()
 def http_security_headers(host: str, port: int = 80, timeout: int = 5, https: bool = False, path: str = "/") -> dict:
@@ -5727,7 +5491,6 @@ def http_security_headers(host: str, port: int = 80, timeout: int = 5, https: bo
     except Exception as e:
         return {"error": str(e), "tool": "http_security_headers", "host": host, "port": port, "detail": type(e).__name__}
 
-
 @mcp.tool()
 def check_gitlab(host: str, port: int = 80, timeout: int = 5, https: bool = False) -> dict:
     """Check GitLab instance health via GET /-/health. Confirms the application is running and can accept requests. Default port 80."""
@@ -5759,7 +5522,6 @@ def check_gitlab(host: str, port: int = 80, timeout: int = 5, https: bool = Fals
         except Exception:
             pass
     return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy}}
-
 
 @mcp.tool()
 def check_discourse(host: str, port: int = 80, timeout: int = 5, https: bool = False) -> dict:
@@ -5799,7 +5561,6 @@ def check_discourse(host: str, port: int = 80, timeout: int = 5, https: bool = F
         except Exception:
             pass
     return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy, "version": version}}
-
 
 @mcp.tool()
 def check_matomo(host: str, port: int = 80, timeout: int = 5, https: bool = False) -> dict:
@@ -5842,7 +5603,6 @@ def check_matomo(host: str, port: int = 80, timeout: int = 5, https: bool = Fals
             pass
     return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy, "version": version}}
 
-
 @mcp.tool()
 def check_dokuwiki(host: str, port: int = 80, timeout: int = 5, https: bool = False) -> dict:
     """Check DokuWiki health via GET /doku.php. A 200 or redirect response confirms the wiki is running. Default port 80."""
@@ -5867,7 +5627,6 @@ def check_dokuwiki(host: str, port: int = 80, timeout: int = 5, https: bool = Fa
     except Exception:
         pass
     return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy}}
-
 
 @mcp.tool()
 def check_invoiceninja(host: str, port: int = 80, timeout: int = 5, https: bool = False) -> dict:
@@ -5902,7 +5661,6 @@ def check_invoiceninja(host: str, port: int = 80, timeout: int = 5, https: bool 
         pass
     return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy, "version": version}}
 
-
 @mcp.tool()
 def check_wikijs(host: str, port: int = 3000, timeout: int = 5, https: bool = False) -> dict:
     """Check Wiki.js health via GET /healthcheck. Returns healthy status. Default port 3000."""
@@ -5935,7 +5693,6 @@ def check_wikijs(host: str, port: int = 3000, timeout: int = 5, https: bool = Fa
         pass
     return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy}}
 
-
 @mcp.tool()
 def check_limesurvey(host: str, port: int = 80, timeout: int = 5, https: bool = False) -> dict:
     """Check LimeSurvey survey platform health via GET /index.php. A 200 or redirect response confirms the service is running. Default port 80."""
@@ -5965,7 +5722,6 @@ def check_limesurvey(host: str, port: int = 80, timeout: int = 5, https: bool = 
             pass
     return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy}}
 
-
 @mcp.tool()
 def check_bitwarden(host: str, port: int = 80, timeout: int = 5, https: bool = False) -> dict:
     """Check Bitwarden (Unified) server health via GET /api/alive. A 200 response confirms the server is operational. Default port 80."""
@@ -5991,7 +5747,6 @@ def check_bitwarden(host: str, port: int = 80, timeout: int = 5, https: bool = F
     except Exception:
         pass
     return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy}}
-
 
 @mcp.tool()
 def check_ollama(host: str, port: int = 11434, timeout: int = 5, https: bool = False) -> dict:
@@ -6030,7 +5785,6 @@ def check_ollama(host: str, port: int = 11434, timeout: int = 5, https: bool = F
             pass
     return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy, "version": version}}
 
-
 @mcp.tool()
 def check_open_webui(host: str, port: int = 3000, timeout: int = 5, https: bool = False) -> dict:
     """Check Open WebUI (Ollama/LLM frontend) health via GET /health. Returns healthy status. Default port 3000."""
@@ -6063,7 +5817,6 @@ def check_open_webui(host: str, port: int = 3000, timeout: int = 5, https: bool 
         pass
     return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy}}
 
-
 @mcp.tool()
 def check_pocketbase(host: str, port: int = 8090, timeout: int = 5, https: bool = False) -> dict:
     """Check PocketBase backend health via GET /api/health. Returns healthy status. Default port 8090."""
@@ -6091,7 +5844,6 @@ def check_pocketbase(host: str, port: int = 8090, timeout: int = 5, https: bool 
     except Exception:
         pass
     return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy}}
-
 
 @mcp.tool()
 def check_anythingllm(host: str, port: int = 3001, timeout: int = 5, https: bool = False) -> dict:
@@ -6125,7 +5877,6 @@ def check_anythingllm(host: str, port: int = 3001, timeout: int = 5, https: bool
         except Exception:
             pass
     return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy}}
-
 
 @mcp.tool()
 def check_pihole(host: str, port: int = 80, timeout: int = 5, https: bool = False, api_token: str = "") -> dict:
@@ -6167,7 +5918,6 @@ def check_pihole(host: str, port: int = 80, timeout: int = 5, https: bool = Fals
         "gravity_last_updated": data.get("gravity_last_updated", {}).get("relative", {}).get("human_readable"),
     }}
 
-
 @mcp.tool()
 def check_frigate(host: str, port: int = 5000, timeout: int = 5, https: bool = False) -> dict:
     """Check Frigate NVR (network video recorder) health via GET /api/stats. Returns camera count, detection FPS, process load, and detector (GPU/CPU) stats. Default port 5000."""
@@ -6204,7 +5954,6 @@ def check_frigate(host: str, port: int = 5000, timeout: int = 5, https: bool = F
         "service": data.get("service", {}),
     }}
 
-
 @mcp.tool()
 def check_homepage(host: str, port: int = 3000, timeout: int = 5, https: bool = False) -> dict:
     """Check Homepage dashboard (gethomepage.dev) health via GET /api/healthcheck. Returns healthy status. Default port 3000."""
@@ -6234,7 +5983,6 @@ def check_homepage(host: str, port: int = 3000, timeout: int = 5, https: bool = 
         except Exception:
             pass
     return {"result": {"host": host, "port": port, "healthy": healthy, "reachable": healthy}}
-
 
 @mcp.tool()
 def check_dashdot(host: str, port: int = 3001, timeout: int = 5, https: bool = False) -> dict:
@@ -6272,7 +6020,6 @@ def check_dashdot(host: str, port: int = 3001, timeout: int = 5, https: bool = F
         return {"error": str(e), "tool": "check_dashdot", "host": host}
     return {"result": {"host": host, "port": port, "healthy": healthy, "reachable": healthy, "info": data}}
 
-
 @mcp.tool()
 def check_victoriametrics(host: str, port: int = 8428, timeout: int = 5, https: bool = False) -> dict:
     """Check VictoriaMetrics (time-series database) health via GET /health and retrieve /api/v1/status/tsdb summary. Returns healthy, version if available, and time series count. Default port 8428. Set https=True for HTTPS."""
@@ -6307,7 +6054,6 @@ def check_victoriametrics(host: str, port: int = 8428, timeout: int = 5, https: 
     except Exception:
         pass
     return {"result": result}
-
 
 @mcp.tool()
 def check_zipkin(host: str, port: int = 9411, timeout: int = 5, https: bool = False) -> dict:
@@ -6347,7 +6093,6 @@ def check_zipkin(host: str, port: int = 9411, timeout: int = 5, https: bool = Fa
         pass
     return {"result": result}
 
-
 @mcp.tool()
 def check_komga(host: str, port: int = 25600, timeout: int = 5, https: bool = False) -> dict:
     """Check Komga comics/manga server health via GET /actuator/health. Returns healthy status, server version if available, and library count. Default port 25600."""
@@ -6384,7 +6129,6 @@ def check_komga(host: str, port: int = 25600, timeout: int = 5, https: bool = Fa
         pass
     return {"result": result}
 
-
 @mcp.tool()
 def check_tubearchivist(host: str, port: int = 8000, timeout: int = 5, https: bool = False) -> dict:
     """Check TubeArchivist (YouTube archiver) health via GET /api/ping/. Returns healthy status and version info. Default port 8000."""
@@ -6415,7 +6159,6 @@ def check_tubearchivist(host: str, port: int = 8000, timeout: int = 5, https: bo
         return {"error": str(e), "tool": "check_tubearchivist", "host": host}
     return {"result": {"host": host, "port": port, "healthy": healthy, "reachable": healthy, "version": data.get("version"), "ta_version": data.get("ta_version")}}
 
-
 @mcp.tool()
 def check_mylar3(host: str, port: int = 8090, timeout: int = 5, https: bool = False) -> dict:
     """Check Mylar3 comics manager health via GET /api?apikey=nokey&cmd=getVersion (returns 401/403 if auth required, but proves service is up). Default port 8090."""
@@ -6442,7 +6185,6 @@ def check_mylar3(host: str, port: int = 8090, timeout: int = 5, https: bool = Fa
         return {"error": str(e), "tool": "check_mylar3", "host": host}
     return {"result": {"host": host, "port": port, "reachable": reachable, "healthy": reachable, "version": version}}
 
-
 @mcp.tool()
 def check_karakeep(host: str, port: int = 3000, timeout: int = 5, https: bool = False) -> dict:
     """Check Karakeep (formerly Hoarder) AI bookmark manager health via GET /api/v1/health. Returns healthy/reachable status. Default port 3000."""
@@ -6467,7 +6209,6 @@ def check_karakeep(host: str, port: int = 3000, timeout: int = 5, https: bool = 
         return {"result": {"host": host, "port": port, "reachable": reachable, "healthy": reachable, "http_code": e.code}}
     except Exception as e:
         return {"error": str(e), "tool": "check_karakeep", "host": host}
-
 
 @mcp.tool()
 def check_maybe(host: str, port: int = 3000, timeout: int = 5, https: bool = False) -> dict:
@@ -6494,7 +6235,6 @@ def check_maybe(host: str, port: int = 3000, timeout: int = 5, https: bool = Fal
     except Exception as e:
         return {"error": str(e), "tool": "check_maybe", "host": host}
 
-
 @mcp.tool()
 def check_headscale(host: str, port: int = 8080, timeout: int = 5, https: bool = False) -> dict:
     """Check Headscale (self-hosted Tailscale control server) health via GET /health. Returns healthy/reachable status. Default port 8080."""
@@ -6518,7 +6258,6 @@ def check_headscale(host: str, port: int = 8080, timeout: int = 5, https: bool =
         return {"error": f"HTTP {e.code}: {e.reason}", "tool": "check_headscale", "host": host}
     except Exception as e:
         return {"error": str(e), "tool": "check_headscale", "host": host}
-
 
 @mcp.tool()
 def check_gitness(host: str, port: int = 3000, timeout: int = 5, https: bool = False) -> dict:
@@ -6545,7 +6284,6 @@ def check_gitness(host: str, port: int = 3000, timeout: int = 5, https: bool = F
     except Exception as e:
         return {"error": str(e), "tool": "check_gitness", "host": host}
 
-
 @mcp.tool()
 def check_netbird(host: str, port: int = 8080, timeout: int = 5, https: bool = False) -> dict:
     """Check NetBird VPN management server health via GET /api/v1/self-hosted/setup-keys (returns 200 or 401 when service is up). Default port 8080."""
@@ -6571,7 +6309,6 @@ def check_netbird(host: str, port: int = 8080, timeout: int = 5, https: bool = F
     except Exception as e:
         return {"error": str(e), "tool": "check_netbird", "host": host}
 
-
 @mcp.tool()
 def check_linkding(host: str, port: int = 9090, timeout: int = 5, https: bool = False) -> dict:
     """Check Linkding bookmark manager health via GET /health. Returns healthy/reachable status. Default port 9090."""
@@ -6595,7 +6332,6 @@ def check_linkding(host: str, port: int = 9090, timeout: int = 5, https: bool = 
         return {"error": f"HTTP {e.code}: {e.reason}", "tool": "check_linkding", "host": host}
     except Exception as e:
         return {"error": str(e), "tool": "check_linkding", "host": host}
-
 
 @mcp.tool()
 def check_docmost(host: str, port: int = 3000, timeout: int = 5, https: bool = False) -> dict:
@@ -6622,7 +6358,6 @@ def check_docmost(host: str, port: int = 3000, timeout: int = 5, https: bool = F
     except Exception as e:
         return {"error": str(e), "tool": "check_docmost", "host": host}
 
-
 @mcp.tool()
 def check_docuseal(host: str, port: int = 3000, timeout: int = 5, https: bool = False) -> dict:
     """Check DocuSeal document signing service reachability via GET /. Returns 200 or 302 when service is up. Default port 3000."""
@@ -6647,7 +6382,6 @@ def check_docuseal(host: str, port: int = 3000, timeout: int = 5, https: bool = 
         return {"result": {"host": host, "port": port, "reachable": reachable, "healthy": reachable, "http_code": e.code}}
     except Exception as e:
         return {"error": str(e), "tool": "check_docuseal", "host": host}
-
 
 @mcp.tool()
 def check_grist(host: str, port: int = 8484, timeout: int = 5, https: bool = False) -> dict:
@@ -6674,7 +6408,6 @@ def check_grist(host: str, port: int = 8484, timeout: int = 5, https: bool = Fal
     except Exception as e:
         return {"error": str(e), "tool": "check_grist", "host": host}
 
-
 @mcp.tool()
 def check_baikal(host: str, port: int = 80, timeout: int = 5, https: bool = False) -> dict:
     """Check Baïkal CalDAV/CardDAV server reachability via GET /. Returns 200 or 302 when service is up. Default port 80."""
@@ -6699,7 +6432,6 @@ def check_baikal(host: str, port: int = 80, timeout: int = 5, https: bool = Fals
         return {"result": {"host": host, "port": port, "reachable": reachable, "healthy": reachable, "http_code": e.code}}
     except Exception as e:
         return {"error": str(e), "tool": "check_baikal", "host": host}
-
 
 @mcp.tool()
 def check_firefly_iii(host: str, port: int = 8080, timeout: int = 5, https: bool = False) -> dict:
@@ -6726,7 +6458,6 @@ def check_firefly_iii(host: str, port: int = 8080, timeout: int = 5, https: bool
     except Exception as e:
         return {"error": str(e), "tool": "check_firefly_iii", "host": host}
 
-
 @mcp.tool()
 def check_listmonk(host: str, port: int = 9000, timeout: int = 5, https: bool = False) -> dict:
     """Check listmonk newsletter/mailing list manager health via GET /api/health. Returns healthy/reachable status and version. Default port 9000."""
@@ -6751,7 +6482,6 @@ def check_listmonk(host: str, port: int = 9000, timeout: int = 5, https: bool = 
         return {"error": f"HTTP {e.code}: {e.reason}", "tool": "check_listmonk", "host": host}
     except Exception as e:
         return {"error": str(e), "tool": "check_listmonk", "host": host}
-
 
 @mcp.tool()
 def check_healthchecks(host: str, port: int = 8000, timeout: int = 5, https: bool = False) -> dict:
@@ -6778,7 +6508,6 @@ def check_healthchecks(host: str, port: int = 8000, timeout: int = 5, https: boo
     except Exception as e:
         return {"error": str(e), "tool": "check_healthchecks", "host": host}
 
-
 @mcp.tool()
 def check_shiori(host: str, port: int = 8080, timeout: int = 5, https: bool = False) -> dict:
     """Check Shiori bookmark manager reachability via GET /. Returns 200 or 302 (redirect to login) when service is up. Default port 8080."""
@@ -6803,7 +6532,6 @@ def check_shiori(host: str, port: int = 8080, timeout: int = 5, https: bool = Fa
         return {"result": {"host": host, "port": port, "reachable": reachable, "healthy": reachable, "http_code": e.code}}
     except Exception as e:
         return {"error": str(e), "tool": "check_shiori", "host": host}
-
 
 @mcp.tool()
 def check_openproject(host: str, port: int = 80, timeout: int = 5, https: bool = False) -> dict:
@@ -6830,7 +6558,6 @@ def check_openproject(host: str, port: int = 80, timeout: int = 5, https: bool =
     except Exception as e:
         return {"error": str(e), "tool": "check_openproject", "host": host}
 
-
 @mcp.tool()
 def check_dozzle(host: str, port: int = 8080, timeout: int = 5, https: bool = False) -> dict:
     """Check Dozzle Docker log viewer health via GET /healthcheck. Returns healthy/reachable status. Default port 8080."""
@@ -6854,7 +6581,6 @@ def check_dozzle(host: str, port: int = 8080, timeout: int = 5, https: bool = Fa
         return {"error": f"HTTP {e.code}: {e.reason}", "tool": "check_dozzle", "host": host}
     except Exception as e:
         return {"error": str(e), "tool": "check_dozzle", "host": host}
-
 
 @mcp.tool()
 def check_scrutiny(host: str, port: int = 8080, timeout: int = 5, https: bool = False) -> dict:
@@ -6881,7 +6607,6 @@ def check_scrutiny(host: str, port: int = 8080, timeout: int = 5, https: bool = 
     except Exception as e:
         return {"error": str(e), "tool": "check_scrutiny", "host": host}
 
-
 @mcp.tool()
 def check_radicale(host: str, port: int = 5232, timeout: int = 5, https: bool = False) -> dict:
     """Check Radicale CalDAV/CardDAV server reachability via GET /. Returns 200 or 401 when service is up. Default port 5232."""
@@ -6906,7 +6631,6 @@ def check_radicale(host: str, port: int = 5232, timeout: int = 5, https: bool = 
         return {"result": {"host": host, "port": port, "reachable": reachable, "healthy": reachable, "http_code": e.code}}
     except Exception as e:
         return {"error": str(e), "tool": "check_radicale", "host": host}
-
 
 @mcp.tool()
 def check_archivebox(host: str, port: int = 8000, timeout: int = 5, https: bool = False) -> dict:
@@ -6933,7 +6657,6 @@ def check_archivebox(host: str, port: int = 8000, timeout: int = 5, https: bool 
     except Exception as e:
         return {"error": str(e), "tool": "check_archivebox", "host": host}
 
-
 @mcp.tool()
 def check_leantime(host: str, port: int = 80, timeout: int = 5, https: bool = False) -> dict:
     """Check Leantime project management service reachability via GET /. Returns 200 or 302 when service is up. Default port 80."""
@@ -6958,7 +6681,6 @@ def check_leantime(host: str, port: int = 80, timeout: int = 5, https: bool = Fa
         return {"result": {"host": host, "port": port, "reachable": reachable, "healthy": reachable, "http_code": e.code}}
     except Exception as e:
         return {"error": str(e), "tool": "check_leantime", "host": host}
-
 
 @mcp.tool()
 def check_authelia(host: str, port: int = 9091, timeout: int = 5, https: bool = False) -> dict:
@@ -6985,7 +6707,6 @@ def check_authelia(host: str, port: int = 9091, timeout: int = 5, https: bool = 
     except Exception as e:
         return {"error": str(e), "tool": "check_authelia", "host": host}
 
-
 @mcp.tool()
 def check_whoogle(host: str, port: int = 5000, timeout: int = 5, https: bool = False) -> dict:
     """Check Whoogle search engine reachability via GET /. Returns healthy when main page loads. Default port 5000."""
@@ -7010,7 +6731,6 @@ def check_whoogle(host: str, port: int = 5000, timeout: int = 5, https: bool = F
         return {"result": {"host": host, "port": port, "reachable": reachable, "healthy": reachable, "http_code": e.code}}
     except Exception as e:
         return {"error": str(e), "tool": "check_whoogle", "host": host}
-
 
 @mcp.tool()
 def check_emby(host: str, port: int = 8096, timeout: int = 5, https: bool = False) -> dict:
@@ -7037,7 +6757,6 @@ def check_emby(host: str, port: int = 8096, timeout: int = 5, https: bool = Fals
     except Exception as e:
         return {"error": str(e), "tool": "check_emby", "host": host}
 
-
 @mcp.tool()
 def check_jackett(host: str, port: int = 9117, timeout: int = 5, https: bool = False) -> dict:
     """Check Jackett indexer proxy reachability via GET /health. Returns healthy when service responds. Default port 9117."""
@@ -7061,7 +6780,6 @@ def check_jackett(host: str, port: int = 9117, timeout: int = 5, https: bool = F
         return {"result": {"host": host, "port": port, "reachable": reachable, "healthy": reachable, "http_code": e.code}}
     except Exception as e:
         return {"error": str(e), "tool": "check_jackett", "host": host}
-
 
 @mcp.tool()
 def check_plex(host: str, port: int = 32400, timeout: int = 5, https: bool = False) -> dict:
@@ -7089,7 +6807,6 @@ def check_plex(host: str, port: int = 32400, timeout: int = 5, https: bool = Fal
     except Exception as e:
         return {"error": str(e), "tool": "check_plex", "host": host}
 
-
 @mcp.tool()
 def check_sonarr(host: str, port: int = 8989, timeout: int = 5, https: bool = False) -> dict:
     """Check Sonarr TV series manager reachability via GET /api/v3/health. Returns healthy when service responds. Default port 8989."""
@@ -7114,7 +6831,6 @@ def check_sonarr(host: str, port: int = 8989, timeout: int = 5, https: bool = Fa
     except Exception as e:
         return {"error": str(e), "tool": "check_sonarr", "host": host}
 
-
 @mcp.tool()
 def check_radarr(host: str, port: int = 7878, timeout: int = 5, https: bool = False) -> dict:
     """Check Radarr movie manager reachability via GET /api/v3/health. Returns healthy when service responds. Default port 7878."""
@@ -7138,7 +6854,6 @@ def check_radarr(host: str, port: int = 7878, timeout: int = 5, https: bool = Fa
         return {"result": {"host": host, "port": port, "reachable": reachable, "healthy": reachable, "http_code": e.code}}
     except Exception as e:
         return {"error": str(e), "tool": "check_radarr", "host": host}
-
 
 @mcp.tool()
 def check_tautulli(host: str, port: int = 8181, timeout: int = 5, https: bool = False) -> dict:
@@ -7165,7 +6880,6 @@ def check_tautulli(host: str, port: int = 8181, timeout: int = 5, https: bool = 
     except Exception as e:
         return {"error": str(e), "tool": "check_tautulli", "host": host}
 
-
 @mcp.tool()
 def check_overseerr(host: str, port: int = 5055, timeout: int = 5, https: bool = False) -> dict:
     """Check Overseerr media request manager reachability via GET /api/v1/status. Returns version when healthy. Default port 5055."""
@@ -7191,7 +6905,6 @@ def check_overseerr(host: str, port: int = 5055, timeout: int = 5, https: bool =
     except Exception as e:
         return {"error": str(e), "tool": "check_overseerr", "host": host}
 
-
 @mcp.tool()
 def check_beszel(host: str, port: int = 8090, timeout: int = 5, https: bool = False) -> dict:
     """Check Beszel server monitoring hub reachability via GET /api/health. Default port 8090."""
@@ -7215,7 +6928,6 @@ def check_beszel(host: str, port: int = 8090, timeout: int = 5, https: bool = Fa
         return {"result": {"host": host, "port": port, "reachable": reachable, "healthy": reachable, "http_code": e.code}}
     except Exception as e:
         return {"error": str(e), "tool": "check_beszel", "host": host}
-
 
 @mcp.tool()
 def check_gatus(host: str, port: int = 8080, timeout: int = 5, https: bool = False) -> dict:
@@ -7241,7 +6953,6 @@ def check_gatus(host: str, port: int = 8080, timeout: int = 5, https: bool = Fal
         return {"result": {"host": host, "port": port, "reachable": reachable, "healthy": e.code == 200, "http_code": e.code}}
     except Exception as e:
         return {"error": str(e), "tool": "check_gatus", "host": host}
-
 
 @mcp.tool()
 def check_technitium(host: str, port: int = 5380, timeout: int = 5, https: bool = False) -> dict:
@@ -7269,7 +6980,6 @@ def check_technitium(host: str, port: int = 5380, timeout: int = 5, https: bool 
     except Exception as e:
         return {"error": str(e), "tool": "check_technitium", "host": host}
 
-
 @mcp.tool()
 def check_crowdsec(host: str, port: int = 6060, timeout: int = 5, https: bool = False) -> dict:
     """Check CrowdSec security agent local API reachability via GET /metrics. Default port 6060 (Prometheus metrics endpoint — no auth required)."""
@@ -7293,7 +7003,6 @@ def check_crowdsec(host: str, port: int = 6060, timeout: int = 5, https: bool = 
         return {"result": {"host": host, "port": port, "reachable": reachable, "healthy": reachable, "http_code": e.code}}
     except Exception as e:
         return {"error": str(e), "tool": "check_crowdsec", "host": host}
-
 
 @mcp.tool()
 def check_wazuh(host: str, port: int = 55000, timeout: int = 5, https: bool = True) -> dict:
@@ -7319,7 +7028,6 @@ def check_wazuh(host: str, port: int = 55000, timeout: int = 5, https: bool = Tr
     except Exception as e:
         return {"error": str(e), "tool": "check_wazuh", "host": host}
 
-
 @mcp.tool()
 def check_nitter(host: str, port: int = 8080, timeout: int = 5, https: bool = False) -> dict:
     """Check Nitter Twitter/X frontend reachability via GET /. Default port 8080."""
@@ -7343,7 +7051,6 @@ def check_nitter(host: str, port: int = 8080, timeout: int = 5, https: bool = Fa
         return {"result": {"host": host, "port": port, "reachable": reachable, "healthy": reachable, "http_code": e.code}}
     except Exception as e:
         return {"error": str(e), "tool": "check_nitter", "host": host}
-
 
 @mcp.tool()
 def check_redlib(host: str, port: int = 8080, timeout: int = 5, https: bool = False) -> dict:
@@ -7369,7 +7076,6 @@ def check_redlib(host: str, port: int = 8080, timeout: int = 5, https: bool = Fa
     except Exception as e:
         return {"error": str(e), "tool": "check_redlib", "host": host}
 
-
 @mcp.tool()
 def check_speedtest_tracker(host: str, port: int = 80, timeout: int = 5, https: bool = False) -> dict:
     """Check Speedtest Tracker reachability via GET /api/healthcheck. Default port 80."""
@@ -7393,7 +7099,6 @@ def check_speedtest_tracker(host: str, port: int = 80, timeout: int = 5, https: 
         return {"result": {"host": host, "port": port, "reachable": reachable, "healthy": reachable, "http_code": e.code}}
     except Exception as e:
         return {"error": str(e), "tool": "check_speedtest_tracker", "host": host}
-
 
 @mcp.tool()
 def check_strapi(host: str, port: int = 1337, timeout: int = 5, https: bool = False) -> dict:
@@ -7420,7 +7125,6 @@ def check_strapi(host: str, port: int = 1337, timeout: int = 5, https: bool = Fa
     except Exception as e:
         return {"error": str(e), "tool": "check_strapi", "host": host}
 
-
 @mcp.tool()
 def check_organizr(host: str, port: int = 80, timeout: int = 5, https: bool = False) -> dict:
     """Check Organizr v2 dashboard reachability via GET /api/v2/apps. Default port 80."""
@@ -7445,7 +7149,6 @@ def check_organizr(host: str, port: int = 80, timeout: int = 5, https: bool = Fa
     except Exception as e:
         return {"error": str(e), "tool": "check_organizr", "host": host}
 
-
 @mcp.tool()
 def check_heimdall(host: str, port: int = 80, timeout: int = 5, https: bool = False) -> dict:
     """Check Heimdall application dashboard reachability via GET /. Default port 80."""
@@ -7469,7 +7172,6 @@ def check_heimdall(host: str, port: int = 80, timeout: int = 5, https: bool = Fa
         return {"result": {"host": host, "port": port, "reachable": reachable, "healthy": reachable, "http_code": e.code}}
     except Exception as e:
         return {"error": str(e), "tool": "check_heimdall", "host": host}
-
 
 @mcp.tool()
 def check_invidious(host: str, port: int = 3000, timeout: int = 5, https: bool = False) -> dict:
@@ -7497,7 +7199,6 @@ def check_invidious(host: str, port: int = 3000, timeout: int = 5, https: bool =
     except Exception as e:
         return {"error": str(e), "tool": "check_invidious", "host": host}
 
-
 @mcp.tool()
 def check_hoarder(host: str, port: int = 3000, timeout: int = 5, https: bool = False) -> dict:
     """Check Hoarder bookmarks manager reachability via GET /api/v1/health. Default port 3000."""
@@ -7521,7 +7222,6 @@ def check_hoarder(host: str, port: int = 3000, timeout: int = 5, https: bool = F
         return {"result": {"host": host, "port": port, "reachable": reachable, "healthy": reachable, "http_code": e.code}}
     except Exception as e:
         return {"error": str(e), "tool": "check_hoarder", "host": host}
-
 
 @mcp.tool()
 def check_trilium(host: str, port: int = 8080, timeout: int = 5, https: bool = False) -> dict:
@@ -7547,7 +7247,6 @@ def check_trilium(host: str, port: int = 8080, timeout: int = 5, https: bool = F
     except Exception as e:
         return {"error": str(e), "tool": "check_trilium", "host": host}
 
-
 @mcp.tool()
 def check_kasm(host: str, port: int = 443, timeout: int = 5, https: bool = True) -> dict:
     """Check Kasm Workspaces containerized desktop reachability via GET /. Default port 443 with HTTPS."""
@@ -7571,7 +7270,6 @@ def check_kasm(host: str, port: int = 443, timeout: int = 5, https: bool = True)
         return {"result": {"host": host, "port": port, "reachable": reachable, "healthy": reachable, "http_code": e.code}}
     except Exception as e:
         return {"error": str(e), "tool": "check_kasm", "host": host}
-
 
 @mcp.tool()
 def check_homarr(host: str, port: int = 7575, timeout: int = 5, https: bool = False) -> dict:
@@ -7598,7 +7296,6 @@ def check_homarr(host: str, port: int = 7575, timeout: int = 5, https: bool = Fa
     except Exception as e:
         return {"error": str(e), "tool": "check_homarr", "host": host}
 
-
 @mcp.tool()
 def check_flame(host: str, port: int = 5005, timeout: int = 5, https: bool = False) -> dict:
     """Check Flame startpage/dashboard reachability via GET /. Default port 5005."""
@@ -7622,7 +7319,6 @@ def check_flame(host: str, port: int = 5005, timeout: int = 5, https: bool = Fal
         return {"result": {"host": host, "port": port, "reachable": reachable, "healthy": reachable, "http_code": e.code}}
     except Exception as e:
         return {"error": str(e), "tool": "check_flame", "host": host}
-
 
 @mcp.tool()
 def check_wallos(host: str, port: int = 8282, timeout: int = 5, https: bool = False) -> dict:
@@ -7648,7 +7344,6 @@ def check_wallos(host: str, port: int = 8282, timeout: int = 5, https: bool = Fa
     except Exception as e:
         return {"error": str(e), "tool": "check_wallos", "host": host}
 
-
 @mcp.tool()
 def check_it_tools(host: str, port: int = 80, timeout: int = 5, https: bool = False) -> dict:
     """Check IT Tools developer utility hub reachability via GET /. Default port 80."""
@@ -7672,7 +7367,6 @@ def check_it_tools(host: str, port: int = 80, timeout: int = 5, https: bool = Fa
         return {"result": {"host": host, "port": port, "reachable": reachable, "healthy": reachable, "http_code": e.code}}
     except Exception as e:
         return {"error": str(e), "tool": "check_it_tools", "host": host}
-
 
 @mcp.tool()
 def check_kibana(host: str, port: int = 5601, timeout: int = 5, https: bool = False) -> dict:
@@ -7702,7 +7396,6 @@ def check_kibana(host: str, port: int = 5601, timeout: int = 5, https: bool = Fa
     except Exception as e:
         return {"error": str(e), "tool": "check_kibana", "host": host}
 
-
 @mcp.tool()
 def check_signoz(host: str, port: int = 3301, timeout: int = 5, https: bool = False) -> dict:
     """Check SigNoz (OpenTelemetry observability) reachability via GET /api/v1/health. Default port 3301. Returns status from health response."""
@@ -7731,7 +7424,6 @@ def check_signoz(host: str, port: int = 3301, timeout: int = 5, https: bool = Fa
     except Exception as e:
         return {"error": str(e), "tool": "check_signoz", "host": host}
 
-
 @mcp.tool()
 def check_librenms(host: str, port: int = 80, timeout: int = 5, https: bool = False) -> dict:
     """Check LibreNMS (network monitoring) reachability via GET /. Default port 80."""
@@ -7755,7 +7447,6 @@ def check_librenms(host: str, port: int = 80, timeout: int = 5, https: bool = Fa
         return {"result": {"host": host, "port": port, "reachable": reachable, "healthy": reachable, "http_code": e.code}}
     except Exception as e:
         return {"error": str(e), "tool": "check_librenms", "host": host}
-
 
 @mcp.tool()
 def check_ntopng(host: str, port: int = 3000, timeout: int = 5, https: bool = False) -> dict:
@@ -7781,7 +7472,6 @@ def check_ntopng(host: str, port: int = 3000, timeout: int = 5, https: bool = Fa
     except Exception as e:
         return {"error": str(e), "tool": "check_ntopng", "host": host}
 
-
 @mcp.tool()
 def check_checkmk(host: str, port: int = 5000, timeout: int = 5, https: bool = False) -> dict:
     """Check Checkmk (IT monitoring) reachability via GET /. Default port 5000."""
@@ -7805,7 +7495,6 @@ def check_checkmk(host: str, port: int = 5000, timeout: int = 5, https: bool = F
         return {"result": {"host": host, "port": port, "reachable": reachable, "healthy": reachable, "http_code": e.code}}
     except Exception as e:
         return {"error": str(e), "tool": "check_checkmk", "host": host}
-
 
 @mcp.tool()
 def check_icinga(host: str, port: int = 80, timeout: int = 5, https: bool = False) -> dict:
@@ -7831,7 +7520,6 @@ def check_icinga(host: str, port: int = 80, timeout: int = 5, https: bool = Fals
     except Exception as e:
         return {"error": str(e), "tool": "check_icinga", "host": host}
 
-
 @mcp.tool()
 def check_zabbix(host: str, port: int = 80, timeout: int = 5, https: bool = False) -> dict:
     """Check Zabbix (enterprise monitoring) reachability via GET /zabbix/. Default port 80."""
@@ -7855,7 +7543,6 @@ def check_zabbix(host: str, port: int = 80, timeout: int = 5, https: bool = Fals
         return {"result": {"host": host, "port": port, "reachable": reachable, "healthy": reachable, "http_code": e.code}}
     except Exception as e:
         return {"error": str(e), "tool": "check_zabbix", "host": host}
-
 
 @mcp.tool()
 def check_mimir(host: str, port: int = 8080, timeout: int = 5, https: bool = False) -> dict:
@@ -7882,7 +7569,6 @@ def check_mimir(host: str, port: int = 8080, timeout: int = 5, https: bool = Fal
         return {"result": {"host": host, "port": port, "reachable": reachable, "healthy": False, "http_code": e.code}}
     except Exception as e:
         return {"error": str(e), "tool": "check_mimir", "host": host}
-
 
 @mcp.tool()
 def check_vector(host: str, port: int = 8686, timeout: int = 5, https: bool = False) -> dict:
@@ -7911,10 +7597,8 @@ def check_vector(host: str, port: int = 8686, timeout: int = 5, https: bool = Fa
     except Exception as e:
         return {"error": str(e), "tool": "check_vector", "host": host}
 
-
 def main() -> None:
     mcp.run()
-
 
 if __name__ == "__main__":
     main()
