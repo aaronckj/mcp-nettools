@@ -341,23 +341,43 @@ def geolocation(ip: str) -> dict:
 
 @mcp.tool()
 def arp_table(interface: str = "") -> dict:
-    """Show ARP/neighbor table entries (IP-to-MAC mappings). interface: optional filter by network interface name."""
+    """Show ARP/neighbor table entries (IP-to-MAC mappings) as structured records. interface: optional filter by network interface name. Returns list with ip, mac, interface, and state fields."""
+    _NEIGH_STATES = {"REACHABLE", "STALE", "DELAY", "PROBE", "FAILED", "NOARP", "PERMANENT", "INCOMPLETE"}
+
+    def _parse_ip_neigh(output: str) -> list[dict]:
+        entries = []
+        for line in output.strip().splitlines():
+            parts = line.split()
+            if not parts:
+                continue
+            entry: dict = {"ip": parts[0], "mac": None, "interface": None, "state": None}
+            try:
+                entry["interface"] = parts[parts.index("dev") + 1]
+            except (ValueError, IndexError):
+                pass
+            try:
+                entry["mac"] = parts[parts.index("lladdr") + 1]
+            except (ValueError, IndexError):
+                pass
+            for p in reversed(parts):
+                if p.upper() in _NEIGH_STATES:
+                    entry["state"] = p.upper()
+                    break
+            entries.append(entry)
+        return entries
+
     try:
         cmd = ["ip", "neigh", "show"]
         if interface and interface.strip():
             cmd += ["dev", interface.strip()]
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
-        return {
-            "result": {
-                "output": result.stdout,
-                "returncode": result.returncode,
-            }
-        }
+        entries = _parse_ip_neigh(result.stdout)
+        return {"result": {"entries": entries, "count": len(entries)}}
     except FileNotFoundError:
         try:
             cmd2 = ["arp", "-an"]
             result2 = subprocess.run(cmd2, capture_output=True, text=True, timeout=10)
-            return {"result": {"output": result2.stdout, "returncode": result2.returncode}}
+            return {"result": {"raw_output": result2.stdout}}
         except Exception as e2:
             return {"error": str(e2), "tool": "arp_table", "detail": type(e2).__name__}
     except Exception as e:
@@ -816,6 +836,98 @@ def http_redirect_chain(url: str, max_redirects: int = 10, timeout: int = 10) ->
             "final_url": current,
             "hop_count": len(chain),
             "chain": chain,
+        }
+    }
+
+
+
+@mcp.tool()
+def pop3_check(host: str, port: int = 110, timeout: int = 10) -> dict:
+    """Check POP3 server connectivity. Reads server greeting and tests STARTTLS capability for port 110; uses implicit TLS for port 995. Does not authenticate."""
+    import poplib
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "pop3_check"}
+    timeout = min(max(1, timeout), 30)
+    try:
+        start = time.monotonic()
+        if port == 995:
+            pop = poplib.POP3_SSL(host, port, timeout=timeout)
+            tls = True
+        else:
+            pop = poplib.POP3(host, port, timeout=timeout)
+            tls = False
+
+        greeting = (pop.getwelcome() or b"").decode("utf-8", errors="replace").strip()
+
+        starttls = False
+        if not tls:
+            try:
+                capa = pop.capa()
+                if "STLS" in capa:
+                    pop.stls()
+                    starttls = True
+            except Exception:
+                pass
+
+        try:
+            pop.quit()
+        except Exception:
+            pass
+
+        elapsed_ms = round((time.monotonic() - start) * 1000, 2)
+        return {
+            "result": {
+                "host": host,
+                "port": port,
+                "reachable": True,
+                "greeting": greeting,
+                "tls": tls,
+                "starttls": starttls,
+                "elapsed_ms": elapsed_ms,
+            }
+        }
+    except Exception as e:
+        return {"error": str(e), "tool": "pop3_check", "host": host, "detail": type(e).__name__}
+
+
+_SECURITY_HEADERS = [
+    "strict-transport-security",
+    "content-security-policy",
+    "x-frame-options",
+    "x-content-type-options",
+    "referrer-policy",
+    "permissions-policy",
+    "x-xss-protection",
+]
+
+
+@mcp.tool()
+def check_security_headers(url: str, timeout: int = 10) -> dict:
+    """Fetch HTTP response headers and report which security headers are present or missing: HSTS, CSP, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy, X-XSS-Protection. Returns a score."""
+    if not url or not url.strip():
+        return {"error": "url must not be empty", "tool": "check_security_headers"}
+    timeout = min(max(1, timeout), 30)
+    try:
+        req = urllib.request.Request(url, method="HEAD")
+        try:
+            with urllib.request.urlopen(req, timeout=timeout) as resp:
+                headers = {k.lower(): v for k, v in resp.headers.items()}
+                status_code = resp.status
+        except urllib.error.HTTPError as e:
+            headers = {k.lower(): v for k, v in e.headers.items()}
+            status_code = e.code
+    except Exception as e:
+        return {"error": str(e), "tool": "check_security_headers", "url": url, "detail": type(e).__name__}
+
+    present = {h: headers[h] for h in _SECURITY_HEADERS if h in headers}
+    missing = [h for h in _SECURITY_HEADERS if h not in headers]
+    return {
+        "result": {
+            "url": url,
+            "status_code": status_code,
+            "present": present,
+            "missing": missing,
+            "score": f"{len(present)}/{len(_SECURITY_HEADERS)}",
         }
     }
 
