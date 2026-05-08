@@ -7580,6 +7580,8 @@ def check_homarr(host: str, port: int = 7575, timeout: int = 5, https: bool = Fa
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_homarr"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_homarr"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -7604,6 +7606,8 @@ def check_flame(host: str, port: int = 5005, timeout: int = 5, https: bool = Fal
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_flame"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_flame"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -7627,6 +7631,8 @@ def check_wallos(host: str, port: int = 8282, timeout: int = 5, https: bool = Fa
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_wallos"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_wallos"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -7650,6 +7656,8 @@ def check_it_tools(host: str, port: int = 80, timeout: int = 5, https: bool = Fa
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_it_tools"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_it_tools"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -7673,6 +7681,8 @@ def check_kibana(host: str, port: int = 5601, timeout: int = 5, https: bool = Fa
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_kibana"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_kibana"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -7700,6 +7710,8 @@ def check_signoz(host: str, port: int = 3301, timeout: int = 5, https: bool = Fa
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_signoz"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_signoz"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -7727,6 +7739,8 @@ def check_librenms(host: str, port: int = 80, timeout: int = 5, https: bool = Fa
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_librenms"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_librenms"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -7750,6 +7764,8 @@ def check_ntopng(host: str, port: int = 3000, timeout: int = 5, https: bool = Fa
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_ntopng"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_ntopng"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -7773,6 +7789,8 @@ def check_checkmk(host: str, port: int = 5000, timeout: int = 5, https: bool = F
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_checkmk"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_checkmk"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -7796,6 +7814,8 @@ def check_icinga(host: str, port: int = 80, timeout: int = 5, https: bool = Fals
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_icinga"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_icinga"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
