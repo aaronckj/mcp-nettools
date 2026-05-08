@@ -5043,6 +5043,107 @@ def check_rallly(host: str, port: int = 3000, timeout: int = 5, https: bool = Fa
     return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy}}
 
 
+@mcp.tool()
+def check_seafile(host: str, port: int = 80, timeout: int = 5, https: bool = False) -> dict:
+    """Check Seafile file sync and share server health via GET /api2/ping/. Returns 'pong' on success. Default port 80."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_seafile"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    healthy = False
+    try:
+        req = urllib.request.Request(f"{scheme}://{host}:{port}/api2/ping/")
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            healthy = resp.status == 200 and b"pong" in resp.read()
+    except Exception:
+        pass
+    return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy}}
+
+
+@mcp.tool()
+def check_onlyoffice(host: str, port: int = 80, timeout: int = 5, https: bool = False) -> dict:
+    """Check OnlyOffice Document Server health via GET /healthcheck. Returns 'true' on success. Default port 80."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_onlyoffice"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    healthy = False
+    try:
+        req = urllib.request.Request(f"{scheme}://{host}:{port}/healthcheck")
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            healthy = resp.status == 200
+            body = resp.read().decode().strip().lower()
+            healthy = healthy and body == "true"
+    except Exception:
+        pass
+    return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy}}
+
+
+@mcp.tool()
+def check_hedgedoc(host: str, port: int = 3000, timeout: int = 5, https: bool = False) -> dict:
+    """Check HedgeDoc collaborative markdown notes server health via GET /api/v2/status. Returns version and connection count. Default port 3000."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_hedgedoc"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    healthy = False
+    version: str | None = None
+    try:
+        req = urllib.request.Request(
+            f"{scheme}://{host}:{port}/api/v2/status",
+            headers={"Accept": "application/json"},
+        )
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            healthy = resp.status == 200
+            data = json.loads(resp.read().decode())
+            version = data.get("version")
+    except Exception:
+        pass
+    return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy, "version": version}}
+
+
+@mcp.tool()
+def check_collabora(host: str, port: int = 9980, timeout: int = 5, https: bool = False) -> dict:
+    """Check Collabora Online Office server health via GET /api/v1/config. 200 or 400 = server running. Default port 9980."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_collabora"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    healthy = False
+    for path in ["/api/v1/config", "/lool/convert-to/", "/"]:
+        try:
+            req = urllib.request.Request(f"{scheme}://{host}:{port}{path}")
+            with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+                healthy = resp.status in (200, 302, 400)
+                break
+        except urllib.error.HTTPError as e:
+            healthy = e.code in (200, 302, 400, 401, 403)
+            break
+        except Exception:
+            pass
+    return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy}}
+
+
 def main() -> None:
     mcp.run()
 
