@@ -7157,6 +7157,99 @@ def check_wazuh(host: str, port: int = 55000, timeout: int = 5, https: bool = Tr
 
 
 @mcp.tool()
+def check_nitter(host: str, port: int = 8080, timeout: int = 5, https: bool = False) -> dict:
+    """Check Nitter Twitter/X frontend reachability via GET /. Default port 8080."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_nitter"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    try:
+        req = urllib.request.Request(f"{scheme}://{host}:{port}/", headers={"Accept": "text/html"})
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            return {"result": {"host": host, "port": port, "healthy": True, "reachable": True, "http_code": resp.status}}
+    except urllib.error.HTTPError as e:
+        reachable = e.code < 500
+        return {"result": {"host": host, "port": port, "reachable": reachable, "healthy": reachable, "http_code": e.code}}
+    except Exception as e:
+        return {"error": str(e), "tool": "check_nitter", "host": host}
+
+
+@mcp.tool()
+def check_redlib(host: str, port: int = 8080, timeout: int = 5, https: bool = False) -> dict:
+    """Check Redlib (private Reddit frontend) reachability via GET /. Default port 8080."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_redlib"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    try:
+        req = urllib.request.Request(f"{scheme}://{host}:{port}/", headers={"Accept": "text/html"})
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            return {"result": {"host": host, "port": port, "healthy": True, "reachable": True, "http_code": resp.status}}
+    except urllib.error.HTTPError as e:
+        reachable = e.code < 500
+        return {"result": {"host": host, "port": port, "reachable": reachable, "healthy": reachable, "http_code": e.code}}
+    except Exception as e:
+        return {"error": str(e), "tool": "check_redlib", "host": host}
+
+
+@mcp.tool()
+def check_speedtest_tracker(host: str, port: int = 80, timeout: int = 5, https: bool = False) -> dict:
+    """Check Speedtest Tracker reachability via GET /api/healthcheck. Default port 80."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_speedtest_tracker"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    try:
+        req = urllib.request.Request(f"{scheme}://{host}:{port}/api/healthcheck", headers={"Accept": "application/json"})
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            return {"result": {"host": host, "port": port, "healthy": True, "reachable": True, "http_code": resp.status}}
+    except urllib.error.HTTPError as e:
+        reachable = e.code in (200, 401)
+        return {"result": {"host": host, "port": port, "reachable": reachable, "healthy": reachable, "http_code": e.code}}
+    except Exception as e:
+        return {"error": str(e), "tool": "check_speedtest_tracker", "host": host}
+
+
+@mcp.tool()
+def check_strapi(host: str, port: int = 1337, timeout: int = 5, https: bool = False) -> dict:
+    """Check Strapi headless CMS reachability via GET /api/health-check. Returns status when healthy. Default port 1337."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_strapi"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    try:
+        req = urllib.request.Request(f"{scheme}://{host}:{port}/api/health-check", headers={"Accept": "application/json"})
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            data = json.loads(resp.read().decode())
+            return {"result": {"host": host, "port": port, "healthy": True, "reachable": True, "status": data.get("data", {}).get("attributes", {}).get("status")}}
+    except urllib.error.HTTPError as e:
+        reachable = e.code in (200, 401)
+        return {"result": {"host": host, "port": port, "reachable": reachable, "healthy": reachable, "http_code": e.code}}
+    except Exception as e:
+        return {"error": str(e), "tool": "check_strapi", "host": host}
+
+
+@mcp.tool()
 def check_organizr(host: str, port: int = 80, timeout: int = 5, https: bool = False) -> dict:
     """Check Organizr v2 dashboard reachability via GET /api/v2/apps. Default port 80."""
     if not host or not host.strip():
