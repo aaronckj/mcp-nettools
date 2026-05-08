@@ -7038,6 +7038,99 @@ def check_overseerr(host: str, port: int = 5055, timeout: int = 5, https: bool =
         return {"error": str(e), "tool": "check_overseerr", "host": host}
 
 
+@mcp.tool()
+def check_homarr(host: str, port: int = 7575, timeout: int = 5, https: bool = False) -> dict:
+    """Check Homarr dashboard reachability via GET /api/health. Default port 7575."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_homarr"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    try:
+        req = urllib.request.Request(f"{scheme}://{host}:{port}/api/health", headers={"Accept": "application/json"})
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            data = json.loads(resp.read().decode())
+            return {"result": {"host": host, "port": port, "healthy": True, "reachable": True, "status": data.get("status")}}
+    except urllib.error.HTTPError as e:
+        reachable = e.code in (200, 401)
+        return {"result": {"host": host, "port": port, "reachable": reachable, "healthy": reachable, "http_code": e.code}}
+    except Exception as e:
+        return {"error": str(e), "tool": "check_homarr", "host": host}
+
+
+@mcp.tool()
+def check_flame(host: str, port: int = 5005, timeout: int = 5, https: bool = False) -> dict:
+    """Check Flame startpage/dashboard reachability via GET /. Default port 5005."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_flame"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    try:
+        req = urllib.request.Request(f"{scheme}://{host}:{port}/", headers={"Accept": "text/html"})
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            return {"result": {"host": host, "port": port, "healthy": True, "reachable": True, "http_code": resp.status}}
+    except urllib.error.HTTPError as e:
+        reachable = e.code < 500
+        return {"result": {"host": host, "port": port, "reachable": reachable, "healthy": reachable, "http_code": e.code}}
+    except Exception as e:
+        return {"error": str(e), "tool": "check_flame", "host": host}
+
+
+@mcp.tool()
+def check_wallos(host: str, port: int = 8282, timeout: int = 5, https: bool = False) -> dict:
+    """Check Wallos subscription tracker reachability via GET /. Default port 8282."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_wallos"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    try:
+        req = urllib.request.Request(f"{scheme}://{host}:{port}/", headers={"Accept": "text/html"})
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            return {"result": {"host": host, "port": port, "healthy": True, "reachable": True, "http_code": resp.status}}
+    except urllib.error.HTTPError as e:
+        reachable = e.code < 500
+        return {"result": {"host": host, "port": port, "reachable": reachable, "healthy": reachable, "http_code": e.code}}
+    except Exception as e:
+        return {"error": str(e), "tool": "check_wallos", "host": host}
+
+
+@mcp.tool()
+def check_it_tools(host: str, port: int = 80, timeout: int = 5, https: bool = False) -> dict:
+    """Check IT Tools developer utility hub reachability via GET /. Default port 80."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_it_tools"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    try:
+        req = urllib.request.Request(f"{scheme}://{host}:{port}/", headers={"Accept": "text/html"})
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            return {"result": {"host": host, "port": port, "healthy": True, "reachable": True, "http_code": resp.status}}
+    except urllib.error.HTTPError as e:
+        reachable = e.code < 500
+        return {"result": {"host": host, "port": port, "reachable": reachable, "healthy": reachable, "http_code": e.code}}
+    except Exception as e:
+        return {"error": str(e), "tool": "check_it_tools", "host": host}
+
+
 def main() -> None:
     mcp.run()
 
