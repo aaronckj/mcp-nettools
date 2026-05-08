@@ -2363,7 +2363,7 @@ def check_vault(host: str, port: int = 8200, timeout: int = 5, https: bool = Tru
     except urllib.error.URLError as e:
         return {"result": {"host": host, "port": port, "reachable": False, "error": str(e.reason)}}
     except Exception as e:
-        return {"error": str(e), "tool": "check_vault", "detail": type(e).__name__}
+        return {"error": str(e), "tool": "check_vault", "host": host, "detail": type(e).__name__}
 
 
 @mcp.tool()
@@ -2405,7 +2405,7 @@ def check_zookeeper(host: str, port: int = 2181, timeout: int = 5) -> dict:
     except ConnectionRefusedError:
         return {"result": {"host": host, "port": port, "reachable": False, "error": "connection refused"}}
     except Exception as e:
-        return {"error": str(e), "tool": "check_zookeeper", "detail": type(e).__name__}
+        return {"error": str(e), "tool": "check_zookeeper", "host": host, "detail": type(e).__name__}
 
 
 @mcp.tool()
@@ -2449,7 +2449,7 @@ def check_influxdb(host: str, port: int = 8086, timeout: int = 5, https: bool = 
     except urllib.error.URLError as e:
         return {"result": {"host": host, "port": port, "reachable": False, "error": str(e.reason)}}
     except Exception as e:
-        return {"error": str(e), "tool": "check_influxdb", "detail": type(e).__name__}
+        return {"error": str(e), "tool": "check_influxdb", "host": host, "detail": type(e).__name__}
 
 
 @mcp.tool()
@@ -2490,7 +2490,7 @@ def check_rabbitmq(host: str, port: int = 15672, timeout: int = 5, username: str
     except urllib.error.URLError as e:
         return {"result": {"host": host, "port": port, "reachable": False, "error": str(e.reason)}}
     except Exception as e:
-        return {"error": str(e), "tool": "check_rabbitmq", "detail": type(e).__name__}
+        return {"error": str(e), "tool": "check_rabbitmq", "host": host, "detail": type(e).__name__}
 
 
 @mcp.tool()
@@ -2538,7 +2538,7 @@ def check_kubernetes_api(host: str, port: int = 6443, timeout: int = 5, https: b
     except urllib.error.URLError as e:
         return {"result": {"host": host, "port": port, "reachable": False, "error": str(e.reason)}}
     except Exception as e:
-        return {"error": str(e), "tool": "check_kubernetes_api", "detail": type(e).__name__}
+        return {"error": str(e), "tool": "check_kubernetes_api", "host": host, "detail": type(e).__name__}
 
 
 @mcp.tool()
@@ -2576,7 +2576,7 @@ def check_elasticsearch(host: str, port: int = 9200, timeout: int = 5, https: bo
     except urllib.error.URLError as e:
         return {"result": {"host": host, "port": port, "reachable": False, "error": str(e.reason)}}
     except Exception as e:
-        return {"error": str(e), "tool": "check_elasticsearch", "detail": type(e).__name__}
+        return {"error": str(e), "tool": "check_elasticsearch", "host": host, "detail": type(e).__name__}
 
 
 @mcp.tool()
@@ -2617,7 +2617,7 @@ def check_etcd(host: str, port: int = 2379, timeout: int = 5) -> dict:
     except urllib.error.URLError as e:
         return {"result": {"host": host, "port": port, "reachable": False, "error": str(e.reason)}}
     except Exception as e:
-        return {"error": str(e), "tool": "check_etcd", "detail": type(e).__name__}
+        return {"error": str(e), "tool": "check_etcd", "host": host, "detail": type(e).__name__}
 
 
 @mcp.tool()
@@ -2651,7 +2651,7 @@ def check_consul(host: str, port: int = 8500, timeout: int = 5) -> dict:
     except urllib.error.URLError as e:
         return {"result": {"host": host, "port": port, "reachable": False, "error": str(e.reason)}}
     except Exception as e:
-        return {"error": str(e), "tool": "check_consul", "detail": type(e).__name__}
+        return {"error": str(e), "tool": "check_consul", "host": host, "detail": type(e).__name__}
 
 
 @mcp.tool()
@@ -2682,7 +2682,7 @@ def check_docker_api(host: str, port: int = 2375, timeout: int = 5, https: bool 
     except urllib.error.URLError as e:
         return {"result": {"host": host, "port": port, "reachable": False, "error": str(e.reason)}}
     except Exception as e:
-        return {"error": str(e), "tool": "check_docker_api", "detail": type(e).__name__}
+        return {"error": str(e), "tool": "check_docker_api", "host": host, "detail": type(e).__name__}
 
 
 @mcp.tool()
@@ -2776,7 +2776,7 @@ def check_smb(host: str, port: int = 445, timeout: int = 5) -> dict:
     except ConnectionRefusedError:
         return {"result": {"host": host, "port": port, "reachable": False, "error": "connection refused"}}
     except Exception as e:
-        return {"error": str(e), "tool": "check_smb", "detail": type(e).__name__}
+        return {"error": str(e), "tool": "check_smb", "host": host, "detail": type(e).__name__}
 
 
 @mcp.tool()
@@ -2814,7 +2814,7 @@ def check_prometheus(host: str, port: int = 9090, timeout: int = 5, https: bool 
             pass
         return {"result": {"host": host, "port": port, "reachable": healthy or ready, "healthy": healthy, "ready": ready, "tsdb_stats": stats}}
     except Exception as e:
-        return {"error": str(e), "tool": "check_prometheus", "detail": type(e).__name__}
+        return {"error": str(e), "tool": "check_prometheus", "host": host, "detail": type(e).__name__}
 
 
 @mcp.tool()
@@ -2845,7 +2845,7 @@ def check_grafana(host: str, port: int = 3000, timeout: int = 5, https: bool = F
     except urllib.error.URLError as e:
         return {"result": {"host": host, "port": port, "reachable": False, "error": str(e.reason)}}
     except Exception as e:
-        return {"error": str(e), "tool": "check_grafana", "detail": type(e).__name__}
+        return {"error": str(e), "tool": "check_grafana", "host": host, "detail": type(e).__name__}
 
 
 @mcp.tool()
@@ -2895,7 +2895,7 @@ def check_kafka(host: str, port: int = 9092, timeout: int = 5) -> dict:
     except ConnectionRefusedError:
         return {"result": {"host": host, "port": port, "reachable": False, "error": "connection refused"}}
     except Exception as e:
-        return {"error": str(e), "tool": "check_kafka", "detail": type(e).__name__}
+        return {"error": str(e), "tool": "check_kafka", "host": host, "detail": type(e).__name__}
 
 
 @mcp.tool()
@@ -2926,7 +2926,7 @@ def check_couchdb(host: str, port: int = 5984, timeout: int = 5, https: bool = F
     except urllib.error.URLError as e:
         return {"result": {"host": host, "port": port, "reachable": False, "error": str(e.reason)}}
     except Exception as e:
-        return {"error": str(e), "tool": "check_couchdb", "detail": type(e).__name__}
+        return {"error": str(e), "tool": "check_couchdb", "host": host, "detail": type(e).__name__}
 
 
 @mcp.tool()
@@ -2953,7 +2953,7 @@ def check_cassandra(host: str, port: int = 9042, timeout: int = 5) -> dict:
     except ConnectionRefusedError:
         return {"result": {"host": host, "port": port, "reachable": False, "error": "connection refused"}}
     except Exception as e:
-        return {"error": str(e), "tool": "check_cassandra", "detail": type(e).__name__}
+        return {"error": str(e), "tool": "check_cassandra", "host": host, "detail": type(e).__name__}
 
 
 @mcp.tool()
@@ -2977,7 +2977,7 @@ def check_clickhouse(host: str, port: int = 8123, timeout: int = 5, https: bool 
     except urllib.error.URLError as e:
         return {"result": {"host": host, "port": port, "reachable": False, "error": str(e.reason)}}
     except Exception as e:
-        return {"error": str(e), "tool": "check_clickhouse", "detail": type(e).__name__}
+        return {"error": str(e), "tool": "check_clickhouse", "host": host, "detail": type(e).__name__}
 
 
 @mcp.tool()
@@ -3007,7 +3007,7 @@ def check_neo4j(host: str, port: int = 7474, timeout: int = 5, https: bool = Fal
     except urllib.error.URLError as e:
         return {"result": {"host": host, "port": port, "reachable": False, "error": str(e.reason)}}
     except Exception as e:
-        return {"error": str(e), "tool": "check_neo4j", "detail": type(e).__name__}
+        return {"error": str(e), "tool": "check_neo4j", "host": host, "detail": type(e).__name__}
 
 
 @mcp.tool()
@@ -3222,7 +3222,7 @@ def check_opensearch(host: str, port: int = 9200, timeout: int = 5, https: bool 
     except urllib.error.URLError as e:
         return {"result": {"host": host, "port": port, "reachable": False, "error": str(e.reason)}}
     except Exception as e:
-        return {"error": str(e), "tool": "check_opensearch", "detail": type(e).__name__}
+        return {"error": str(e), "tool": "check_opensearch", "host": host, "detail": type(e).__name__}
 
 
 @mcp.tool()
