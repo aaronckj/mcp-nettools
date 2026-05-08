@@ -4152,6 +4152,122 @@ def check_navidrome(host: str, port: int = 4533, timeout: int = 5, https: bool =
     return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy}}
 
 
+@mcp.tool()
+def check_qbittorrent(host: str, port: int = 8080, timeout: int = 5, https: bool = False) -> dict:
+    """Check qBittorrent Web UI health via GET /api/v2/app/version. Returns version string. 403 = running but not logged in (still healthy). Default port 8080."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_qbittorrent"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    healthy = False
+    version: str | None = None
+    try:
+        req = urllib.request.Request(f"{scheme}://{host}:{port}/api/v2/app/version")
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            healthy = resp.status == 200
+            version = resp.read().decode().strip()
+    except urllib.error.HTTPError as e:
+        healthy = e.code in (200, 403)
+    except Exception:
+        pass
+    return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy, "version": version}}
+
+
+@mcp.tool()
+def check_prowlarr(host: str, port: int = 9696, timeout: int = 5, https: bool = False) -> dict:
+    """Check Prowlarr indexer manager health via GET /api/v1/system/status. Returns version and startup time. Default port 9696."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_prowlarr"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    healthy = False
+    version: str | None = None
+    try:
+        req = urllib.request.Request(
+            f"{scheme}://{host}:{port}/api/v1/system/status",
+            headers={"Accept": "application/json"},
+        )
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            healthy = resp.status == 200
+            data = json.loads(resp.read().decode())
+            version = data.get("version")
+    except urllib.error.HTTPError as e:
+        healthy = e.code in (200, 401)
+    except Exception:
+        pass
+    return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy, "version": version}}
+
+
+@mcp.tool()
+def check_lidarr(host: str, port: int = 8686, timeout: int = 5, https: bool = False) -> dict:
+    """Check Lidarr music collection manager health via GET /api/v1/system/status. Returns version and startup time. Default port 8686."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_lidarr"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    healthy = False
+    version: str | None = None
+    try:
+        req = urllib.request.Request(
+            f"{scheme}://{host}:{port}/api/v1/system/status",
+            headers={"Accept": "application/json"},
+        )
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            healthy = resp.status == 200
+            data = json.loads(resp.read().decode())
+            version = data.get("version")
+    except urllib.error.HTTPError as e:
+        healthy = e.code in (200, 401)
+    except Exception:
+        pass
+    return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy, "version": version}}
+
+
+@mcp.tool()
+def check_readarr(host: str, port: int = 8787, timeout: int = 5, https: bool = False) -> dict:
+    """Check Readarr book/eBook collection manager health via GET /api/v1/system/status. Returns version and startup time. Default port 8787."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_readarr"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    healthy = False
+    version: str | None = None
+    try:
+        req = urllib.request.Request(
+            f"{scheme}://{host}:{port}/api/v1/system/status",
+            headers={"Accept": "application/json"},
+        )
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            healthy = resp.status == 200
+            data = json.loads(resp.read().decode())
+            version = data.get("version")
+    except urllib.error.HTTPError as e:
+        healthy = e.code in (200, 401)
+    except Exception:
+        pass
+    return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy, "version": version}}
+
+
 def main() -> None:
     mcp.run()
 
