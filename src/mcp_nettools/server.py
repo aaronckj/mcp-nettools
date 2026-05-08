@@ -2281,6 +2281,139 @@ def check_zookeeper(host: str, port: int = 2181, timeout: int = 5) -> dict:
 
 
 @mcp.tool()
+def check_influxdb(host: str, port: int = 8086, timeout: int = 5, https: bool = False) -> dict:
+    """Check InfluxDB server health. Supports both InfluxDB v2 (GET /health → JSON status/pass) and v1 (GET /ping → 204 No Content). Returns version, status, and commit information when available. host: IP or hostname. port: default 8086. https: use HTTPS (default False)."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_influxdb"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    try:
+        req = urllib.request.Request(f"{scheme}://{host}:{port}/health", headers={"Accept": "application/json"})
+        try:
+            with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+                data = json.loads(resp.read().decode())
+            return {
+                "result": {
+                    "host": host, "port": port, "reachable": True,
+                    "status": data.get("status"),
+                    "name": data.get("name"),
+                    "message": data.get("message"),
+                    "version": data.get("version"),
+                    "commit": data.get("commit"),
+                }
+            }
+        except urllib.error.HTTPError:
+            pass
+        req_ping = urllib.request.Request(f"{scheme}://{host}:{port}/ping")
+        with urllib.request.urlopen(req_ping, timeout=timeout, context=ctx) as resp:
+            x_influxdb_version = resp.headers.get("X-Influxdb-Version", "")
+            return {
+                "result": {
+                    "host": host, "port": port, "reachable": True,
+                    "status": "pass", "version": x_influxdb_version or None, "api": "v1",
+                }
+            }
+    except urllib.error.URLError as e:
+        return {"result": {"host": host, "port": port, "reachable": False, "error": str(e.reason)}}
+    except Exception as e:
+        return {"error": str(e), "tool": "check_influxdb", "detail": type(e).__name__}
+
+
+@mcp.tool()
+def check_rabbitmq(host: str, port: int = 15672, timeout: int = 5, username: str = "guest", password: str = "guest") -> dict:
+    """Check RabbitMQ server health via the management plugin API. Returns node name, RabbitMQ version, Erlang version, message counts, and running state. host: IP or hostname. port: default 15672 (management HTTP port — enable with 'rabbitmq-plugins enable rabbitmq_management'). username/password: management credentials (default guest/guest)."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_rabbitmq"}
+    host = host.strip()
+    import base64 as _b64
+    creds = _b64.b64encode(f"{username}:{password}".encode()).decode()
+    url = f"http://{host}:{port}/api/overview"
+    try:
+        req = urllib.request.Request(url, headers={"Accept": "application/json", "Authorization": f"Basic {creds}"})
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            data = json.loads(resp.read().decode())
+        node = data.get("node", "")
+        stats = data.get("object_totals", {})
+        q_totals = data.get("queue_totals", {})
+        return {
+            "result": {
+                "host": host,
+                "port": port,
+                "reachable": True,
+                "node": node,
+                "rabbitmq_version": data.get("rabbitmq_version"),
+                "erlang_version": data.get("erlang_version"),
+                "total_connections": stats.get("connections"),
+                "total_channels": stats.get("channels"),
+                "total_queues": stats.get("queues"),
+                "messages_ready": q_totals.get("messages_ready"),
+                "messages_unacked": q_totals.get("messages_unacknowledged"),
+            }
+        }
+    except urllib.error.HTTPError as e:
+        if e.code == 401:
+            return {"error": "Authentication failed — check username/password", "tool": "check_rabbitmq", "status": 401}
+        return {"result": {"host": host, "port": port, "reachable": True, "status_code": e.code, "error": str(e.reason)}}
+    except urllib.error.URLError as e:
+        return {"result": {"host": host, "port": port, "reachable": False, "error": str(e.reason)}}
+    except Exception as e:
+        return {"error": str(e), "tool": "check_rabbitmq", "detail": type(e).__name__}
+
+
+@mcp.tool()
+def check_kubernetes_api(host: str, port: int = 6443, timeout: int = 5, https: bool = True) -> dict:
+    """Check Kubernetes API server health via the /healthz and /version endpoints. Returns API server liveness, individual health check details, and Kubernetes version. host: IP or hostname. port: default 6443. https: use HTTPS (default True)."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_kubernetes_api"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    base = f"{scheme}://{host}:{port}"
+    try:
+        req_health = urllib.request.Request(f"{base}/healthz?verbose", headers={"Accept": "text/plain"})
+        with urllib.request.urlopen(req_health, timeout=timeout, context=ctx) as resp:
+            health_text = resp.read().decode()
+            overall = "ok" if resp.status == 200 else "unhealthy"
+        checks: dict[str, str] = {}
+        for line in health_text.splitlines():
+            line = line.strip()
+            if line.startswith("[+]"):
+                checks[line[3:].strip()] = "ok"
+            elif line.startswith("[-]"):
+                checks[line[3:].strip()] = "fail"
+        version_data: dict = {}
+        try:
+            req_v = urllib.request.Request(f"{base}/version", headers={"Accept": "application/json"})
+            with urllib.request.urlopen(req_v, timeout=timeout, context=ctx) as resp:
+                version_data = json.loads(resp.read().decode())
+        except Exception:
+            pass
+        return {
+            "result": {
+                "host": host, "port": port, "reachable": True,
+                "healthy": overall == "ok",
+                "checks": checks,
+                "kubernetes_version": version_data.get("gitVersion"),
+                "platform": version_data.get("platform"),
+                "go_version": version_data.get("goVersion"),
+            }
+        }
+    except urllib.error.URLError as e:
+        return {"result": {"host": host, "port": port, "reachable": False, "error": str(e.reason)}}
+    except Exception as e:
+        return {"error": str(e), "tool": "check_kubernetes_api", "detail": type(e).__name__}
+
+
+@mcp.tool()
 def check_elasticsearch(host: str, port: int = 9200, timeout: int = 5, https: bool = False) -> dict:
     """Connect to an Elasticsearch or OpenSearch node and check cluster health. Returns cluster name, status (green/yellow/red), node counts, shard counts, and unassigned shards. host: IP or hostname. port: default 9200. https: use HTTPS instead of HTTP (default False)."""
     if not host or not host.strip():
