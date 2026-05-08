@@ -1236,14 +1236,15 @@ def dns_propagation(domain: str, record_type: str = "A") -> dict:
             results[name] = {"nameserver": ns_ip, "error": str(e)}
 
     record_sets = [tuple(v["records"]) for v in results.values() if "records" in v and not v.get("error")]
-    consistent = len(set(record_sets)) <= 1
+    has_errors = any("error" in v for v in results.values())
+    consistent = bool(record_sets) and len(set(record_sets)) == 1 and not has_errors
 
     return {
         "result": {
             "domain": domain,
             "record_type": record_type,
             "consistent": consistent,
-            "propagated": consistent and bool(record_sets) and len(record_sets) == len(_DNS_RESOLVERS),
+            "propagated": consistent and len(record_sets) == len(_DNS_RESOLVERS),
             "resolvers": results,
         }
     }
