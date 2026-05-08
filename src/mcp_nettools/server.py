@@ -71,7 +71,7 @@ def dns_lookup(host: str, record_type: str = "A", nameserver: str = "") -> dict:
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "dns_lookup"}
     host = host.strip()
-    record_type = record_type.upper()
+    record_type = record_type.strip().upper()
     if record_type not in _VALID_RECORD_TYPES:
         return {
             "error": f"Invalid record type '{record_type}'. Valid: {', '.join(sorted(_VALID_RECORD_TYPES))}",
@@ -464,11 +464,13 @@ def arp_table(interface: str = "") -> dict:
 @mcp.tool()
 def wake_on_lan(mac: str, broadcast: str = "255.255.255.255") -> dict:
     """Send a Wake-on-LAN magic packet to a MAC address."""
+    mac = mac.strip()
     if not _MAC_RE.match(mac):
         return {
             "error": f"Invalid MAC address '{mac}'. Expected XX:XX:XX:XX:XX:XX or XX-XX-XX-XX-XX-XX",
             "tool": "wake_on_lan",
         }
+    broadcast = broadcast.strip()
     try:
         ipaddress.IPv4Address(broadcast)
     except ValueError:
@@ -651,7 +653,7 @@ def dns_bulk_lookup(hosts: str, record_type: str = "A", nameserver: str = "") ->
         return {"error": "No valid hosts specified", "tool": "dns_bulk_lookup"}
     if len(host_list) > 20:
         return {"error": f"Too many hosts ({len(host_list)}). Maximum 20 per call.", "tool": "dns_bulk_lookup"}
-    record_type = record_type.upper()
+    record_type = record_type.strip().upper()
     if record_type not in _VALID_RECORD_TYPES:
         return {
             "error": f"Invalid record type '{record_type}'. Valid: {', '.join(sorted(_VALID_RECORD_TYPES))}",
@@ -1265,7 +1267,7 @@ def dns_propagation(domain: str, record_type: str = "A") -> dict:
     if not domain or not domain.strip():
         return {"error": "domain must not be empty", "tool": "dns_propagation"}
     domain = domain.strip()
-    record_type = record_type.upper()
+    record_type = record_type.strip().upper()
     if record_type not in _VALID_RECORD_TYPES:
         return {"error": f"Invalid record type '{record_type}'. Valid: {', '.join(sorted(_VALID_RECORD_TYPES))}", "tool": "dns_propagation"}
 
