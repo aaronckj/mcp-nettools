@@ -6207,6 +6207,126 @@ def check_mylar3(host: str, port: int = 8090, timeout: int = 5, https: bool = Fa
 
 
 @mcp.tool()
+def check_firefly_iii(host: str, port: int = 8080, timeout: int = 5, https: bool = False) -> dict:
+    """Check Firefly III personal finance manager health via GET /api/v1/about (returns 200 with version or 401 if unauthenticated — both confirm service is up). Default port 8080."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_firefly_iii"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    try:
+        req = urllib.request.Request(f"{scheme}://{host}:{port}/api/v1/about", headers={"Accept": "application/json"})
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            data = json.loads(resp.read().decode())
+            return {"result": {"host": host, "port": port, "healthy": True, "reachable": True, "version": data.get("data", {}).get("version")}}
+    except urllib.error.HTTPError as e:
+        reachable = e.code in (200, 401, 403)
+        return {"result": {"host": host, "port": port, "reachable": reachable, "healthy": reachable, "http_code": e.code}}
+    except Exception as e:
+        return {"error": str(e), "tool": "check_firefly_iii", "host": host}
+
+
+@mcp.tool()
+def check_listmonk(host: str, port: int = 9000, timeout: int = 5, https: bool = False) -> dict:
+    """Check listmonk newsletter/mailing list manager health via GET /api/health. Returns healthy/reachable status and version. Default port 9000."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_listmonk"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    try:
+        req = urllib.request.Request(f"{scheme}://{host}:{port}/api/health", headers={"Accept": "application/json"})
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            data = json.loads(resp.read().decode())
+            healthy = resp.status == 200
+            return {"result": {"host": host, "port": port, "healthy": healthy, "reachable": healthy, "version": data.get("data", {}).get("version")}}
+    except urllib.error.HTTPError as e:
+        return {"error": f"HTTP {e.code}: {e.reason}", "tool": "check_listmonk", "host": host}
+    except Exception as e:
+        return {"error": str(e), "tool": "check_listmonk", "host": host}
+
+
+@mcp.tool()
+def check_healthchecks(host: str, port: int = 8000, timeout: int = 5, https: bool = False) -> dict:
+    """Check Healthchecks.io (self-hosted) cron job monitoring reachability via GET /. Returns 200 when service is up. Default port 8000."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_healthchecks"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    try:
+        req = urllib.request.Request(f"{scheme}://{host}:{port}/", headers={"Accept": "text/html"})
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            reachable = resp.status in (200, 302)
+            return {"result": {"host": host, "port": port, "reachable": reachable, "healthy": reachable}}
+    except urllib.error.HTTPError as e:
+        reachable = e.code in (200, 301, 302)
+        return {"result": {"host": host, "port": port, "reachable": reachable, "healthy": reachable, "http_code": e.code}}
+    except Exception as e:
+        return {"error": str(e), "tool": "check_healthchecks", "host": host}
+
+
+@mcp.tool()
+def check_shiori(host: str, port: int = 8080, timeout: int = 5, https: bool = False) -> dict:
+    """Check Shiori bookmark manager reachability via GET /. Returns 200 or 302 (redirect to login) when service is up. Default port 8080."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_shiori"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    try:
+        req = urllib.request.Request(f"{scheme}://{host}:{port}/", headers={"Accept": "text/html"})
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            reachable = resp.status in (200, 302)
+            return {"result": {"host": host, "port": port, "reachable": reachable, "healthy": reachable}}
+    except urllib.error.HTTPError as e:
+        reachable = e.code in (200, 301, 302)
+        return {"result": {"host": host, "port": port, "reachable": reachable, "healthy": reachable, "http_code": e.code}}
+    except Exception as e:
+        return {"error": str(e), "tool": "check_shiori", "host": host}
+
+
+@mcp.tool()
+def check_openproject(host: str, port: int = 80, timeout: int = 5, https: bool = False) -> dict:
+    """Check OpenProject project management reachability via GET /api/v3/configuration. Returns 200 or 401 when service is up. Default port 80."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_openproject"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    try:
+        req = urllib.request.Request(f"{scheme}://{host}:{port}/api/v3/configuration", headers={"Accept": "application/json"})
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            data = json.loads(resp.read().decode())
+            return {"result": {"host": host, "port": port, "healthy": True, "reachable": True, "edition": data.get("edition")}}
+    except urllib.error.HTTPError as e:
+        reachable = e.code in (200, 401, 403)
+        return {"result": {"host": host, "port": port, "reachable": reachable, "healthy": reachable, "http_code": e.code}}
+    except Exception as e:
+        return {"error": str(e), "tool": "check_openproject", "host": host}
+
+
+@mcp.tool()
 def check_dozzle(host: str, port: int = 8080, timeout: int = 5, https: bool = False) -> dict:
     """Check Dozzle Docker log viewer health via GET /healthcheck. Returns healthy/reachable status. Default port 8080."""
     if not host or not host.strip():
