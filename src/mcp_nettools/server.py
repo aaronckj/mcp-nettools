@@ -218,19 +218,12 @@ def cert_check(host: str, port: int = 443, timeout: int = 10) -> dict:
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "cert_check"}
     timeout = min(max(1, timeout), 60)
-    try:
-        ctx = ssl.create_default_context()
-        with socket.socket() as raw:
-            raw.settimeout(timeout)
-            with ctx.wrap_socket(raw, server_hostname=host) as s:
-                s.connect((host, port))
-                cert = s.getpeercert()
-                cert_der = s.getpeercert(binary_form=True)
+    def _parse_cert(cert: dict, cert_der: bytes, verified: bool) -> dict:
         fmt = "%b %d %H:%M:%S %Y %Z"
         not_after = datetime.strptime(cert["notAfter"], fmt).replace(tzinfo=timezone.utc)
         days_remaining = (not_after - datetime.now(timezone.utc)).days
         sans = [v for _type, v in cert.get("subjectAltName", [])]
-        fingerprint = hashlib.sha256(cert_der).hexdigest() if cert_der else None
+        fp = hashlib.sha256(cert_der).hexdigest() if cert_der else None
         return {
             "host": host,
             "port": port,
@@ -241,9 +234,45 @@ def cert_check(host: str, port: int = 443, timeout: int = 10) -> dict:
             "expires": cert["notAfter"],
             "days_remaining": days_remaining,
             "valid": days_remaining > 0,
+            "verified": verified,
             "san": sans,
-            "sha256_fingerprint": fingerprint,
+            "sha256_fingerprint": fp,
         }
+
+    try:
+        ctx = ssl.create_default_context()
+        with socket.socket() as raw:
+            raw.settimeout(timeout)
+            with ctx.wrap_socket(raw, server_hostname=host) as s:
+                s.connect((host, port))
+                cert = s.getpeercert()
+                cert_der = s.getpeercert(binary_form=True)
+        return _parse_cert(cert, cert_der, verified=True)
+    except ssl.SSLCertVerificationError as verify_err:
+        # Cert exists but chain/expiry invalid — retry without verification to get cert details
+        try:
+            ctx2 = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+            ctx2.check_hostname = False
+            ctx2.verify_mode = ssl.CERT_NONE
+            with socket.socket() as raw2:
+                raw2.settimeout(timeout)
+                with ctx2.wrap_socket(raw2, server_hostname=host) as s2:
+                    s2.connect((host, port))
+                    cert2 = s2.getpeercert()
+                    cert_der2 = s2.getpeercert(binary_form=True)
+            if cert2:
+                result = _parse_cert(cert2, cert_der2, verified=False)
+                result["ssl_error"] = str(verify_err)
+                return result
+            # CERT_NONE returns empty dict — return fingerprint only
+            fp = hashlib.sha256(cert_der2).hexdigest() if cert_der2 else None
+            return {
+                "host": host, "port": port, "verified": False,
+                "ssl_error": str(verify_err), "sha256_fingerprint": fp,
+            }
+        except Exception:
+            pass
+        return {"error": str(verify_err), "tool": "cert_check", "host": host}
     except Exception as e:
         return {"error": str(e), "tool": "cert_check", "host": host}
 
@@ -1102,6 +1131,74 @@ def dns_propagation(domain: str, record_type: str = "A") -> dict:
             "resolvers": results,
         }
     }
+
+
+
+@mcp.tool()
+def local_ports(protocol: str = "all") -> dict:
+    """List listening TCP and UDP ports on the local machine with address and process info. protocol: 'tcp', 'udp', or 'all'. Uses ss (Linux) with fallback to netstat."""
+    if protocol not in {"tcp", "udp", "all"}:
+        return {"error": "protocol must be 'tcp', 'udp', or 'all'", "tool": "local_ports"}
+    flags = {"tcp": "-tln", "udp": "-uln", "all": "-tuln"}[protocol]
+    try:
+        result = subprocess.run(["ss", flags, "-p"], capture_output=True, text=True, timeout=10)
+        if result.returncode != 0:
+            raise FileNotFoundError
+        entries = []
+        for line in result.stdout.strip().splitlines()[1:]:
+            parts = line.split()
+            if len(parts) < 5:
+                continue
+            proto = parts[0].lower().replace("*", "").strip()
+            local = parts[4] if len(parts) > 4 else ""
+            process = parts[6] if len(parts) > 6 else ""
+            entries.append({"protocol": proto, "local_address": local, "process": process})
+        return {"result": {"entries": entries, "count": len(entries)}}
+    except FileNotFoundError:
+        try:
+            result2 = subprocess.run(["netstat", "-tuln"], capture_output=True, text=True, timeout=10)
+            entries2 = []
+            for line in result2.stdout.strip().splitlines()[2:]:
+                parts = line.split()
+                if len(parts) < 4:
+                    continue
+                entries2.append({"protocol": parts[0], "local_address": parts[3], "state": parts[5] if len(parts) > 5 else ""})
+            return {"result": {"entries": entries2, "count": len(entries2)}}
+        except Exception as e2:
+            return {"error": str(e2), "tool": "local_ports"}
+    except Exception as e:
+        return {"error": str(e), "tool": "local_ports", "detail": type(e).__name__}
+
+
+@mcp.tool()
+def network_interfaces() -> dict:
+    """List all local network interfaces with their IP addresses, subnet prefix length, and link state. Structured output from 'ip addr' (Linux) or 'ifconfig' (macOS/BSD)."""
+    try:
+        result = subprocess.run(["ip", "-j", "addr"], capture_output=True, text=True, timeout=10)
+        if result.returncode == 0:
+            import json as _json
+            ifaces = _json.loads(result.stdout)
+            out = []
+            for iface in ifaces:
+                addrs = [
+                    {"address": a["local"], "prefix": a.get("prefixlen"), "family": a.get("family", "")}
+                    for a in iface.get("addr_info", [])
+                ]
+                out.append({
+                    "name": iface.get("ifname"),
+                    "state": iface.get("operstate", "").upper(),
+                    "mac": iface.get("address"),
+                    "mtu": iface.get("mtu"),
+                    "addresses": addrs,
+                })
+            return {"result": out}
+    except Exception:
+        pass
+    try:
+        result2 = subprocess.run(["ifconfig"], capture_output=True, text=True, timeout=10)
+        return {"result": {"raw_output": result2.stdout}}
+    except Exception as e:
+        return {"error": str(e), "tool": "network_interfaces", "detail": type(e).__name__}
 
 def main() -> None:
     mcp.run()
