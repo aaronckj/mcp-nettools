@@ -460,20 +460,24 @@ def speedtest() -> dict:
 
 @mcp.tool()
 def whois(host: str) -> dict:
-    """Look up WHOIS registration data for a domain or IP address."""
+    """Look up WHOIS registration data for a domain or IP address. Output is truncated at 8000 characters."""
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "whois"}
+    _MAX = 8000
     try:
         result = subprocess.run(
-            ["whois", host],
+            ["whois", host.strip()],
             capture_output=True,
             text=True,
             timeout=30,
         )
+        output = result.stdout
+        truncated = len(output) > _MAX
         return {
             "host": host,
-            "output": result.stdout,
+            "output": output[:_MAX],
             "returncode": result.returncode,
+            **({"truncated": True, "original_length": len(output)} if truncated else {}),
         }
     except FileNotFoundError:
         return {"error": "whois command not found; install whois package", "tool": "whois", "host": host}
@@ -1042,6 +1046,50 @@ PING
         return {"error": str(e), "tool": "redis_check", "host": host, "detail": type(e).__name__}
 
 
+@mcp.tool()
+def ldap_check(host: str, port: int = 389, timeout: int = 5, use_tls: bool = False) -> dict:
+    """Connect to an LDAP server and verify it responds with a valid LDAP response to a root DSE query. port: 389 (plain) or 636 (LDAPS). use_tls: wrap the connection in TLS (for LDAPS or STARTTLS). Returns whether the server is reachable and responding."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "ldap_check"}
+    timeout = min(max(1, timeout), 30)
+    _LDAP_BIND_REQUEST = bytes([
+        0x30, 0x0c, 0x02, 0x01, 0x01, 0x60, 0x07, 0x02,
+        0x01, 0x03, 0x04, 0x00, 0x80, 0x00,
+    ])
+    try:
+        start = time.monotonic()
+        with socket.create_connection((host.strip(), port), timeout=timeout) as raw_sock:
+            raw_sock.settimeout(timeout)
+            if use_tls:
+                ctx = ssl.create_default_context()
+                ctx.check_hostname = False
+                ctx.verify_mode = ssl.CERT_NONE
+                sock: socket.socket = ctx.wrap_socket(raw_sock, server_hostname=host.strip())
+            else:
+                sock = raw_sock
+            sock.sendall(_LDAP_BIND_REQUEST)
+            banner = sock.recv(256)
+        elapsed_ms = round((time.monotonic() - start) * 1000, 2)
+        is_ldap = len(banner) >= 2 and banner[0] == 0x30
+        return {
+            "result": {
+                "host": host,
+                "port": port,
+                "reachable": True,
+                "ldap_response": is_ldap,
+                "tls": use_tls,
+                "elapsed_ms": elapsed_ms,
+            }
+        }
+    except ConnectionRefusedError:
+        return {"result": {"host": host, "port": port, "reachable": False, "reason": "connection refused"}}
+    except socket.timeout:
+        return {"result": {"host": host, "port": port, "reachable": False, "reason": "timeout"}}
+    except ssl.SSLError as e:
+        return {"result": {"host": host, "port": port, "reachable": True, "ldap_response": False, "tls_error": str(e)}}
+    except Exception as e:
+        return {"error": str(e), "tool": "ldap_check", "host": host, "detail": type(e).__name__}
+
 
 @mcp.tool()
 def ping_sweep(network: str, timeout: int = 1) -> dict:
@@ -1135,13 +1183,14 @@ def dns_propagation(domain: str, record_type: str = "A") -> dict:
 
 
 @mcp.tool()
-def local_ports(protocol: str = "all") -> dict:
-    """List listening TCP and UDP ports on the local machine with address and process info. protocol: 'tcp', 'udp', or 'all'. Uses ss (Linux) with fallback to netstat."""
+def local_ports(protocol: str = "all", show_processes: bool = True) -> dict:
+    """List listening TCP and UDP ports on the local machine. protocol: 'tcp', 'udp', or 'all'. show_processes: include process names (requires root on some systems; set to false to skip). Uses ss (Linux) with fallback to netstat."""
     if protocol not in {"tcp", "udp", "all"}:
         return {"error": "protocol must be 'tcp', 'udp', or 'all'", "tool": "local_ports"}
     flags = {"tcp": "-tln", "udp": "-uln", "all": "-tuln"}[protocol]
     try:
-        result = subprocess.run(["ss", flags, "-p"], capture_output=True, text=True, timeout=10)
+        cmd = ["ss", flags, "-p"] if show_processes else ["ss", flags]
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
         if result.returncode != 0:
             raise FileNotFoundError
         entries = []
@@ -1151,8 +1200,10 @@ def local_ports(protocol: str = "all") -> dict:
                 continue
             proto = parts[0].lower().replace("*", "").strip()
             local = parts[4] if len(parts) > 4 else ""
-            process = parts[6] if len(parts) > 6 else ""
+            process = parts[6] if show_processes and len(parts) > 6 else ""
             entries.append({"protocol": proto, "local_address": local, "process": process})
+        if show_processes and all(e["process"] == "" for e in entries) and entries:
+            return {"result": {"entries": entries, "count": len(entries), "note": "Process info unavailable (run as root for process names)"}}
         return {"result": {"entries": entries, "count": len(entries)}}
     except FileNotFoundError:
         try:
