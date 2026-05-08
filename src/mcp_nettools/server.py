@@ -3025,6 +3025,46 @@ def http_delete(url: str, body: str = "", content_type: str = "application/json"
 
 
 @mcp.tool()
+def http_patch(url: str, body: str = "", content_type: str = "application/json", timeout: int = 10, headers: str = "") -> dict:
+    """Send an HTTP PATCH request with a body. Use for partial resource updates in REST APIs (unlike PUT which replaces the whole resource). body: raw string (JSON patch, merge patch, etc). headers: extra request headers as 'Name: Value' pairs separated by newlines or semicolons. Returns status code, response body, and parsed JSON if applicable."""
+    if not url or not url.strip():
+        return {"error": "url must not be empty", "tool": "http_patch"}
+    url = url.strip()
+    if not url.startswith(("http://", "https://")):
+        return {"error": "url must start with http:// or https://", "tool": "http_patch", "url": url}
+    timeout = min(max(1, timeout), 60)
+    extra_headers: dict[str, str] = {}
+    if headers and headers.strip():
+        for raw in re.split(r"[;\n]", headers):
+            raw = raw.strip()
+            if not raw:
+                continue
+            if ":" not in raw:
+                return {"error": f"Invalid header '{raw}': must be 'Name: Value'", "tool": "http_patch"}
+            hname, _, hval = raw.partition(":")
+            extra_headers[hname.strip()] = hval.strip()
+    try:
+        data = body.encode("utf-8") if body else b""
+        req = urllib.request.Request(url, data=data, method="PATCH", headers=extra_headers)
+        req.add_header("Content-Type", content_type)
+        req.add_header("Content-Length", str(len(data)))
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            resp_body = resp.read().decode("utf-8", errors="replace")
+            status = resp.status
+        result: dict = {"status": status, "body": resp_body[:2000]}
+        try:
+            result["json"] = json.loads(resp_body)
+        except Exception:
+            pass
+        return {"result": result}
+    except urllib.error.HTTPError as e:
+        err_body = e.read().decode("utf-8", errors="replace")
+        return {"error": str(e), "tool": "http_patch", "detail": type(e).__name__, "status": e.code, "body": err_body[:500]}
+    except Exception as e:
+        return {"error": str(e), "tool": "http_patch", "url": url, "detail": type(e).__name__}
+
+
+@mcp.tool()
 def check_opensearch(host: str, port: int = 9200, timeout: int = 5, https: bool = False) -> dict:
     """Check OpenSearch (or Elasticsearch-compatible) cluster health via GET /_cluster/health. Returns cluster name, status (green/yellow/red), node counts, and shard stats. Port 9200 = default HTTP, 9300 = transport."""
     if not host or not host.strip():
@@ -5294,6 +5334,9 @@ def check_gitlab(host: str, port: int = 80, timeout: int = 5, https: bool = Fals
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_gitlab"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port must be 1-65535, got {port}", "tool": "check_gitlab"}
+    timeout = min(max(1, timeout), 30)
     scheme = "https" if https else "http"
     ctx = None
     if https:
