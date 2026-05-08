@@ -103,7 +103,7 @@ def reverse_dns(ip: str) -> dict:
         return {"error": "ip must not be empty", "tool": "reverse_dns"}
     try:
         hostname, _, _ = socket.gethostbyaddr(ip)
-        return {"ip": ip, "hostname": hostname}
+        return {"result": {"ip": ip, "hostname": hostname}}
     except socket.herror as e:
         return {"error": str(e), "tool": "reverse_dns", "ip": ip}
     except Exception as e:
@@ -131,9 +131,9 @@ def port_check(host: str, port: int, timeout: int = 5) -> dict:
     try:
         with socket.create_connection((host, port), timeout=timeout):
             pass
-        return {"host": host, "port": port, "open": True}
+        return {"result": {"host": host, "port": port, "open": True}}
     except OSError:
-        return {"host": host, "port": port, "open": False}
+        return {"result": {"host": host, "port": port, "open": False}}
     except Exception as e:
         return {"error": str(e), "tool": "port_check", "host": host, "port": port}
 
@@ -203,10 +203,12 @@ def traceroute(host: str, max_hops: int = 30, timeout: int = 60) -> dict:
             timeout=timeout,
         )
         return {
-            "host": host,
-            "output": result.stdout,
-            "stderr": result.stderr,
-            "returncode": result.returncode,
+            "result": {
+                "host": host,
+                "output": result.stdout,
+                "stderr": result.stderr,
+                "returncode": result.returncode,
+            }
         }
     except Exception as e:
         return {"error": str(e), "tool": "traceroute", "host": host}
@@ -451,7 +453,7 @@ def wake_on_lan(mac: str, broadcast: str = "255.255.255.255") -> dict:
         return {"error": f"Invalid broadcast address '{broadcast}': must be a valid IPv4 address", "tool": "wake_on_lan"}
     try:
         send_magic_packet(mac, ip_address=broadcast)
-        return {"mac": mac, "broadcast": broadcast, "sent": True}
+        return {"result": {"mac": mac, "broadcast": broadcast, "sent": True}}
     except Exception as e:
         return {"error": str(e), "tool": "wake_on_lan", "mac": mac}
 
@@ -489,10 +491,12 @@ def whois(host: str) -> dict:
         output = result.stdout
         truncated = len(output) > _MAX
         return {
-            "host": host,
-            "output": output[:_MAX],
-            "returncode": result.returncode,
-            **({"truncated": True, "original_length": len(output)} if truncated else {}),
+            "result": {
+                "host": host,
+                "output": output[:_MAX],
+                "returncode": result.returncode,
+                **({"truncated": True, "original_length": len(output)} if truncated else {}),
+            }
         }
     except FileNotFoundError:
         return {"error": "whois command not found; install whois package", "tool": "whois", "host": host}
@@ -517,7 +521,7 @@ async def mac_lookup(mac: str) -> dict:
             await instance.load_vendors()
             _mac_lookup_instance = instance
         vendor = await _mac_lookup_instance.lookup(mac)
-        return {"mac": mac, "vendor": vendor}
+        return {"result": {"mac": mac, "vendor": vendor}}
     except Exception as e:
         return {"error": str(e), "tool": "mac_lookup", "mac": mac}
 
