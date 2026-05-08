@@ -3931,6 +3931,116 @@ def check_tandoor(host: str, port: int = 8080, timeout: int = 5, https: bool = F
     return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy}}
 
 
+@mcp.tool()
+def check_outline(host: str, port: int = 3000, timeout: int = 5, https: bool = False) -> dict:
+    """Check Outline wiki/knowledge base health via GET /api/_healthcheck. Returns healthy state."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_outline"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    healthy = False
+    for path in ["/api/_healthcheck", "/"]:
+        try:
+            req = urllib.request.Request(f"{scheme}://{host}:{port}{path}")
+            with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+                healthy = resp.status == 200
+                break
+        except Exception:
+            pass
+    return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy}}
+
+
+@mcp.tool()
+def check_plausible(host: str, port: int = 8000, timeout: int = 5, https: bool = False) -> dict:
+    """Check Plausible Analytics health via GET /api/health. Returns database and clickhouse status."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_plausible"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    healthy = False
+    postgres_ok = False
+    clickhouse_ok = False
+    try:
+        req = urllib.request.Request(
+            f"{scheme}://{host}:{port}/api/health",
+            headers={"Accept": "application/json"},
+        )
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            healthy = resp.status == 200
+            data = json.loads(resp.read().decode())
+            postgres_ok = data.get("postgres") == "ok"
+            clickhouse_ok = data.get("clickhouse") == "ok"
+    except Exception:
+        pass
+    return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy, "postgres": postgres_ok, "clickhouse": clickhouse_ok}}
+
+
+@mcp.tool()
+def check_mattermost(host: str, port: int = 8065, timeout: int = 5, https: bool = False) -> dict:
+    """Check Mattermost team messaging server health via GET /api/v4/system/ping. Returns status and database health."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_mattermost"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    healthy = False
+    version: str | None = None
+    try:
+        req = urllib.request.Request(
+            f"{scheme}://{host}:{port}/api/v4/system/ping",
+            headers={"Accept": "application/json"},
+        )
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            healthy = resp.status == 200
+            data = json.loads(resp.read().decode())
+            healthy = data.get("status") == "OK"
+            version = data.get("version")
+    except Exception:
+        pass
+    return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy, "version": version}}
+
+
+@mcp.tool()
+def check_forgejo(host: str, port: int = 3000, timeout: int = 5, https: bool = False) -> dict:
+    """Check Forgejo (Gitea fork) git server health via GET /api/healthz. Returns status."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_forgejo"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    healthy = False
+    try:
+        req = urllib.request.Request(
+            f"{scheme}://{host}:{port}/api/healthz",
+            headers={"Accept": "application/json"},
+        )
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            healthy = resp.status == 200
+            data = json.loads(resp.read().decode())
+            healthy = data.get("status") == "pass"
+    except Exception:
+        pass
+    return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy}}
+
+
 def main() -> None:
     mcp.run()
 
