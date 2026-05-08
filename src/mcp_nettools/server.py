@@ -691,9 +691,9 @@ def smtp_check(host: str, port: int = 25, timeout: int = 10, check_starttls: boo
                     }
                 }
     except (smtplib.SMTPConnectError, smtplib.SMTPServerDisconnected, ConnectionRefusedError, TimeoutError, socket.timeout) as e:
-        return {"result": {"host": host, "port": port, "reachable": False, "error": str(e)}}
+        return {"error": str(e), "tool": "smtp_check", "host": host, "port": port}
     except Exception as e:
-        return {"error": str(e), "tool": "smtp_check", "detail": type(e).__name__}
+        return {"error": str(e), "tool": "smtp_check", "host": host, "port": port, "detail": type(e).__name__}
 
 
 @mcp.tool()
@@ -720,7 +720,7 @@ def ntp_check(host: str, port: int = 123, timeout: int = 5) -> dict:
             data, _ = s.recvfrom(1024)
         recv_time = time.time()
         if len(data) < 48:
-            return {"error": "NTP response too short — server may not speak NTP", "tool": "ntp_check", "host": host}
+            return {"error": "NTP response too short — server may not speak NTP", "tool": "ntp_check", "host": host, "port": port}
         # Transmit timestamp: bytes 40-47, integer part in first 4 bytes
         tx_int = struct.unpack("!I", data[40:44])[0]
         tx_frac = struct.unpack("!I", data[44:48])[0]
