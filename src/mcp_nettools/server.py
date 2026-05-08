@@ -538,6 +538,7 @@ async def mac_lookup(mac: str) -> dict:
     global _mac_lookup_instance
     if not mac or not mac.strip():
         return {"error": "mac must not be empty", "tool": "mac_lookup"}
+    mac = mac.strip()
     if not _MAC_RE.match(mac):
         return {
             "error": f"Invalid MAC address '{mac}'. Expected XX:XX:XX:XX:XX:XX or XX-XX-XX-XX-XX-XX",
@@ -1376,6 +1377,45 @@ def network_interfaces() -> dict:
         return {"result": {"raw_output": result2.stdout}}
     except Exception as e:
         return {"error": str(e), "tool": "network_interfaces", "detail": type(e).__name__}
+
+@mcp.tool()
+def bgp_lookup(ip: str) -> dict:
+    """Look up BGP/ASN information for a public IP address using Team Cymru's WHOIS service. Returns the ASN, BGP prefix, country, registry, allocation date, and AS organization name. Useful for network forensics, attributing IPs to organizations, and tracing routing paths."""
+    if not ip or not ip.strip():
+        return {"error": "ip must not be empty", "tool": "bgp_lookup"}
+    ip = ip.strip()
+    try:
+        ipaddress.ip_address(ip)
+    except ValueError:
+        return {"error": f"Invalid IP address: '{ip}'", "tool": "bgp_lookup"}
+    try:
+        with socket.create_connection(("whois.cymru.com", 43), timeout=10) as s:
+            s.sendall(f" -v {ip}\r\n".encode())
+            chunks = []
+            while True:
+                chunk = s.recv(4096)
+                if not chunk:
+                    break
+                chunks.append(chunk)
+        lines = b"".join(chunks).decode("utf-8", errors="replace").strip().splitlines()
+        result_line = next((ln for ln in lines if "|" in ln and not ln.strip().startswith("AS")), None)
+        if not result_line:
+            return {"result": {"ip": ip, "asn": None, "prefix": None, "raw": lines}}
+        parts = [p.strip() for p in result_line.split("|")]
+        return {
+            "result": {
+                "ip": ip,
+                "asn": parts[0] if len(parts) > 0 else None,
+                "prefix": parts[2] if len(parts) > 2 else None,
+                "country": parts[3] if len(parts) > 3 else None,
+                "registry": parts[4] if len(parts) > 4 else None,
+                "allocated": parts[5] if len(parts) > 5 else None,
+                "organization": parts[6] if len(parts) > 6 else None,
+            }
+        }
+    except Exception as e:
+        return {"error": str(e), "tool": "bgp_lookup", "ip": ip, "detail": type(e).__name__}
+
 
 @mcp.tool()
 def tls_version_check(host: str, port: int = 443, timeout: int = 10) -> dict:
