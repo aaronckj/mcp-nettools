@@ -587,6 +587,8 @@ def ntp_check(host: str, port: int = 123, timeout: int = 5) -> dict:
     """Check an NTP server: reachability and clock offset relative to local system time. Uses NTPv3 client packet over UDP. offset_seconds > 0 means server is ahead of local clock."""
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "ntp_check"}
+    if not 1 <= port <= 65535:
+        return {"error": f"Invalid port {port}: must be 1-65535", "tool": "ntp_check"}
     timeout = min(max(1, timeout), 30)
     # NTPv3 client request: LI=0, VN=3, Mode=3
     NTP_PACKET = b"\x1b" + b"\x00" * 47
@@ -680,6 +682,8 @@ def ftp_check(host: str, port: int = 21, timeout: int = 10) -> dict:
     import ftplib
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "ftp_check"}
+    if not 1 <= port <= 65535:
+        return {"error": f"Invalid port {port}: must be 1-65535", "tool": "ftp_check"}
     timeout = min(max(1, timeout), 30)
     try:
         ftp = ftplib.FTP()
@@ -704,6 +708,10 @@ def ftp_check(host: str, port: int = 21, timeout: int = 10) -> dict:
                 "anonymous_login": anon_ok,
             }
         }
+    except ConnectionRefusedError:
+        return {"result": {"host": host, "port": port, "reachable": False, "reason": "connection refused"}}
+    except socket.timeout:
+        return {"result": {"host": host, "port": port, "reachable": False, "reason": "timeout"}}
     except Exception as e:
         return {"error": str(e), "tool": "ftp_check", "host": host, "detail": type(e).__name__}
 
@@ -810,6 +818,8 @@ def imap_check(host: str, port: int = 143, timeout: int = 10) -> dict:
     import imaplib
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "imap_check"}
+    if not 1 <= port <= 65535:
+        return {"error": f"Invalid port {port}: must be 1-65535", "tool": "imap_check"}
     timeout = min(max(1, timeout), 30)
     old_timeout = socket.getdefaulttimeout()
     socket.setdefaulttimeout(timeout)
@@ -852,6 +862,10 @@ def imap_check(host: str, port: int = 143, timeout: int = 10) -> dict:
                 "elapsed_ms": elapsed_ms,
             }
         }
+    except ConnectionRefusedError:
+        return {"result": {"host": host, "port": port, "reachable": False, "reason": "connection refused"}}
+    except socket.timeout:
+        return {"result": {"host": host, "port": port, "reachable": False, "reason": "timeout"}}
     except Exception as e:
         return {"error": str(e), "tool": "imap_check", "host": host, "detail": type(e).__name__}
     finally:
@@ -919,6 +933,8 @@ def pop3_check(host: str, port: int = 110, timeout: int = 10) -> dict:
     import poplib
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "pop3_check"}
+    if not 1 <= port <= 65535:
+        return {"error": f"Invalid port {port}: must be 1-65535", "tool": "pop3_check"}
     timeout = min(max(1, timeout), 30)
     try:
         start = time.monotonic()
@@ -958,6 +974,10 @@ def pop3_check(host: str, port: int = 110, timeout: int = 10) -> dict:
                 "elapsed_ms": elapsed_ms,
             }
         }
+    except ConnectionRefusedError:
+        return {"result": {"host": host, "port": port, "reachable": False, "reason": "connection refused"}}
+    except socket.timeout:
+        return {"result": {"host": host, "port": port, "reachable": False, "reason": "timeout"}}
     except Exception as e:
         return {"error": str(e), "tool": "pop3_check", "host": host, "detail": type(e).__name__}
 
@@ -1010,6 +1030,8 @@ def mysql_check(host: str, port: int = 3306, timeout: int = 5) -> dict:
     """Connect to a MySQL/MariaDB server and read the server greeting to extract the server version. Does not authenticate. Useful for verifying database server reachability and version."""
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "mysql_check"}
+    if not 1 <= port <= 65535:
+        return {"error": f"Invalid port {port}: must be 1-65535", "tool": "mysql_check"}
     timeout = min(max(1, timeout), 30)
     try:
         start = time.monotonic()
@@ -1046,6 +1068,8 @@ def redis_check(host: str, port: int = 6379, timeout: int = 5) -> dict:
     """Connect to a Redis server, send PING, and verify the +PONG response. Returns whether the server is up and responsive."""
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "redis_check"}
+    if not 1 <= port <= 65535:
+        return {"error": f"Invalid port {port}: must be 1-65535", "tool": "redis_check"}
     timeout = min(max(1, timeout), 30)
     try:
         start = time.monotonic()
@@ -1077,6 +1101,8 @@ def ldap_check(host: str, port: int = 389, timeout: int = 5, use_tls: bool = Fal
     """Connect to an LDAP server and verify it responds with a valid LDAP response to a root DSE query. port: 389 (plain) or 636 (LDAPS). use_tls: wrap the connection in TLS (for LDAPS or STARTTLS). Returns whether the server is reachable and responding."""
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "ldap_check"}
+    if not 1 <= port <= 65535:
+        return {"error": f"Invalid port {port}: must be 1-65535", "tool": "ldap_check"}
     timeout = min(max(1, timeout), 30)
     _LDAP_BIND_REQUEST = bytes([
         0x30, 0x0c, 0x02, 0x01, 0x01, 0x60, 0x07, 0x02,
@@ -1122,6 +1148,8 @@ def snmp_check(host: str, port: int = 161, timeout: int = 3, community: str = "p
     """Send an SNMPv2c GetRequest for sysDescr (OID 1.3.6.1.2.1.1.1.0) over UDP and verify the response. community: SNMP community string (default 'public'). Returns whether SNMP is reachable and the raw response bytes length."""
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "snmp_check"}
+    if not 1 <= port <= 65535:
+        return {"error": f"Invalid port {port}: must be 1-65535", "tool": "snmp_check"}
     timeout = min(max(1, timeout), 30)
     community_bytes = community.encode()
     community_len = len(community_bytes)
