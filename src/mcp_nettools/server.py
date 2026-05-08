@@ -140,7 +140,7 @@ def port_check(host: str, port: int, timeout: int = 5) -> dict:
 
 @mcp.tool()
 def port_scan(host: str, ports: str, timeout: int = 3) -> dict:
-    """Check multiple TCP ports on a host. ports: comma-separated or ranges (e.g., '22,80,443,8000-8080'). Max 100 ports. timeout: 1-30 s."""
+    """Check multiple TCP ports on a host. ports: comma-separated or ranges (e.g., '22,80,443,8000-8080'). Max 500 ports. timeout: 1-30 s."""
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "port_scan"}
     if not ports or not ports.strip():
@@ -167,9 +167,9 @@ def port_scan(host: str, ports: str, timeout: int = 3) -> dict:
     out_of_range = [p for p in port_list if not 1 <= p <= 65535]
     if out_of_range:
         return {"error": f"Ports out of range 1-65535: {out_of_range[:5]}", "tool": "port_scan"}
-    if len(port_list) > 100:
-        return {"error": f"Too many ports ({len(port_list)}). Maximum 100 per call.", "tool": "port_scan"}
-    workers = min(len(port_list), 50)
+    if len(port_list) > 500:
+        return {"error": f"Too many ports ({len(port_list)}). Maximum 500 per call.", "tool": "port_scan"}
+    workers = min(len(port_list), 100)
     with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as pool:
         future_to_port = {pool.submit(_probe_port, host, p, timeout): p for p in port_list}
         results = {
@@ -279,7 +279,7 @@ def cert_check(host: str, port: int = 443, timeout: int = 10) -> dict:
 
 @mcp.tool()
 def http_check(url: str, method: str = "HEAD", timeout: int = 10) -> dict:
-    """Check an HTTP/HTTPS URL: status code, response time in ms, and content type. method: HEAD (default, efficient), GET, or OPTIONS. Use GET if HEAD returns 405."""
+    """Check an HTTP/HTTPS URL: status code, response time, content type, and server header. method: HEAD (default, efficient), GET, or OPTIONS. Use GET if HEAD returns 405."""
     if not url or not url.strip():
         return {"error": "url must not be empty", "tool": "http_check"}
     method = method.upper()
@@ -298,6 +298,8 @@ def http_check(url: str, method: str = "HEAD", timeout: int = 10) -> dict:
                     "elapsed_ms": elapsed_ms,
                     "ok": True,
                     "content_type": resp.headers.get("Content-Type", ""),
+                    "server": resp.headers.get("Server", ""),
+                    "content_length": resp.headers.get("Content-Length", ""),
                 }
             }
     except urllib.error.HTTPError as e:
@@ -308,8 +310,21 @@ def http_check(url: str, method: str = "HEAD", timeout: int = 10) -> dict:
                 "url": url,
                 "elapsed_ms": elapsed_ms,
                 "ok": False,
+                "content_type": e.headers.get("Content-Type", "") if e.headers else "",
+                "server": e.headers.get("Server", "") if e.headers else "",
             }
         }
+    except urllib.error.URLError as e:
+        reason = str(e.reason)
+        if "Name or service not known" in reason or "nodename nor servname" in reason:
+            detail = "DNS resolution failed"
+        elif "Connection refused" in reason:
+            detail = "connection refused"
+        elif "timed out" in reason.lower():
+            detail = "connection timed out"
+        else:
+            detail = reason
+        return {"error": detail, "tool": "http_check", "url": url}
     except Exception as e:
         return {"error": str(e), "tool": "http_check", "detail": type(e).__name__}
 
