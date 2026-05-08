@@ -13,6 +13,8 @@ import urllib.error
 import urllib.request
 from datetime import datetime, timezone
 
+import hashlib
+
 import dns.resolver
 import speedtest as _speedtest_lib
 from mac_vendor_lookup import AsyncMacLookup
@@ -61,8 +63,8 @@ def ping(host: str, count: int = 4, timeout: int = 5) -> dict:
 
 
 @mcp.tool()
-def dns_lookup(host: str, record_type: str = "A") -> dict:
-    """Look up DNS records for a hostname. record_type: A, AAAA, MX, TXT, NS, CNAME, PTR, SOA, SRV."""
+def dns_lookup(host: str, record_type: str = "A", nameserver: str = "") -> dict:
+    """Look up DNS records for a hostname. record_type: A, AAAA, MX, TXT, NS, CNAME, PTR, SOA, SRV. nameserver: optional custom resolver IP (e.g., '8.8.8.8' for Google DNS, '1.1.1.1' for Cloudflare)."""
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "dns_lookup"}
     record_type = record_type.upper()
@@ -74,10 +76,17 @@ def dns_lookup(host: str, record_type: str = "A") -> dict:
     try:
         resolver = dns.resolver.Resolver()
         resolver.lifetime = 10.0
+        if nameserver and nameserver.strip():
+            try:
+                ipaddress.ip_address(nameserver.strip())
+            except ValueError:
+                return {"error": f"Invalid nameserver IP: '{nameserver}'", "tool": "dns_lookup"}
+            resolver.nameservers = [nameserver.strip()]
         answers = resolver.resolve(host, record_type)
         return {
             "host": host,
             "record_type": record_type,
+            "nameserver": nameserver.strip() if nameserver and nameserver.strip() else None,
             "ttl": answers.rrset.ttl if answers.rrset else None,
             "records": [str(r) for r in answers],
         }
@@ -202,20 +211,24 @@ def cert_check(host: str, port: int = 443, timeout: int = 10) -> dict:
             with ctx.wrap_socket(raw, server_hostname=host) as s:
                 s.connect((host, port))
                 cert = s.getpeercert()
+                cert_der = s.getpeercert(binary_form=True)
         fmt = "%b %d %H:%M:%S %Y %Z"
         not_after = datetime.strptime(cert["notAfter"], fmt).replace(tzinfo=timezone.utc)
         days_remaining = (not_after - datetime.now(timezone.utc)).days
         sans = [v for _type, v in cert.get("subjectAltName", [])]
+        fingerprint = hashlib.sha256(cert_der).hexdigest() if cert_der else None
         return {
             "host": host,
             "port": port,
             "subject": dict(x[0] for x in cert.get("subject", [])),
             "issuer": dict(x[0] for x in cert.get("issuer", [])),
+            "serial_number": cert.get("serialNumber", ""),
             "not_before": cert["notBefore"],
             "expires": cert["notAfter"],
             "days_remaining": days_remaining,
             "valid": days_remaining > 0,
             "san": sans,
+            "sha256_fingerprint": fingerprint,
         }
     except Exception as e:
         return {"error": str(e), "tool": "cert_check", "host": host}
