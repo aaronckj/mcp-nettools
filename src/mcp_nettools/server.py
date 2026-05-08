@@ -77,6 +77,7 @@ def dns_lookup(host: str, record_type: str = "A") -> dict:
         return {
             "host": host,
             "record_type": record_type,
+            "ttl": answers.rrset.ttl if answers.rrset else None,
             "records": [str(r) for r in answers],
         }
     except Exception as e:
@@ -221,14 +222,17 @@ def cert_check(host: str, port: int = 443, timeout: int = 10) -> dict:
 
 
 @mcp.tool()
-def http_check(url: str, timeout: int = 10) -> dict:
-    """Check an HTTP/HTTPS URL: status code, response time in ms, and content type. Uses HEAD request for efficiency."""
+def http_check(url: str, method: str = "HEAD", timeout: int = 10) -> dict:
+    """Check an HTTP/HTTPS URL: status code, response time in ms, and content type. method: HEAD (default, efficient), GET, or OPTIONS. Use GET if HEAD returns 405."""
     if not url or not url.strip():
         return {"error": "url must not be empty", "tool": "http_check"}
+    method = method.upper()
+    if method not in {"GET", "HEAD", "OPTIONS"}:
+        return {"error": f"Invalid method '{method}'. Use GET, HEAD, or OPTIONS", "tool": "http_check"}
     timeout = min(max(1, timeout), 60)
     start = time.monotonic()
     try:
-        req = urllib.request.Request(url, method="HEAD")
+        req = urllib.request.Request(url, method=method)
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             elapsed_ms = round((time.monotonic() - start) * 1000, 2)
             return {
@@ -262,7 +266,6 @@ def subnet_info(cidr: str) -> dict:
     try:
         net = ipaddress.IPv4Network(cidr, strict=False)
         host_list = list(net.hosts())
-        usable = len(host_list)
         return {
             "result": {
                 "network": str(net.network_address),
@@ -271,13 +274,38 @@ def subnet_info(cidr: str) -> dict:
                 "prefix_length": net.prefixlen,
                 "first_host": str(host_list[0]) if host_list else None,
                 "last_host": str(host_list[-1]) if host_list else None,
-                "host_count": usable,
+                "host_count": len(host_list),
                 "total_addresses": net.num_addresses,
                 "is_private": net.is_private,
             }
         }
     except ValueError as e:
         return {"error": str(e), "tool": "subnet_info"}
+
+
+@mcp.tool()
+def arp_table(interface: str = "") -> dict:
+    """Show ARP/neighbor table entries (IP-to-MAC mappings). interface: optional filter by network interface name."""
+    try:
+        cmd = ["ip", "neigh", "show"]
+        if interface and interface.strip():
+            cmd += ["dev", interface.strip()]
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+        return {
+            "result": {
+                "output": result.stdout,
+                "returncode": result.returncode,
+            }
+        }
+    except FileNotFoundError:
+        try:
+            cmd2 = ["arp", "-an"]
+            result2 = subprocess.run(cmd2, capture_output=True, text=True, timeout=10)
+            return {"result": {"output": result2.stdout, "returncode": result2.returncode}}
+        except Exception as e2:
+            return {"error": str(e2), "tool": "arp_table", "detail": type(e2).__name__}
+    except Exception as e:
+        return {"error": str(e), "tool": "arp_table", "detail": type(e).__name__}
 
 
 @mcp.tool()
