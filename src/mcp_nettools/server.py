@@ -5207,6 +5207,8 @@ def check_appwrite(host: str, port: int = 80, timeout: int = 5, https: bool = Fa
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_appwrite"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_appwrite"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -5234,6 +5236,8 @@ def check_windmill(host: str, port: int = 8000, timeout: int = 5, https: bool = 
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_windmill"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_windmill"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -5258,6 +5262,8 @@ def check_umami(host: str, port: int = 3000, timeout: int = 5, https: bool = Fal
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_umami"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_umami"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -5280,6 +5286,8 @@ def check_planka(host: str, port: int = 1337, timeout: int = 5, https: bool = Fa
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_planka"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_planka"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -5307,6 +5315,8 @@ def check_kimai(host: str, port: int = 80, timeout: int = 5, https: bool = False
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_kimai"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_kimai"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -5337,6 +5347,8 @@ def check_snipe_it(host: str, port: int = 80, timeout: int = 5, https: bool = Fa
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_snipe_it"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_snipe_it"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -5364,6 +5376,8 @@ def check_code_server(host: str, port: int = 8080, timeout: int = 5, https: bool
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_code_server"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_code_server"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -5386,6 +5400,8 @@ def check_filebrowser(host: str, port: int = 80, timeout: int = 5, https: bool =
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_filebrowser"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_filebrowser"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -5413,6 +5429,8 @@ def check_memos(host: str, port: int = 5230, timeout: int = 5, https: bool = Fal
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_memos"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_memos"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -5441,6 +5459,8 @@ def check_rallly(host: str, port: int = 3000, timeout: int = 5, https: bool = Fa
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_rallly"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_rallly"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
