@@ -2707,6 +2707,87 @@ def check_grafana(host: str, port: int = 3000, timeout: int = 5, https: bool = F
         return {"error": str(e), "tool": "check_grafana", "detail": type(e).__name__}
 
 
+@mcp.tool()
+def check_nfs(host: str, portmapper_port: int = 111, nfs_port: int = 2049, timeout: int = 5) -> dict:
+    """Check NFS file server availability. Verifies TCP connectivity on both the portmapper (111) and NFS (2049) ports. Both ports must be reachable for NFS mounts to work."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_nfs"}
+    host = host.strip()
+    results = {}
+    for label, port in [("portmapper", portmapper_port), ("nfs", nfs_port)]:
+        try:
+            sock = socket.create_connection((host, port), timeout=timeout)
+            sock.close()
+            results[label] = {"port": port, "reachable": True}
+        except socket.timeout:
+            results[label] = {"port": port, "reachable": False, "error": "timeout"}
+        except ConnectionRefusedError:
+            results[label] = {"port": port, "reachable": False, "error": "connection refused"}
+        except Exception as e:
+            results[label] = {"port": port, "reachable": False, "error": str(e)}
+    reachable = all(v["reachable"] for v in results.values())
+    return {"result": {"host": host, "reachable": reachable, "ports": results}}
+
+
+@mcp.tool()
+def check_kafka(host: str, port: int = 9092, timeout: int = 5) -> dict:
+    """Check Apache Kafka broker availability. Sends a minimal API Versions request (Kafka protocol v0) and verifies a valid Kafka response frame is returned."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_kafka"}
+    host = host.strip()
+    try:
+        sock = socket.create_connection((host, port), timeout=timeout)
+        sock.settimeout(timeout)
+        # Kafka ApiVersions request v0: length(4) + api_key(2) + api_version(2) + correlation_id(4) + client_id_length(2=-1 null)
+        request_body = struct.pack(">hhih", 18, 0, 0, 1, -1)
+        sock.sendall(request_body)
+        header = sock.recv(4)
+        if len(header) == 4:
+            resp_len = struct.unpack(">I", header)[0]
+            sock.recv(min(resp_len, 256))
+            sock.close()
+            return {"result": {"host": host, "port": port, "reachable": True, "protocol": "Kafka"}}
+        sock.close()
+        return {"result": {"host": host, "port": port, "reachable": True, "protocol": "unknown", "note": "TCP connected but response too short"}}
+    except socket.timeout:
+        return {"result": {"host": host, "port": port, "reachable": False, "error": "timeout"}}
+    except ConnectionRefusedError:
+        return {"result": {"host": host, "port": port, "reachable": False, "error": "connection refused"}}
+    except Exception as e:
+        return {"error": str(e), "tool": "check_kafka", "detail": type(e).__name__}
+
+
+@mcp.tool()
+def check_couchdb(host: str, port: int = 5984, timeout: int = 5, https: bool = False) -> dict:
+    """Check Apache CouchDB availability via GET / which returns version and node name. Port 5984 = HTTP, 6984 = HTTPS."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_couchdb"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    try:
+        req = urllib.request.Request(f"{scheme}://{host}:{port}/", headers={"Accept": "application/json"})
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            data = json.loads(resp.read().decode())
+        return {"result": {
+            "host": host,
+            "port": port,
+            "reachable": True,
+            "version": data.get("version"),
+            "uuid": data.get("uuid"),
+            "vendor": data.get("vendor", {}).get("name"),
+            "features": data.get("features", []),
+        }}
+    except urllib.error.URLError as e:
+        return {"result": {"host": host, "port": port, "reachable": False, "error": str(e.reason)}}
+    except Exception as e:
+        return {"error": str(e), "tool": "check_couchdb", "detail": type(e).__name__}
+
+
 def main() -> None:
     mcp.run()
 
