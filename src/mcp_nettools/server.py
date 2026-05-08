@@ -3291,6 +3291,82 @@ def check_alertmanager(host: str, port: int = 9093, timeout: int = 5, https: boo
 
 
 @mcp.tool()
+def check_tempo(host: str, port: int = 3200, timeout: int = 5, https: bool = False) -> dict:
+    """Check Grafana Tempo distributed tracing service via GET /ready and /api/echo. Returns readiness status and whether the API is responding. port: 3200 (default HTTP), 9095 (gRPC — use port_check for gRPC)."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_tempo"}
+    host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"Invalid port {port}: must be 1-65535", "tool": "check_tempo"}
+    timeout = min(max(1, timeout), 30)
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    ready = False
+    api_ok = False
+    try:
+        req = urllib.request.Request(f"{scheme}://{host}:{port}/ready")
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            ready = resp.status == 200
+    except Exception:
+        pass
+    try:
+        req = urllib.request.Request(f"{scheme}://{host}:{port}/api/echo")
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            api_ok = resp.status == 200
+    except Exception:
+        pass
+    return {"result": {"host": host, "port": port, "reachable": ready or api_ok, "ready": ready, "api_ok": api_ok}}
+
+
+@mcp.tool()
+def check_jaeger(host: str, port: int = 16686, timeout: int = 5, https: bool = False) -> dict:
+    """Check Jaeger distributed tracing UI and query API via GET / (UI) and /api/services. Returns whether the UI is reachable and whether the query API is responding with valid JSON. port: 16686 (default UI/query). For Jaeger collector, use port_check on port 14268 (HTTP) or 6831 (UDP)."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_jaeger"}
+    host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"Invalid port {port}: must be 1-65535", "tool": "check_jaeger"}
+    timeout = min(max(1, timeout), 30)
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    ui_ok = False
+    api_ok = False
+    services: list | None = None
+    try:
+        req = urllib.request.Request(f"{scheme}://{host}:{port}/")
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            ui_ok = resp.status == 200
+    except Exception:
+        pass
+    try:
+        req = urllib.request.Request(f"{scheme}://{host}:{port}/api/services", headers={"Accept": "application/json"})
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            data = json.loads(resp.read().decode())
+            api_ok = True
+            services = data.get("data", [])
+    except Exception:
+        pass
+    return {
+        "result": {
+            "host": host,
+            "port": port,
+            "reachable": ui_ok or api_ok,
+            "ui_ok": ui_ok,
+            "api_ok": api_ok,
+            "services": services,
+        }
+    }
+
+
+@mcp.tool()
 def check_uptime_kuma(host: str, port: int = 3001, timeout: int = 5, https: bool = False) -> dict:
     """Check Uptime Kuma monitoring service health via GET /api/health. Returns health status and version if available."""
     if not host or not host.strip():
@@ -5830,6 +5906,77 @@ def check_anythingllm(host: str, port: int = 3001, timeout: int = 5, https: bool
         except Exception:
             pass
     return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy}}
+
+
+@mcp.tool()
+def check_victoriametrics(host: str, port: int = 8428, timeout: int = 5, https: bool = False) -> dict:
+    """Check VictoriaMetrics (time-series database) health via GET /health and retrieve /api/v1/status/tsdb summary. Returns healthy, version if available, and time series count. Default port 8428. Set https=True for HTTPS."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_victoriametrics"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    try:
+        req = urllib.request.Request(f"{scheme}://{host}:{port}/health", headers={"Accept": "text/plain"})
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            healthy = resp.status == 200
+            body = resp.read().decode("utf-8", errors="replace").strip()
+    except urllib.error.HTTPError as e:
+        return {"error": f"HTTP {e.code}: {e.reason}", "tool": "check_victoriametrics", "host": host}
+    except Exception as e:
+        return {"error": str(e), "tool": "check_victoriametrics", "host": host}
+    result: dict = {"host": host, "port": port, "healthy": healthy, "status": body}
+    try:
+        req2 = urllib.request.Request(f"{scheme}://{host}:{port}/api/v1/status/tsdb", headers={"Accept": "application/json"})
+        with urllib.request.urlopen(req2, timeout=timeout, context=ctx) as resp2:
+            data = json.loads(resp2.read().decode())
+            stats = data.get("data", {})
+            result["series_count"] = stats.get("totalSeries")
+            result["label_value_count"] = stats.get("totalLabelValuePairs")
+    except Exception:
+        pass
+    return {"result": result}
+
+
+@mcp.tool()
+def check_zipkin(host: str, port: int = 9411, timeout: int = 5, https: bool = False) -> dict:
+    """Check Zipkin (distributed tracing) health via GET /health and retrieve service count from /api/v2/services. Returns healthy, status, and service names. Default port 9411. Set https=True for HTTPS."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_zipkin"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    try:
+        req = urllib.request.Request(f"{scheme}://{host}:{port}/health", headers={"Accept": "application/json"})
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            healthy = resp.status == 200
+            try:
+                health_data = json.loads(resp.read().decode())
+                status = health_data.get("status", "UP" if healthy else "DOWN")
+            except Exception:
+                status = "UP" if healthy else "DOWN"
+    except urllib.error.HTTPError as e:
+        return {"error": f"HTTP {e.code}: {e.reason}", "tool": "check_zipkin", "host": host}
+    except Exception as e:
+        return {"error": str(e), "tool": "check_zipkin", "host": host}
+    result: dict = {"host": host, "port": port, "healthy": healthy, "status": status}
+    try:
+        req2 = urllib.request.Request(f"{scheme}://{host}:{port}/api/v2/services", headers={"Accept": "application/json"})
+        with urllib.request.urlopen(req2, timeout=timeout, context=ctx) as resp2:
+            services = json.loads(resp2.read().decode())
+            result["services"] = services
+            result["service_count"] = len(services)
+    except Exception:
+        pass
+    return {"result": result}
 
 
 def main() -> None:
