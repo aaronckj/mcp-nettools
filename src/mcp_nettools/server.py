@@ -1812,6 +1812,102 @@ def dnssec_check(domain: str, nameserver: str = "") -> dict:
 
 
 @mcp.tool()
+def check_mongodb(host: str, port: int = 27017, timeout: int = 5) -> dict:
+    """Connect to a MongoDB server and send a hello command via the MongoDB wire protocol (OP_MSG). Returns whether the server is reachable and responds as a MongoDB instance. Does not authenticate. Useful for verifying MongoDB/Atlas-compatible server availability."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_mongodb"}
+    host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"Invalid port {port}: must be 1-65535", "tool": "check_mongodb"}
+    timeout = min(max(1, timeout), 30)
+    # Build OP_MSG hello command: {"hello": 1, "$db": "admin"}
+    hello_key = b"hello\x00"
+    db_key = b"$db\x00"
+    admin_str = b"admin\x00"
+    doc_body = b"\x10" + hello_key + struct.pack("<i", 1)  # int32 hello=1
+    doc_body += b"\x02" + db_key + struct.pack("<i", len(admin_str)) + admin_str  # string $db="admin"
+    doc_len = 4 + len(doc_body) + 1
+    bson_doc = struct.pack("<i", doc_len) + doc_body + b"\x00"
+    msg_body = struct.pack("<I", 0) + b"\x00" + bson_doc  # flagBits=0, sectionType=0
+    msg_len = 16 + len(msg_body)
+    wire_msg = struct.pack("<iiii", msg_len, 1, 0, 2013) + msg_body
+    try:
+        start = time.monotonic()
+        with socket.create_connection((host, port), timeout=timeout) as sock:
+            sock.settimeout(timeout)
+            sock.sendall(wire_msg)
+            response = sock.recv(4096)
+        elapsed_ms = round((time.monotonic() - start) * 1000, 2)
+        is_mongodb = False
+        if len(response) >= 16:
+            _, _, _, op_code = struct.unpack("<iiii", response[:16])
+            is_mongodb = op_code in (1, 2013)
+        return {
+            "result": {
+                "host": host,
+                "port": port,
+                "reachable": True,
+                "mongodb_response": is_mongodb,
+                "elapsed_ms": elapsed_ms,
+            }
+        }
+    except ConnectionRefusedError:
+        return {"result": {"host": host, "port": port, "reachable": False, "reason": "connection refused"}}
+    except socket.timeout:
+        return {"result": {"host": host, "port": port, "reachable": False, "reason": "timeout"}}
+    except Exception as e:
+        return {"error": str(e), "tool": "check_mongodb", "host": host, "detail": type(e).__name__}
+
+
+@mcp.tool()
+def check_vnc(host: str, port: int = 5900, timeout: int = 5) -> dict:
+    """Connect to a VNC server and read the RFB protocol banner. Returns whether the server is reachable, the RFB version string (e.g. 'RFB 003.008'), and the supported security types. Does not authenticate. port: 5900 (default), 5901, 5902, etc. Useful for verifying remote desktop service availability."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_vnc"}
+    host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"Invalid port {port}: must be 1-65535", "tool": "check_vnc"}
+    timeout = min(max(1, timeout), 30)
+    _SECURITY_TYPES = {0: "invalid", 1: "none", 2: "vnc_auth", 5: "ra2", 6: "ra2ne", 16: "tight", 17: "ultra", 18: "tls", 19: "vencrypt", 20: "gtk_vnc_sasl", 21: "md5", 22: "xvp"}
+    try:
+        start = time.monotonic()
+        with socket.create_connection((host, port), timeout=timeout) as sock:
+            sock.settimeout(timeout)
+            banner_raw = sock.recv(12)
+            banner = banner_raw.decode("utf-8", errors="replace").rstrip("\n")
+            security_types = []
+            if banner.startswith("RFB "):
+                # Read security type list (RFB 3.7+): 1 byte count, then count bytes
+                try:
+                    count_byte = sock.recv(1)
+                    if count_byte and count_byte[0] > 0:
+                        type_bytes = sock.recv(count_byte[0])
+                        for t in type_bytes:
+                            security_types.append({"code": t, "name": _SECURITY_TYPES.get(t, f"type_{t}")})
+                except Exception:
+                    pass
+        elapsed_ms = round((time.monotonic() - start) * 1000, 2)
+        is_vnc = banner.startswith("RFB ")
+        return {
+            "result": {
+                "host": host,
+                "port": port,
+                "reachable": True,
+                "vnc_response": is_vnc,
+                "rfb_version": banner,
+                "security_types": security_types,
+                "elapsed_ms": elapsed_ms,
+            }
+        }
+    except ConnectionRefusedError:
+        return {"result": {"host": host, "port": port, "reachable": False, "reason": "connection refused"}}
+    except socket.timeout:
+        return {"result": {"host": host, "port": port, "reachable": False, "reason": "timeout"}}
+    except Exception as e:
+        return {"error": str(e), "tool": "check_vnc", "host": host, "detail": type(e).__name__}
+
+
+@mcp.tool()
 def check_postgres(host: str, port: int = 5432, timeout: int = 5) -> dict:
     """Connect to a PostgreSQL server and read the server version from the startup response. Does not authenticate. Useful for verifying database server reachability and version."""
     if not host or not host.strip():
