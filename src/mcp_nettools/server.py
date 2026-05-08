@@ -356,6 +356,7 @@ def subnet_info(cidr: str) -> dict:
     """Parse an IPv4 or IPv6 CIDR block: network address, host range, host count, and whether it is a private range. IPv4 also returns broadcast and netmask."""
     if not cidr or not cidr.strip():
         return {"error": "cidr must not be empty", "tool": "subnet_info"}
+    cidr = cidr.strip()
     try:
         net = ipaddress.ip_network(cidr, strict=False)
     except ValueError as e:
@@ -801,6 +802,7 @@ def ssh_check(host: str, port: int = 22, timeout: int = 10) -> dict:
     """Check SSH server connectivity and retrieve the server banner (SSH version string, e.g. 'SSH-2.0-OpenSSH_8.9'). Does not attempt authentication."""
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "ssh_check"}
+    host = host.strip()
     timeout = min(max(1, timeout), 30)
     try:
         start = time.monotonic()
@@ -1018,6 +1020,7 @@ def check_security_headers(url: str, timeout: int = 10) -> dict:
     """Fetch HTTP response headers and report which security headers are present or missing: HSTS, CSP, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy, X-XSS-Protection. Returns a score."""
     if not url or not url.strip():
         return {"error": "url must not be empty", "tool": "check_security_headers"}
+    url = url.strip()
     timeout = min(max(1, timeout), 30)
     try:
         req = urllib.request.Request(url, method="HEAD")
@@ -1261,6 +1264,7 @@ def dns_propagation(domain: str, record_type: str = "A") -> dict:
     """Check DNS propagation across 4 major public resolvers (Google 8.8.8.8, Cloudflare 1.1.1.1, Quad9 9.9.9.9, OpenDNS 208.67.222.222). Reports records from each and whether they are consistent. Useful after DNS changes to verify global propagation."""
     if not domain or not domain.strip():
         return {"error": "domain must not be empty", "tool": "dns_propagation"}
+    domain = domain.strip()
     record_type = record_type.upper()
     if record_type not in _VALID_RECORD_TYPES:
         return {"error": f"Invalid record type '{record_type}'. Valid: {', '.join(sorted(_VALID_RECORD_TYPES))}", "tool": "dns_propagation"}
