@@ -4320,6 +4320,8 @@ def check_plausible(host: str, port: int = 8000, timeout: int = 5, https: bool =
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_plausible"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_plausible"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -4350,6 +4352,8 @@ def check_mattermost(host: str, port: int = 8065, timeout: int = 5, https: bool 
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_mattermost"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_mattermost"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -4379,6 +4383,8 @@ def check_forgejo(host: str, port: int = 3000, timeout: int = 5, https: bool = F
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_forgejo"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_forgejo"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -4406,6 +4412,8 @@ def check_matrix_synapse(host: str, port: int = 8008, timeout: int = 5, https: b
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_matrix_synapse"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_matrix_synapse"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -4434,6 +4442,8 @@ def check_zipline(host: str, port: int = 3000, timeout: int = 5, https: bool = F
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_zipline"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_zipline"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -4462,6 +4472,8 @@ def check_guacamole(host: str, port: int = 8080, timeout: int = 5, https: bool =
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_guacamole"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_guacamole"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -4493,6 +4505,8 @@ def check_navidrome(host: str, port: int = 4533, timeout: int = 5, https: bool =
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_navidrome"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_navidrome"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -4517,6 +4531,8 @@ def check_qbittorrent(host: str, port: int = 8080, timeout: int = 5, https: bool
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_qbittorrent"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_qbittorrent"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -4543,6 +4559,8 @@ def check_prowlarr(host: str, port: int = 9696, timeout: int = 5, https: bool = 
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_prowlarr"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_prowlarr"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -4573,6 +4591,8 @@ def check_lidarr(host: str, port: int = 8686, timeout: int = 5, https: bool = Fa
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_lidarr"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_lidarr"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
