@@ -189,8 +189,8 @@ def port_check(host: str, port: int, timeout: int = 5) -> dict:
 
 
 @mcp.tool()
-def port_scan(host: str, ports: str, timeout: int = 3) -> dict:
-    """Check multiple TCP ports on a host. ports: comma-separated or ranges (e.g., '22,80,443,8000-8080'). Max 500 ports. timeout: 1-30 s."""
+def port_scan(host: str, ports: str, timeout: int = 3, open_only: bool = False) -> dict:
+    """Check multiple TCP ports on a host. ports: comma-separated or ranges (e.g., '22,80,443,8000-8080'). Max 500 ports. timeout: 1-30 s. open_only: if True, omit closed ports from the 'ports' dict (useful for large ranges)."""
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "port_scan"}
     host = host.strip()
@@ -230,13 +230,14 @@ def port_scan(host: str, ports: str, timeout: int = 3) -> dict:
             for f in concurrent.futures.as_completed(future_to_port)
         }
     open_ports = sorted(p for p, state in results.items() if state == "open")
+    ports_dict = {str(k): v for k, v in sorted(results.items()) if not open_only or v == "open"}
     return {
         "result": {
             "host": host,
             "scanned": len(port_list),
             "open_count": len(open_ports),
             "open": open_ports,
-            "ports": {str(k): v for k, v in sorted(results.items())},
+            "ports": ports_dict,
         }
     }
 
@@ -1961,6 +1962,66 @@ def check_postgres(host: str, port: int = 5432, timeout: int = 5) -> dict:
         return {"result": {"host": host, "port": port, "reachable": False, "reason": "timeout"}}
     except Exception as e:
         return {"error": str(e), "tool": "check_postgres", "host": host, "detail": type(e).__name__}
+
+
+@mcp.tool()
+def check_redis(host: str, port: int = 6379, timeout: int = 5, password: str = "") -> dict:
+    """Connect to a Redis server, send PING, and verify the PONG response. Optionally authenticate with AUTH before pinging. Returns whether the server is reachable, the Redis server version (from INFO server), and response time. password: optional Redis AUTH password (empty = no auth). port: 6379 (default) or custom."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_redis"}
+    host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"Invalid port {port}: must be 1-65535", "tool": "check_redis"}
+    timeout = min(max(1, timeout), 30)
+    try:
+        start = time.monotonic()
+        with socket.create_connection((host, port), timeout=timeout) as sock:
+            sock.settimeout(timeout)
+            f = sock.makefile("rwb", buffering=0)
+            if password:
+                f.write(f"*2\r\n$4\r\nAUTH\r\n${len(password)}\r\n{password}\r\n".encode())
+                f.flush()
+                auth_resp = f.readline().decode("utf-8", errors="replace").strip()
+                if not auth_resp.startswith("+OK"):
+                    return {"result": {"host": host, "port": port, "reachable": True, "authenticated": False, "auth_error": auth_resp}}
+            f.write(b"*1\r\n$4\r\nPING\r\n")
+            f.flush()
+            pong = f.readline().decode("utf-8", errors="replace").strip()
+            elapsed_ms = round((time.monotonic() - start) * 1000, 2)
+            if not pong.startswith("+PONG"):
+                return {"result": {"host": host, "port": port, "reachable": True, "ping_ok": False, "response": pong, "elapsed_ms": elapsed_ms}}
+            f.write(b"*2\r\n$4\r\nINFO\r\n$6\r\nserver\r\n")
+            f.flush()
+            info_lines = []
+            header = f.readline().decode("utf-8", errors="replace").strip()
+            if header.startswith("$"):
+                byte_count = int(header[1:])
+                info_data = f.read(byte_count).decode("utf-8", errors="replace")
+                info_lines = info_data.splitlines()
+        server_version = None
+        redis_mode = None
+        for line in info_lines:
+            if line.startswith("redis_version:"):
+                server_version = line.split(":", 1)[1].strip()
+            elif line.startswith("redis_mode:"):
+                redis_mode = line.split(":", 1)[1].strip()
+        return {
+            "result": {
+                "host": host,
+                "port": port,
+                "reachable": True,
+                "ping_ok": True,
+                "server_version": server_version,
+                "redis_mode": redis_mode,
+                "elapsed_ms": elapsed_ms,
+            }
+        }
+    except ConnectionRefusedError:
+        return {"result": {"host": host, "port": port, "reachable": False, "reason": "connection refused"}}
+    except socket.timeout:
+        return {"result": {"host": host, "port": port, "reachable": False, "reason": "timeout"}}
+    except Exception as e:
+        return {"error": str(e), "tool": "check_redis", "host": host, "detail": type(e).__name__}
 
 
 @mcp.tool()
