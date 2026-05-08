@@ -2,21 +2,20 @@
 
 from __future__ import annotations
 
+import concurrent.futures
+import hashlib
 import ipaddress
 import json
 import re
+import smtplib
 import socket
 import ssl
+import struct
 import subprocess
 import time
 import urllib.error
 import urllib.request
 from datetime import datetime, timezone
-
-import concurrent.futures
-import hashlib
-import smtplib
-import struct
 
 import dns.resolver
 import speedtest as _speedtest_lib
@@ -1012,6 +1011,97 @@ PING
         return {"result": {"host": host, "port": port, "reachable": False, "reason": "timeout"}}
     except Exception as e:
         return {"error": str(e), "tool": "redis_check", "host": host, "detail": type(e).__name__}
+
+
+
+@mcp.tool()
+def ping_sweep(network: str, timeout: int = 1) -> dict:
+    """Ping all hosts in an IPv4 CIDR range and report which respond. Max /24 (256 addresses). Runs parallel pings. timeout: per-host wait in seconds. Returns list of alive IPs."""
+    if not network or not network.strip():
+        return {"error": "network must not be empty", "tool": "ping_sweep"}
+    timeout = min(max(1, timeout), 10)
+    try:
+        net = ipaddress.IPv4Network(network.strip(), strict=False)
+    except ValueError as e:
+        return {"error": str(e), "tool": "ping_sweep"}
+    if net.num_addresses > 256:
+        return {"error": f"Network too large ({net.num_addresses} addresses). Maximum /24 (256).", "tool": "ping_sweep"}
+
+    hosts = list(net.hosts()) if net.prefixlen < 32 else [net.network_address]
+
+    def _ping_one(ip: str) -> tuple[str, bool]:
+        try:
+            r = subprocess.run(
+                ["ping", "-c", "1", "-W", str(timeout), ip],
+                capture_output=True,
+                timeout=timeout + 2,
+            )
+            return ip, r.returncode == 0
+        except Exception:
+            return ip, False
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=min(len(hosts), 64)) as pool:
+        results = list(pool.map(_ping_one, [str(h) for h in hosts]))
+
+    alive = sorted(ip for ip, up in results if up)
+    return {
+        "result": {
+            "network": str(net),
+            "scanned": len(hosts),
+            "alive_count": len(alive),
+            "alive": alive,
+        }
+    }
+
+
+_DNS_RESOLVERS = {
+    "google": "8.8.8.8",
+    "cloudflare": "1.1.1.1",
+    "quad9": "9.9.9.9",
+    "opendns": "208.67.222.222",
+}
+
+
+@mcp.tool()
+def dns_propagation(domain: str, record_type: str = "A") -> dict:
+    """Check DNS propagation across 4 major public resolvers (Google 8.8.8.8, Cloudflare 1.1.1.1, Quad9 9.9.9.9, OpenDNS 208.67.222.222). Reports records from each and whether they are consistent. Useful after DNS changes to verify global propagation."""
+    if not domain or not domain.strip():
+        return {"error": "domain must not be empty", "tool": "dns_propagation"}
+    record_type = record_type.upper()
+    if record_type not in _VALID_RECORD_TYPES:
+        return {"error": f"Invalid record type '{record_type}'. Valid: {', '.join(sorted(_VALID_RECORD_TYPES))}", "tool": "dns_propagation"}
+
+    results: dict = {}
+    for name, ns_ip in _DNS_RESOLVERS.items():
+        try:
+            resolver = dns.resolver.Resolver()
+            resolver.nameservers = [ns_ip]
+            resolver.lifetime = 5.0
+            answers = resolver.resolve(domain, record_type)
+            results[name] = {
+                "nameserver": ns_ip,
+                "records": sorted(str(r) for r in answers),
+                "ttl": answers.rrset.ttl if answers.rrset else None,
+            }
+        except dns.resolver.NXDOMAIN:
+            results[name] = {"nameserver": ns_ip, "error": "NXDOMAIN"}
+        except dns.resolver.NoAnswer:
+            results[name] = {"nameserver": ns_ip, "records": [], "note": "no records of this type"}
+        except Exception as e:
+            results[name] = {"nameserver": ns_ip, "error": str(e)}
+
+    record_sets = [tuple(v["records"]) for v in results.values() if "records" in v and not v.get("error")]
+    consistent = len(set(record_sets)) <= 1
+
+    return {
+        "result": {
+            "domain": domain,
+            "record_type": record_type,
+            "consistent": consistent,
+            "propagated": consistent and bool(record_sets) and len(record_sets) == len(_DNS_RESOLVERS),
+            "resolvers": results,
+        }
+    }
 
 def main() -> None:
     mcp.run()
