@@ -59,7 +59,7 @@ def ping(host: str, count: int = 4, timeout: int = 5) -> dict:
             out["rtt_min_ms"] = float(rtt_m.group(1))
             out["rtt_avg_ms"] = float(rtt_m.group(2))
             out["rtt_max_ms"] = float(rtt_m.group(3))
-        return out
+        return {"result": out}
     except Exception as e:
         return {"error": str(e), "tool": "ping", "host": host}
 
@@ -284,8 +284,8 @@ def cert_check(host: str, port: int = 443, timeout: int = 10) -> dict:
 
 
 @mcp.tool()
-def http_check(url: str, method: str = "HEAD", timeout: int = 10) -> dict:
-    """Check an HTTP/HTTPS URL: status code, response time, content type, and server header. method: HEAD (default, efficient), GET, or OPTIONS. Use GET if HEAD returns 405."""
+def http_check(url: str, method: str = "HEAD", timeout: int = 10, expected_status: int = 0, contains: str = "") -> dict:
+    """Check an HTTP/HTTPS URL: status code, response time, content type, and server header. method: HEAD (default, efficient), GET, or OPTIONS. Use GET if HEAD returns 405. expected_status: if non-zero, also checks response matches this code. contains: optional string that must appear in response body (GET only)."""
     if not url or not url.strip():
         return {"error": "url must not be empty", "tool": "http_check"}
     method = method.upper()
@@ -297,29 +297,34 @@ def http_check(url: str, method: str = "HEAD", timeout: int = 10) -> dict:
         req = urllib.request.Request(url, method=method)
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             elapsed_ms = round((time.monotonic() - start) * 1000, 2)
-            return {
-                "result": {
-                    "status_code": resp.status,
-                    "url": resp.url,
-                    "elapsed_ms": elapsed_ms,
-                    "ok": True,
-                    "content_type": resp.headers.get("Content-Type", ""),
-                    "server": resp.headers.get("Server", ""),
-                    "content_length": resp.headers.get("Content-Length", ""),
-                }
+            body = resp.read().decode("utf-8", errors="replace") if method == "GET" else ""
+            result: dict = {
+                "status_code": resp.status,
+                "url": resp.url,
+                "elapsed_ms": elapsed_ms,
+                "ok": True,
+                "content_type": resp.headers.get("Content-Type", ""),
+                "server": resp.headers.get("Server", ""),
+                "content_length": resp.headers.get("Content-Length", ""),
             }
+            if expected_status:
+                result["status_ok"] = resp.status == expected_status
+            if contains and method == "GET":
+                result["contains_ok"] = contains in body
+            return {"result": result}
     except urllib.error.HTTPError as e:
         elapsed_ms = round((time.monotonic() - start) * 1000, 2)
-        return {
-            "result": {
-                "status_code": e.code,
-                "url": url,
-                "elapsed_ms": elapsed_ms,
-                "ok": False,
-                "content_type": e.headers.get("Content-Type", "") if e.headers else "",
-                "server": e.headers.get("Server", "") if e.headers else "",
-            }
+        result = {
+            "status_code": e.code,
+            "url": url,
+            "elapsed_ms": elapsed_ms,
+            "ok": False,
+            "content_type": e.headers.get("Content-Type", "") if e.headers else "",
+            "server": e.headers.get("Server", "") if e.headers else "",
         }
+        if expected_status:
+            result["status_ok"] = e.code == expected_status
+        return {"result": result}
     except urllib.error.URLError as e:
         reason = str(e.reason)
         if "Name or service not known" in reason or "nodename nor servname" in reason:
@@ -778,8 +783,7 @@ def ssh_check(host: str, port: int = 22, timeout: int = 10) -> dict:
             raw = sock.recv(256)
             banner = raw.decode("utf-8", errors="replace").strip()
             try:
-                sock.sendall(b"SSH-2.0-Claude_1.0
-")
+                sock.sendall(b"SSH-2.0-Claude_1.0\r\n")
             except Exception:
                 pass
         elapsed_ms = round((time.monotonic() - start) * 1000, 2)
@@ -1017,7 +1021,7 @@ def mysql_check(host: str, port: int = 3306, timeout: int = 5) -> dict:
         # then null-terminated server version string starting at byte 5.
         version = ""
         if len(data) > 5 and data[4] in (9, 10):
-            null_pos = data.find(b" ", 5)
+            null_pos = data.find(b"\x00", 5)
             if null_pos > 5:
                 version = data[5:null_pos].decode("ascii", errors="replace")
         return {
@@ -1047,10 +1051,7 @@ def redis_check(host: str, port: int = 6379, timeout: int = 5) -> dict:
         start = time.monotonic()
         with socket.create_connection((host, port), timeout=timeout) as sock:
             sock.settimeout(timeout)
-            sock.sendall(b"*1
-$4
-PING
-")
+            sock.sendall(b"*1\r\n$4\r\nPING\r\n")
             response = sock.recv(256).decode("utf-8", errors="replace").strip()
         elapsed_ms = round((time.monotonic() - start) * 1000, 2)
         return {
@@ -1315,44 +1316,6 @@ def network_interfaces() -> dict:
         return {"result": {"raw_output": result2.stdout}}
     except Exception as e:
         return {"error": str(e), "tool": "network_interfaces", "detail": type(e).__name__}
-
-@mcp.tool()
-def http_check(url: str, method: str = "GET", timeout: int = 10, expected_status: int = 0, contains: str = "") -> dict:
-    """Check if an HTTP/HTTPS endpoint is reachable and responding correctly. url: full URL (e.g., 'https://example.com/health'). method: GET or HEAD. expected_status: if non-zero, verify the response matches this HTTP status code. contains: optional string that must appear in the response body (GET only). Returns status code, response time, and pass/fail for each check."""
-    if not url or not url.strip():
-        return {"error": "url must not be empty", "tool": "http_check"}
-    method = method.upper().strip()
-    if method not in {"GET", "HEAD"}:
-        return {"error": "method must be GET or HEAD", "tool": "http_check"}
-    timeout = min(max(1, timeout), 60)
-    try:
-        req = urllib.request.Request(url.strip(), method=method)
-        start = time.monotonic()
-        try:
-            with urllib.request.urlopen(req, timeout=timeout) as response:
-                elapsed_ms = round((time.monotonic() - start) * 1000, 2)
-                status_code = response.status
-                body = response.read().decode("utf-8", errors="replace") if method == "GET" else ""
-        except urllib.error.HTTPError as http_err:
-            elapsed_ms = round((time.monotonic() - start) * 1000, 2)
-            status_code = http_err.code
-            body = ""
-        result: dict = {
-            "url": url.strip(),
-            "status_code": status_code,
-            "elapsed_ms": elapsed_ms,
-            "reachable": True,
-        }
-        if expected_status:
-            result["status_ok"] = status_code == expected_status
-        if contains and method == "GET":
-            result["contains_ok"] = contains in body
-        return {"result": result}
-    except urllib.error.URLError as e:
-        return {"result": {"url": url.strip(), "reachable": False, "reason": str(e.reason)}}
-    except Exception as e:
-        return {"error": str(e), "tool": "http_check", "detail": type(e).__name__}
-
 
 def main() -> None:
     mcp.run()
