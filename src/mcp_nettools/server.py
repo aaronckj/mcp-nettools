@@ -1092,6 +1092,49 @@ def ldap_check(host: str, port: int = 389, timeout: int = 5, use_tls: bool = Fal
 
 
 @mcp.tool()
+def snmp_check(host: str, port: int = 161, timeout: int = 3, community: str = "public") -> dict:
+    """Send an SNMPv2c GetRequest for sysDescr (OID 1.3.6.1.2.1.1.1.0) over UDP and verify the response. community: SNMP community string (default 'public'). Returns whether SNMP is reachable and the raw response bytes length."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "snmp_check"}
+    timeout = min(max(1, timeout), 30)
+    community_bytes = community.encode()
+    community_len = len(community_bytes)
+    # SNMPv2c GetRequest for sysDescr OID 1.3.6.1.2.1.1.1.0
+    oid_bytes = bytes([0x30, 0x82, 0x00, 0x1d, 0x06, 0x09, 0x2b, 0x06, 0x01, 0x02, 0x01, 0x01, 0x01, 0x00, 0x05, 0x00])
+    pdu = bytes([0xa0, len(oid_bytes) + 8]) + bytes([0x02, 0x01, 0x01, 0x02, 0x01, 0x00, 0x02, 0x01, 0x00]) + bytes([0x30, len(oid_bytes)]) + oid_bytes
+    pdu = bytes([0xa0, 0x1c, 0x02, 0x01, 0x01, 0x02, 0x01, 0x00, 0x02, 0x01, 0x00, 0x30, 0x11]) + bytes([0x30, 0x0f, 0x06, 0x0b, 0x2b, 0x06, 0x01, 0x02, 0x01, 0x01, 0x01, 0x00, 0x04, 0x00, 0x05, 0x00])
+    community_field = bytes([0x04, community_len]) + community_bytes
+    msg_inner = bytes([0x02, 0x01, 0x01]) + community_field + bytes([0xa0, 0x1c, 0x02, 0x01, 0x01, 0x02, 0x01, 0x00, 0x02, 0x01, 0x00, 0x30, 0x11, 0x30, 0x0f, 0x06, 0x0b, 0x2b, 0x06, 0x01, 0x02, 0x01, 0x01, 0x01, 0x00, 0x00, 0x05, 0x00])
+    msg = bytes([0x30, len(msg_inner)]) + msg_inner
+    try:
+        start = time.monotonic()
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sock.settimeout(timeout)
+        sock.sendto(msg, (host.strip(), port))
+        data, _ = sock.recvfrom(4096)
+        sock.close()
+        elapsed_ms = round((time.monotonic() - start) * 1000, 2)
+        is_snmp = len(data) >= 2 and data[0] == 0x30
+        return {
+            "result": {
+                "host": host,
+                "port": port,
+                "reachable": True,
+                "snmp_response": is_snmp,
+                "response_bytes": len(data),
+                "community": community,
+                "elapsed_ms": elapsed_ms,
+            }
+        }
+    except socket.timeout:
+        return {"result": {"host": host, "port": port, "reachable": False, "reason": "timeout (no SNMP response — wrong community string or SNMP disabled)"}}
+    except OSError as e:
+        return {"result": {"host": host, "port": port, "reachable": False, "reason": str(e)}}
+    except Exception as e:
+        return {"error": str(e), "tool": "snmp_check", "host": host, "detail": type(e).__name__}
+
+
+@mcp.tool()
 def ping_sweep(network: str, timeout: int = 1) -> dict:
     """Ping all hosts in an IPv4 CIDR range and report which respond. Max /24 (256 addresses). Runs parallel pings. timeout: per-host wait in seconds. Returns list of alive IPs."""
     if not network or not network.strip():
