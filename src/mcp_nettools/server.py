@@ -2788,6 +2788,57 @@ def check_couchdb(host: str, port: int = 5984, timeout: int = 5, https: bool = F
         return {"error": str(e), "tool": "check_couchdb", "detail": type(e).__name__}
 
 
+@mcp.tool()
+def check_cassandra(host: str, port: int = 9042, timeout: int = 5) -> dict:
+    """Check Apache Cassandra availability using the CQL binary protocol. Sends a CQL OPTIONS request and verifies a SUPPORTED response, confirming the Cassandra node is accepting connections."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_cassandra"}
+    host = host.strip()
+    try:
+        sock = socket.create_connection((host, port), timeout=timeout)
+        sock.settimeout(timeout)
+        # CQL binary v3 OPTIONS request: version(1) + flags(1) + stream(2) + opcode(1=OPTIONS) + body_length(4)
+        options_req = struct.pack(">BBHBI", 0x03, 0x00, 0x0000, 0x05, 0)
+        sock.sendall(options_req)
+        header = sock.recv(9)
+        sock.close()
+        if len(header) >= 5 and header[4] == 0x06:  # opcode 0x06 = SUPPORTED
+            return {"result": {"host": host, "port": port, "reachable": True, "protocol": "CQL"}}
+        if len(header) >= 5:
+            return {"result": {"host": host, "port": port, "reachable": True, "protocol": "unknown", "opcode": header[4]}}
+        return {"result": {"host": host, "port": port, "reachable": True, "protocol": "unknown", "note": "no response"}}
+    except socket.timeout:
+        return {"result": {"host": host, "port": port, "reachable": False, "error": "timeout"}}
+    except ConnectionRefusedError:
+        return {"result": {"host": host, "port": port, "reachable": False, "error": "connection refused"}}
+    except Exception as e:
+        return {"error": str(e), "tool": "check_cassandra", "detail": type(e).__name__}
+
+
+@mcp.tool()
+def check_clickhouse(host: str, port: int = 8123, timeout: int = 5, https: bool = False) -> dict:
+    """Check ClickHouse OLAP database availability via HTTP /ping endpoint. Returns 'Ok.' on success. Port 8123 = HTTP interface, 8443 = HTTPS. Also returns version from the response header."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_clickhouse"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    try:
+        req = urllib.request.Request(f"{scheme}://{host}:{port}/ping")
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            body = resp.read().decode().strip()
+            version = resp.headers.get("X-ClickHouse-Server-Display-Name") or resp.headers.get("Server", "")
+        return {"result": {"host": host, "port": port, "reachable": body == "Ok.", "response": body, "server": version}}
+    except urllib.error.URLError as e:
+        return {"result": {"host": host, "port": port, "reachable": False, "error": str(e.reason)}}
+    except Exception as e:
+        return {"error": str(e), "tool": "check_clickhouse", "detail": type(e).__name__}
+
+
 def main() -> None:
     mcp.run()
 
