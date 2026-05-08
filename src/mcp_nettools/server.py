@@ -7039,6 +7039,124 @@ def check_overseerr(host: str, port: int = 5055, timeout: int = 5, https: bool =
 
 
 @mcp.tool()
+def check_beszel(host: str, port: int = 8090, timeout: int = 5, https: bool = False) -> dict:
+    """Check Beszel server monitoring hub reachability via GET /api/health. Default port 8090."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_beszel"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    try:
+        req = urllib.request.Request(f"{scheme}://{host}:{port}/api/health", headers={"Accept": "application/json"})
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            return {"result": {"host": host, "port": port, "healthy": True, "reachable": True, "http_code": resp.status}}
+    except urllib.error.HTTPError as e:
+        reachable = e.code in (200, 401)
+        return {"result": {"host": host, "port": port, "reachable": reachable, "healthy": reachable, "http_code": e.code}}
+    except Exception as e:
+        return {"error": str(e), "tool": "check_beszel", "host": host}
+
+
+@mcp.tool()
+def check_gatus(host: str, port: int = 8080, timeout: int = 5, https: bool = False) -> dict:
+    """Check Gatus health monitoring dashboard reachability via GET /health. Returns healthy=true when all configured endpoints are up. Default port 8080."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_gatus"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    try:
+        req = urllib.request.Request(f"{scheme}://{host}:{port}/health", headers={"Accept": "application/json"})
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            data = json.loads(resp.read().decode())
+            return {"result": {"host": host, "port": port, "healthy": data.get("healthy", True), "reachable": True}}
+    except urllib.error.HTTPError as e:
+        reachable = e.code in (200, 503)
+        return {"result": {"host": host, "port": port, "reachable": reachable, "healthy": e.code == 200, "http_code": e.code}}
+    except Exception as e:
+        return {"error": str(e), "tool": "check_gatus", "host": host}
+
+
+@mcp.tool()
+def check_technitium(host: str, port: int = 5380, timeout: int = 5, https: bool = False) -> dict:
+    """Check Technitium DNS Server reachability via GET /api/user/login (returns an API error indicating the server is up). Default port 5380."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_technitium"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    try:
+        req = urllib.request.Request(f"{scheme}://{host}:{port}/api/user/login", headers={"Accept": "application/json"})
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            data = json.loads(resp.read().decode())
+            reachable = data.get("status") in ("ok", "error")
+            return {"result": {"host": host, "port": port, "healthy": True, "reachable": True, "status": data.get("status")}}
+    except urllib.error.HTTPError as e:
+        reachable = e.code < 500
+        return {"result": {"host": host, "port": port, "reachable": reachable, "healthy": reachable, "http_code": e.code}}
+    except Exception as e:
+        return {"error": str(e), "tool": "check_technitium", "host": host}
+
+
+@mcp.tool()
+def check_crowdsec(host: str, port: int = 6060, timeout: int = 5, https: bool = False) -> dict:
+    """Check CrowdSec security agent local API reachability via GET /metrics. Default port 6060 (Prometheus metrics endpoint — no auth required)."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_crowdsec"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    try:
+        req = urllib.request.Request(f"{scheme}://{host}:{port}/metrics", headers={"Accept": "text/plain"})
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            return {"result": {"host": host, "port": port, "healthy": True, "reachable": True, "http_code": resp.status}}
+    except urllib.error.HTTPError as e:
+        reachable = e.code < 500
+        return {"result": {"host": host, "port": port, "reachable": reachable, "healthy": reachable, "http_code": e.code}}
+    except Exception as e:
+        return {"error": str(e), "tool": "check_crowdsec", "host": host}
+
+
+@mcp.tool()
+def check_wazuh(host: str, port: int = 55000, timeout: int = 5, https: bool = True) -> dict:
+    """Check Wazuh security platform API reachability via GET /. Default port 55000 with HTTPS. Returns 401 when up (auth required but server is responding)."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_wazuh"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    try:
+        req = urllib.request.Request(f"{scheme}://{host}:{port}/", headers={"Accept": "application/json"})
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            return {"result": {"host": host, "port": port, "healthy": True, "reachable": True, "http_code": resp.status}}
+    except urllib.error.HTTPError as e:
+        reachable = e.code in (200, 401)
+        return {"result": {"host": host, "port": port, "reachable": reachable, "healthy": reachable, "http_code": e.code}}
+    except Exception as e:
+        return {"error": str(e), "tool": "check_wazuh", "host": host}
+
+
+@mcp.tool()
 def check_organizr(host: str, port: int = 80, timeout: int = 5, https: bool = False) -> dict:
     """Check Organizr v2 dashboard reachability via GET /api/v2/apps. Default port 80."""
     if not host or not host.strip():
