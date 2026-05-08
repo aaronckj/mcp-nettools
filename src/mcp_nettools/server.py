@@ -4833,6 +4833,112 @@ def check_windmill(host: str, port: int = 8000, timeout: int = 5, https: bool = 
     return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy, "version": version}}
 
 
+@mcp.tool()
+def check_umami(host: str, port: int = 3000, timeout: int = 5, https: bool = False) -> dict:
+    """Check Umami privacy-focused analytics server health via GET /api/heartbeat. Returns 'OK' text response. Default port 3000."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_umami"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    healthy = False
+    try:
+        req = urllib.request.Request(f"{scheme}://{host}:{port}/api/heartbeat")
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            healthy = resp.status == 200
+    except Exception:
+        pass
+    return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy}}
+
+
+@mcp.tool()
+def check_planka(host: str, port: int = 1337, timeout: int = 5, https: bool = False) -> dict:
+    """Check Planka kanban project management board health via GET /api/health or root path. 200 or 401 = healthy. Default port 1337."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_planka"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    healthy = False
+    for path in ["/api/health", "/"]:
+        try:
+            req = urllib.request.Request(f"{scheme}://{host}:{port}{path}")
+            with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+                healthy = resp.status in (200, 302)
+                break
+        except urllib.error.HTTPError as e:
+            healthy = e.code in (200, 302, 401, 403)
+            break
+        except Exception:
+            pass
+    return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy}}
+
+
+@mcp.tool()
+def check_kimai(host: str, port: int = 80, timeout: int = 5, https: bool = False) -> dict:
+    """Check Kimai time-tracking application health via GET /api/version. Returns version string. Default port 80."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_kimai"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    healthy = False
+    version: str | None = None
+    try:
+        req = urllib.request.Request(
+            f"{scheme}://{host}:{port}/api/version",
+            headers={"Accept": "application/json"},
+        )
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            healthy = resp.status == 200
+            data = json.loads(resp.read().decode())
+            version = data.get("version")
+    except urllib.error.HTTPError as e:
+        healthy = e.code in (200, 401, 403)
+    except Exception:
+        pass
+    return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy, "version": version}}
+
+
+@mcp.tool()
+def check_snipe_it(host: str, port: int = 80, timeout: int = 5, https: bool = False) -> dict:
+    """Check Snipe-IT IT asset management application health via GET /api/v1/settings/general (401 without token = running). Default port 80."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_snipe_it"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    healthy = False
+    for path in ["/api/v1/settings/general", "/"]:
+        try:
+            req = urllib.request.Request(f"{scheme}://{host}:{port}{path}")
+            with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+                healthy = resp.status in (200, 302)
+                break
+        except urllib.error.HTTPError as e:
+            healthy = e.code in (200, 302, 401, 403)
+            break
+        except Exception:
+            pass
+    return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy}}
+
+
 def main() -> None:
     mcp.run()
 
