@@ -3552,6 +3552,86 @@ def check_keycloak(host: str, port: int = 8080, timeout: int = 5, https: bool = 
     return {"result": {"host": host, "port": port, "reachable": live, "live": live, "ready": ready}}
 
 
+@mcp.tool()
+def check_ntfy(host: str, port: int = 80, timeout: int = 5, https: bool = False) -> dict:
+    """Check ntfy push notification server health via GET /v1/health. Returns healthy state and version."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_ntfy"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    healthy = False
+    version: str | None = None
+    try:
+        req = urllib.request.Request(
+            f"{scheme}://{host}:{port}/v1/health",
+            headers={"Accept": "application/json"},
+        )
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            data = json.loads(resp.read().decode())
+            healthy = bool(data.get("healthy"))
+            version = data.get("version")
+    except Exception:
+        pass
+    return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy, "version": version}}
+
+
+@mcp.tool()
+def check_gotify(host: str, port: int = 80, timeout: int = 5, https: bool = False) -> dict:
+    """Check Gotify push notification server health via GET /health. Returns healthy state and version."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_gotify"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    healthy = False
+    version: str | None = None
+    try:
+        req = urllib.request.Request(
+            f"{scheme}://{host}:{port}/health",
+            headers={"Accept": "application/json"},
+        )
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            healthy = resp.status == 200
+            data = json.loads(resp.read().decode())
+            version = data.get("version") or data.get("info", {}).get("version")
+    except Exception:
+        pass
+    return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy, "version": version}}
+
+
+@mcp.tool()
+def check_searxng(host: str, port: int = 8080, timeout: int = 5, https: bool = False) -> dict:
+    """Check SearXNG meta-search engine availability via GET /healthz. Falls back to checking the homepage returns 200."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_searxng"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    healthy = False
+    for path in ["/healthz", "/"]:
+        try:
+            req = urllib.request.Request(f"{scheme}://{host}:{port}{path}")
+            with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+                healthy = resp.status == 200
+                break
+        except Exception:
+            pass
+    return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy}}
+
+
 def main() -> None:
     mcp.run()
 
