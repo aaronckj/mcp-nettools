@@ -53,6 +53,8 @@ def ping(host: str, count: int = 4, timeout: int = 5) -> dict:
             "reachable": result.returncode == 0,
             "output": result.stdout,
         }
+        if result.stderr:
+            out["stderr"] = result.stderr
         loss_m = _PING_LOSS_RE.search(result.stdout)
         if loss_m:
             out["packet_loss_pct"] = float(loss_m.group(1))
@@ -437,6 +439,10 @@ def subnet_info(cidr: str) -> dict:
                 "host_count": host_count,
                 "total_addresses": net.num_addresses,
                 "is_private": net.is_private,
+                "is_loopback": net.is_loopback,
+                "is_link_local": net.is_link_local,
+                "is_multicast": net.is_multicast,
+                "is_global": net.is_global,
             }
         }
     else:
