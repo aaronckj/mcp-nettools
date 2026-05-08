@@ -3436,6 +3436,122 @@ def check_adguard(host: str, port: int = 3000, timeout: int = 5, https: bool = F
     return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy, "version": version}}
 
 
+@mcp.tool()
+def check_paperless(host: str, port: int = 8000, timeout: int = 5, https: bool = False) -> dict:
+    """Check Paperless-NGX document management health. Attempts GET /api/ (returns 401 without auth, confirming service is running). Returns reachable state."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_paperless"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    reachable = False
+    try:
+        req = urllib.request.Request(f"{scheme}://{host}:{port}/api/", headers={"Accept": "application/json"})
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            reachable = resp.status in (200, 403)
+    except urllib.error.HTTPError as e:
+        reachable = e.code in (401, 403)
+    except Exception:
+        pass
+    return {"result": {"host": host, "port": port, "reachable": reachable}}
+
+
+@mcp.tool()
+def check_miniflux(host: str, port: int = 8080, timeout: int = 5, https: bool = False) -> dict:
+    """Check Miniflux RSS reader health via GET /healthcheck. Returns healthy state."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_miniflux"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    healthy = False
+    try:
+        req = urllib.request.Request(f"{scheme}://{host}:{port}/healthcheck")
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            body = resp.read().decode().strip()
+            healthy = resp.status == 200 and body == "OK"
+    except Exception:
+        pass
+    return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy}}
+
+
+@mcp.tool()
+def check_mealie(host: str, port: int = 9000, timeout: int = 5, https: bool = False) -> dict:
+    """Check Mealie recipe manager health via GET /api/about. Returns version and build info."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_mealie"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    healthy = False
+    version: str | None = None
+    try:
+        req = urllib.request.Request(
+            f"{scheme}://{host}:{port}/api/about",
+            headers={"Accept": "application/json"},
+        )
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            healthy = resp.status == 200
+            data = json.loads(resp.read().decode())
+            version = data.get("version")
+    except Exception:
+        pass
+    return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy, "version": version}}
+
+
+@mcp.tool()
+def check_keycloak(host: str, port: int = 8080, timeout: int = 5, https: bool = False) -> dict:
+    """Check Keycloak identity server health via GET /health/live and /health/ready (Keycloak 20+). Falls back to /auth/health for older versions. Returns live and ready states."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_keycloak"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    live = False
+    ready = False
+    for path in ["/health/live", "/auth/health/live"]:
+        try:
+            req = urllib.request.Request(
+                f"{scheme}://{host}:{port}{path}",
+                headers={"Accept": "application/json"},
+            )
+            with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+                data = json.loads(resp.read().decode())
+                live = data.get("status") == "UP"
+                break
+        except Exception:
+            pass
+    for path in ["/health/ready", "/auth/health/ready"]:
+        try:
+            req = urllib.request.Request(
+                f"{scheme}://{host}:{port}{path}",
+                headers={"Accept": "application/json"},
+            )
+            with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+                data = json.loads(resp.read().decode())
+                ready = data.get("status") == "UP"
+                break
+        except Exception:
+            pass
+    return {"result": {"host": host, "port": port, "reachable": live, "live": live, "ready": ready}}
+
+
 def main() -> None:
     mcp.run()
 
