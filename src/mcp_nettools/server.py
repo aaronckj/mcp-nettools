@@ -2326,6 +2326,8 @@ def check_vault(host: str, port: int = 8200, timeout: int = 5, https: bool = Tru
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_vault"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_vault"}
     scheme = "https" if https else "http"
     url = f"{scheme}://{host}:{port}/v1/sys/health"
     _state_map = {200: "active", 429: "standby", 472: "dr_secondary_active", 473: "performance_standby", 501: "uninitialized", 503: "sealed"}
@@ -2374,6 +2376,8 @@ def check_zookeeper(host: str, port: int = 2181, timeout: int = 5) -> dict:
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_zookeeper"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_zookeeper"}
     try:
         with socket.create_connection((host, port), timeout=timeout) as s:
             s.sendall(b"ruok")
@@ -2416,6 +2420,8 @@ def check_influxdb(host: str, port: int = 8086, timeout: int = 5, https: bool = 
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_influxdb"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_influxdb"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -2460,6 +2466,8 @@ def check_rabbitmq(host: str, port: int = 15672, timeout: int = 5, username: str
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_rabbitmq"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_rabbitmq"}
     import base64 as _b64
     creds = _b64.b64encode(f"{username}:{password}".encode()).decode()
     url = f"http://{host}:{port}/api/overview"
@@ -2501,6 +2509,8 @@ def check_kubernetes_api(host: str, port: int = 6443, timeout: int = 5, https: b
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_kubernetes_api"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_kubernetes_api"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -2549,6 +2559,8 @@ def check_elasticsearch(host: str, port: int = 9200, timeout: int = 5, https: bo
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_elasticsearch"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_elasticsearch"}
     scheme = "https" if https else "http"
     url = f"{scheme}://{host}:{port}/_cluster/health"
     try:
@@ -2587,6 +2599,8 @@ def check_etcd(host: str, port: int = 2379, timeout: int = 5) -> dict:
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_etcd"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_etcd"}
     url = f"http://{host}:{port}/health"
     try:
         req = urllib.request.Request(url, headers={"Accept": "application/json"})
@@ -2628,6 +2642,8 @@ def check_consul(host: str, port: int = 8500, timeout: int = 5) -> dict:
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_consul"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_consul"}
     base = f"http://{host}:{port}"
     try:
         with urllib.request.urlopen(urllib.request.Request(f"{base}/v1/status/leader"), timeout=timeout) as r:
@@ -2662,6 +2678,8 @@ def check_docker_api(host: str, port: int = 2375, timeout: int = 5, https: bool 
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_docker_api"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_docker_api"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -3034,6 +3052,8 @@ def check_minio(host: str, port: int = 9000, timeout: int = 5, https: bool = Fal
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_minio"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_minio"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
