@@ -6207,6 +6207,125 @@ def check_mylar3(host: str, port: int = 8090, timeout: int = 5, https: bool = Fa
 
 
 @mcp.tool()
+def check_karakeep(host: str, port: int = 3000, timeout: int = 5, https: bool = False) -> dict:
+    """Check Karakeep (formerly Hoarder) AI bookmark manager health via GET /api/v1/health. Returns healthy/reachable status. Default port 3000."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_karakeep"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    try:
+        req = urllib.request.Request(f"{scheme}://{host}:{port}/api/v1/health", headers={"Accept": "application/json"})
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            healthy = resp.status == 200
+            return {"result": {"host": host, "port": port, "healthy": healthy, "reachable": healthy}}
+    except urllib.error.HTTPError as e:
+        reachable = e.code in (200, 401)
+        return {"result": {"host": host, "port": port, "reachable": reachable, "healthy": reachable, "http_code": e.code}}
+    except Exception as e:
+        return {"error": str(e), "tool": "check_karakeep", "host": host}
+
+
+@mcp.tool()
+def check_maybe(host: str, port: int = 3000, timeout: int = 5, https: bool = False) -> dict:
+    """Check Maybe personal finance manager reachability via GET /. Returns 200 or 302 when service is up. Default port 3000."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_maybe"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    try:
+        req = urllib.request.Request(f"{scheme}://{host}:{port}/", headers={"Accept": "text/html"})
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            reachable = resp.status in (200, 302)
+            return {"result": {"host": host, "port": port, "reachable": reachable, "healthy": reachable}}
+    except urllib.error.HTTPError as e:
+        reachable = e.code in (200, 301, 302)
+        return {"result": {"host": host, "port": port, "reachable": reachable, "healthy": reachable, "http_code": e.code}}
+    except Exception as e:
+        return {"error": str(e), "tool": "check_maybe", "host": host}
+
+
+@mcp.tool()
+def check_headscale(host: str, port: int = 8080, timeout: int = 5, https: bool = False) -> dict:
+    """Check Headscale (self-hosted Tailscale control server) health via GET /health. Returns healthy/reachable status. Default port 8080."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_headscale"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    try:
+        req = urllib.request.Request(f"{scheme}://{host}:{port}/health", headers={"Accept": "application/json"})
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            healthy = resp.status == 200
+            return {"result": {"host": host, "port": port, "healthy": healthy, "reachable": healthy}}
+    except urllib.error.HTTPError as e:
+        return {"error": f"HTTP {e.code}: {e.reason}", "tool": "check_headscale", "host": host}
+    except Exception as e:
+        return {"error": str(e), "tool": "check_headscale", "host": host}
+
+
+@mcp.tool()
+def check_gitness(host: str, port: int = 3000, timeout: int = 5, https: bool = False) -> dict:
+    """Check Gitness (Harness git hosting) health via GET /api/v1/health. Returns 200 when service is up. Default port 3000."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_gitness"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    try:
+        req = urllib.request.Request(f"{scheme}://{host}:{port}/api/v1/health", headers={"Accept": "application/json"})
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            healthy = resp.status == 200
+            return {"result": {"host": host, "port": port, "healthy": healthy, "reachable": healthy}}
+    except urllib.error.HTTPError as e:
+        reachable = e.code in (200, 401)
+        return {"result": {"host": host, "port": port, "reachable": reachable, "healthy": reachable, "http_code": e.code}}
+    except Exception as e:
+        return {"error": str(e), "tool": "check_gitness", "host": host}
+
+
+@mcp.tool()
+def check_netbird(host: str, port: int = 8080, timeout: int = 5, https: bool = False) -> dict:
+    """Check NetBird VPN management server health via GET /api/v1/self-hosted/setup-keys (returns 200 or 401 when service is up). Default port 8080."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_netbird"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    try:
+        req = urllib.request.Request(f"{scheme}://{host}:{port}/api/v1/self-hosted/setup-keys", headers={"Accept": "application/json"})
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            reachable = resp.status in (200, 401)
+            return {"result": {"host": host, "port": port, "reachable": reachable, "healthy": reachable}}
+    except urllib.error.HTTPError as e:
+        reachable = e.code in (200, 401, 403)
+        return {"result": {"host": host, "port": port, "reachable": reachable, "healthy": reachable, "http_code": e.code}}
+    except Exception as e:
+        return {"error": str(e), "tool": "check_netbird", "host": host}
+
+
+@mcp.tool()
 def check_linkding(host: str, port: int = 9090, timeout: int = 5, https: bool = False) -> dict:
     """Check Linkding bookmark manager health via GET /health. Returns healthy/reachable status. Default port 9090."""
     if not host or not host.strip():
