@@ -5275,6 +5275,170 @@ def http_security_headers(host: str, port: int = 80, timeout: int = 5, https: bo
         return {"error": str(e), "tool": "http_security_headers"}
 
 
+@mcp.tool()
+def check_gitlab(host: str, port: int = 80, timeout: int = 5, https: bool = False) -> dict:
+    """Check GitLab instance health via GET /-/health. Confirms the application is running and can accept requests. Default port 80."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_gitlab"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    healthy = False
+    try:
+        req = urllib.request.Request(f"{scheme}://{host}:{port}/-/health")
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            body = resp.read().decode().strip()
+            healthy = resp.status == 200 and "GitLab" in body
+    except Exception:
+        pass
+    if not healthy:
+        try:
+            req = urllib.request.Request(f"{scheme}://{host}:{port}/-/liveness")
+            with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+                healthy = resp.status == 200
+        except Exception:
+            pass
+    return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy}}
+
+
+@mcp.tool()
+def check_discourse(host: str, port: int = 80, timeout: int = 5, https: bool = False) -> dict:
+    """Check Discourse forum health via GET /srv/status (returns JSON status) or /about.json for version info. Default port 80."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_discourse"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    healthy = False
+    version: str | None = None
+    try:
+        req = urllib.request.Request(f"{scheme}://{host}:{port}/srv/status")
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            if resp.status == 200:
+                data = json.loads(resp.read().decode())
+                healthy = data.get("status") == "ok"
+    except Exception:
+        pass
+    if not healthy:
+        try:
+            req = urllib.request.Request(
+                f"{scheme}://{host}:{port}/about.json",
+                headers={"Accept": "application/json"},
+            )
+            with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+                if resp.status == 200:
+                    healthy = True
+                    data = json.loads(resp.read().decode())
+                    version = data.get("about", {}).get("version")
+        except Exception:
+            pass
+    return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy, "version": version}}
+
+
+@mcp.tool()
+def check_matomo(host: str, port: int = 80, timeout: int = 5, https: bool = False) -> dict:
+    """Check Matomo web analytics health via the API ping endpoint. Returns version if the API responds. Default port 80."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_matomo"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    healthy = False
+    version: str | None = None
+    for path in [
+        "/matomo.php?module=API&method=API.getMatomoVersion&format=json",
+        "/index.php?module=API&method=API.getMatomoVersion&format=JSON",
+    ]:
+        try:
+            req = urllib.request.Request(f"{scheme}://{host}:{port}{path}")
+            with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+                if resp.status == 200:
+                    healthy = True
+                    body = resp.read().decode()
+                    try:
+                        data = json.loads(body)
+                        if isinstance(data, dict):
+                            version = data.get("value")
+                    except Exception:
+                        pass
+                    break
+        except urllib.error.HTTPError as e:
+            if e.code in (301, 302):
+                healthy = True
+                break
+        except Exception:
+            pass
+    return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy, "version": version}}
+
+
+@mcp.tool()
+def check_dokuwiki(host: str, port: int = 80, timeout: int = 5, https: bool = False) -> dict:
+    """Check DokuWiki health via GET /doku.php. A 200 or redirect response confirms the wiki is running. Default port 80."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_dokuwiki"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    healthy = False
+    try:
+        req = urllib.request.Request(f"{scheme}://{host}:{port}/doku.php")
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            healthy = resp.status in (200, 301, 302)
+    except urllib.error.HTTPError as e:
+        healthy = e.code in (200, 301, 302)
+    except Exception:
+        pass
+    return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy}}
+
+
+@mcp.tool()
+def check_invoiceninja(host: str, port: int = 80, timeout: int = 5, https: bool = False) -> dict:
+    """Check Invoice Ninja health via GET /api/v1/ping. Returns version if the API responds. A 401/403 response also indicates the server is running. Default port 80."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_invoiceninja"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    healthy = False
+    version: str | None = None
+    try:
+        req = urllib.request.Request(
+            f"{scheme}://{host}:{port}/api/v1/ping",
+            headers={"Accept": "application/json"},
+        )
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            if resp.status == 200:
+                healthy = True
+                data = json.loads(resp.read().decode())
+                version = data.get("version") or data.get("app_version")
+    except urllib.error.HTTPError as e:
+        if e.code in (401, 403, 422):
+            healthy = True
+    except Exception:
+        pass
+    return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy, "version": version}}
+
+
 def main() -> None:
     mcp.run()
 
