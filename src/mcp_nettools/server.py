@@ -182,9 +182,9 @@ def port_check(host: str, port: int, timeout: int = 5) -> dict:
         with socket.create_connection((host, port), timeout=timeout):
             pass
         return {"result": {"host": host, "port": port, "open": True}}
-    except OSError:
+    except (ConnectionRefusedError, TimeoutError):
         return {"result": {"host": host, "port": port, "open": False}}
-    except Exception as e:
+    except OSError as e:
         return {"error": str(e), "tool": "port_check", "host": host, "port": port}
 
 
@@ -564,6 +564,7 @@ def wake_on_lan(mac: str, broadcast: str = "255.255.255.255") -> dict:
         return {
             "error": f"Invalid MAC address '{mac}'. Expected XX:XX:XX:XX:XX:XX or XX-XX-XX-XX-XX-XX",
             "tool": "wake_on_lan",
+            "mac": mac,
         }
     broadcast = broadcast.strip()
     try:
