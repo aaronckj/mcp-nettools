@@ -7839,6 +7839,8 @@ def check_zabbix(host: str, port: int = 80, timeout: int = 5, https: bool = Fals
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_zabbix"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_zabbix"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -7862,6 +7864,8 @@ def check_mimir(host: str, port: int = 8080, timeout: int = 5, https: bool = Fal
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_mimir"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_mimir"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -7887,6 +7891,8 @@ def check_vector(host: str, port: int = 8686, timeout: int = 5, https: bool = Fa
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_vector"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_vector"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
