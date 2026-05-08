@@ -760,7 +760,7 @@ def check_ldap(host: str, port: int = 389, timeout: int = 5, use_ssl: bool = Fal
     except socket.timeout:
         return {"result": {"host": host, "port": port, "reachable": False, "reason": "timeout"}}
     except Exception as e:
-        return {"error": str(e), "tool": "check_ldap", "host": host, "detail": type(e).__name__}
+        return {"error": str(e), "tool": "check_ldap", "host": host, "port": port, "detail": type(e).__name__}
 
 
 @mcp.tool()
@@ -896,7 +896,7 @@ def ftp_check(host: str, port: int = 21, timeout: int = 10) -> dict:
     except socket.timeout:
         return {"result": {"host": host, "port": port, "reachable": False, "reason": "timeout"}}
     except Exception as e:
-        return {"error": str(e), "tool": "ftp_check", "host": host, "detail": type(e).__name__}
+        return {"error": str(e), "tool": "ftp_check", "host": host, "port": port, "detail": type(e).__name__}
 
 
 @mcp.tool()
@@ -997,7 +997,7 @@ def ssh_check(host: str, port: int = 22, timeout: int = 10) -> dict:
     except socket.timeout:
         return {"result": {"host": host, "port": port, "reachable": False, "reason": "timeout"}}
     except Exception as e:
-        return {"error": str(e), "tool": "ssh_check", "host": host, "detail": type(e).__name__}
+        return {"error": str(e), "tool": "ssh_check", "host": host, "port": port, "detail": type(e).__name__}
 
 
 @mcp.tool()
@@ -1043,7 +1043,7 @@ def check_rdp(host: str, port: int = 3389, timeout: int = 10) -> dict:
     except socket.timeout:
         return {"result": {"host": host, "port": port, "reachable": False, "reason": "timeout"}}
     except Exception as e:
-        return {"error": str(e), "tool": "check_rdp", "host": host, "detail": type(e).__name__}
+        return {"error": str(e), "tool": "check_rdp", "host": host, "port": port, "detail": type(e).__name__}
 
 
 @mcp.tool()
