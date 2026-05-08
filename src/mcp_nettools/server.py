@@ -4728,6 +4728,111 @@ def check_hoppscotch(host: str, port: int = 3170, timeout: int = 5, https: bool 
     return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy}}
 
 
+@mcp.tool()
+def check_n8n(host: str, port: int = 5678, timeout: int = 5, https: bool = False) -> dict:
+    """Check n8n workflow automation platform health via GET /healthz. Returns status 'ok'. Default port 5678."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_n8n"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    healthy = False
+    try:
+        req = urllib.request.Request(
+            f"{scheme}://{host}:{port}/healthz",
+            headers={"Accept": "application/json"},
+        )
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            healthy = resp.status == 200
+    except Exception:
+        pass
+    return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy}}
+
+
+@mcp.tool()
+def check_directus(host: str, port: int = 8055, timeout: int = 5, https: bool = False) -> dict:
+    """Check Directus headless CMS health via GET /server/health. Returns status 'ok' and service checks. Default port 8055."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_directus"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    healthy = False
+    status: str | None = None
+    try:
+        req = urllib.request.Request(
+            f"{scheme}://{host}:{port}/server/health",
+            headers={"Accept": "application/json"},
+        )
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            healthy = resp.status == 200
+            data = json.loads(resp.read().decode())
+            status = data.get("status")
+            healthy = healthy and status == "ok"
+    except Exception:
+        pass
+    return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy, "status": status}}
+
+
+@mcp.tool()
+def check_appwrite(host: str, port: int = 80, timeout: int = 5, https: bool = False) -> dict:
+    """Check Appwrite open-source BaaS health via GET /v1/health. Returns HTTP status. Default port 80 (HTTPS on 443)."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_appwrite"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    healthy = False
+    try:
+        req = urllib.request.Request(
+            f"{scheme}://{host}:{port}/v1/health",
+            headers={"Accept": "application/json"},
+        )
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            healthy = resp.status == 200
+    except urllib.error.HTTPError as e:
+        healthy = e.code in (200, 401)
+    except Exception:
+        pass
+    return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy}}
+
+
+@mcp.tool()
+def check_windmill(host: str, port: int = 8000, timeout: int = 5, https: bool = False) -> dict:
+    """Check Windmill workflow automation platform health via GET /api/version. Returns version string. Default port 8000."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_windmill"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    healthy = False
+    version: str | None = None
+    try:
+        req = urllib.request.Request(f"{scheme}://{host}:{port}/api/version")
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            healthy = resp.status == 200
+            version = resp.read().decode().strip()
+    except Exception:
+        pass
+    return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy, "version": version}}
+
+
 def main() -> None:
     mcp.run()
 
