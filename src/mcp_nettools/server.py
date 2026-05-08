@@ -1812,6 +1812,149 @@ def dnssec_check(domain: str, nameserver: str = "") -> dict:
 
 
 @mcp.tool()
+def check_postgres(host: str, port: int = 5432, timeout: int = 5) -> dict:
+    """Connect to a PostgreSQL server and read the server version from the startup response. Does not authenticate. Useful for verifying database server reachability and version."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_postgres"}
+    host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"Invalid port {port}: must be 1-65535", "tool": "check_postgres"}
+    timeout = min(max(1, timeout), 30)
+    # PostgreSQL v3.0 startup message: length(4) + version(4) + key=value pairs + \0
+    params = b"user\x00postgres\x00database\x00postgres\x00\x00"
+    msg_body = struct.pack("!I", 196608) + params
+    msg = struct.pack("!I", len(msg_body) + 4) + msg_body
+    try:
+        start = time.monotonic()
+        with socket.create_connection((host, port), timeout=timeout) as sock:
+            sock.settimeout(timeout)
+            sock.sendall(msg)
+            data = sock.recv(4096)
+        elapsed_ms = round((time.monotonic() - start) * 1000, 2)
+        server_version = None
+        i = 0
+        while i < len(data):
+            if i + 5 > len(data):
+                break
+            msg_type = chr(data[i])
+            msg_len = struct.unpack("!I", data[i+1:i+5])[0]
+            msg_data = data[i+5:i+1+msg_len]
+            if msg_type == "S":
+                null_pos = msg_data.find(b"\x00")
+                if null_pos >= 0:
+                    name = msg_data[:null_pos].decode("utf-8", errors="replace")
+                    val_start = null_pos + 1
+                    null_pos2 = msg_data.find(b"\x00", val_start)
+                    value = msg_data[val_start:null_pos2].decode("utf-8", errors="replace") if null_pos2 >= 0 else ""
+                    if name == "server_version":
+                        server_version = value
+            i += 1 + msg_len
+        return {
+            "result": {
+                "host": host,
+                "port": port,
+                "reachable": True,
+                "server_version": server_version,
+                "elapsed_ms": elapsed_ms,
+            }
+        }
+    except ConnectionRefusedError:
+        return {"result": {"host": host, "port": port, "reachable": False, "reason": "connection refused"}}
+    except socket.timeout:
+        return {"result": {"host": host, "port": port, "reachable": False, "reason": "timeout"}}
+    except Exception as e:
+        return {"error": str(e), "tool": "check_postgres", "host": host, "detail": type(e).__name__}
+
+
+@mcp.tool()
+def check_memcached(host: str, port: int = 11211, timeout: int = 5) -> dict:
+    """Connect to a Memcached server and request its version. Returns whether the server is reachable and its version string. Useful for verifying caching layer availability."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_memcached"}
+    host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"Invalid port {port}: must be 1-65535", "tool": "check_memcached"}
+    timeout = min(max(1, timeout), 30)
+    try:
+        start = time.monotonic()
+        with socket.create_connection((host, port), timeout=timeout) as sock:
+            sock.settimeout(timeout)
+            sock.sendall(b"version\r\n")
+            response = sock.recv(256).decode("utf-8", errors="replace").strip()
+        elapsed_ms = round((time.monotonic() - start) * 1000, 2)
+        version = None
+        if response.startswith("VERSION "):
+            version = response.split(" ", 1)[1].strip()
+        return {
+            "result": {
+                "host": host,
+                "port": port,
+                "reachable": True,
+                "version": version,
+                "response": response,
+                "elapsed_ms": elapsed_ms,
+            }
+        }
+    except ConnectionRefusedError:
+        return {"result": {"host": host, "port": port, "reachable": False, "reason": "connection refused"}}
+    except socket.timeout:
+        return {"result": {"host": host, "port": port, "reachable": False, "reason": "timeout"}}
+    except Exception as e:
+        return {"error": str(e), "tool": "check_memcached", "host": host, "detail": type(e).__name__}
+
+
+@mcp.tool()
+def check_mqtt(host: str, port: int = 1883, timeout: int = 5, client_id: str = "mcp-probe") -> dict:
+    """Connect to an MQTT broker and send a CONNECT packet (v3.1.1). Checks for a CONNACK response and decodes the return code. port: 1883 (plain) or 8883 (TLS). Does not authenticate (anonymous connect). Returns whether the broker accepted the connection and its return code."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_mqtt"}
+    host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"Invalid port {port}: must be 1-65535", "tool": "check_mqtt"}
+    timeout = min(max(1, timeout), 30)
+    client_id_bytes = (client_id.strip() or "mcp-probe").encode("utf-8")
+    # MQTT v3.1.1 CONNECT variable header + payload
+    variable_header = (
+        b"\x00\x04MQTT"  # protocol name
+        b"\x04"          # protocol level = 3.1.1
+        b"\x02"          # connect flags: clean session
+        b"\x00\x3c"      # keep-alive: 60s
+    )
+    payload = struct.pack("!H", len(client_id_bytes)) + client_id_bytes
+    remaining = variable_header + payload
+    connect_pkt = bytes([0x10, len(remaining)]) + remaining
+    _CONNACK_CODES = {0: "accepted", 1: "refused: unacceptable protocol", 2: "refused: client ID rejected", 3: "refused: server unavailable", 4: "refused: bad credentials", 5: "refused: not authorized"}
+    try:
+        start = time.monotonic()
+        with socket.create_connection((host, port), timeout=timeout) as sock:
+            sock.settimeout(timeout)
+            sock.sendall(connect_pkt)
+            response = sock.recv(64)
+        elapsed_ms = round((time.monotonic() - start) * 1000, 2)
+        # CONNACK: 0x20 0x02 session_present return_code
+        is_mqtt = len(response) >= 4 and response[0] == 0x20 and response[1] == 0x02
+        return_code = response[3] if is_mqtt else None
+        return {
+            "result": {
+                "host": host,
+                "port": port,
+                "reachable": True,
+                "mqtt_response": is_mqtt,
+                "accepted": return_code == 0 if is_mqtt else None,
+                "return_code": return_code,
+                "return_code_text": _CONNACK_CODES.get(return_code) if return_code is not None else None,
+                "elapsed_ms": elapsed_ms,
+            }
+        }
+    except ConnectionRefusedError:
+        return {"result": {"host": host, "port": port, "reachable": False, "reason": "connection refused"}}
+    except socket.timeout:
+        return {"result": {"host": host, "port": port, "reachable": False, "reason": "timeout"}}
+    except Exception as e:
+        return {"error": str(e), "tool": "check_mqtt", "host": host, "detail": type(e).__name__}
+
+
+@mcp.tool()
 def check_spf(domain: str, nameserver: str = "") -> dict:
     """Check the SPF (Sender Policy Framework) record for a domain. Looks up TXT records at the domain root and extracts the v=spf1 policy. nameserver: optional custom resolver IP. Multiple SPF records is a misconfiguration (RFC 7208 §3.2)."""
     if not domain or not domain.strip():
