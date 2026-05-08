@@ -3729,6 +3729,8 @@ def check_adguard(host: str, port: int = 3000, timeout: int = 5, https: bool = F
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_adguard"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_adguard"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -3761,6 +3763,8 @@ def check_paperless(host: str, port: int = 8000, timeout: int = 5, https: bool =
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_paperless"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_paperless"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -3785,6 +3789,8 @@ def check_miniflux(host: str, port: int = 8080, timeout: int = 5, https: bool = 
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_miniflux"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_miniflux"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -3808,6 +3814,8 @@ def check_mealie(host: str, port: int = 9000, timeout: int = 5, https: bool = Fa
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_mealie"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_mealie"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -3836,6 +3844,8 @@ def check_keycloak(host: str, port: int = 8080, timeout: int = 5, https: bool = 
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_keycloak"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_keycloak"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -3877,6 +3887,8 @@ def check_ntfy(host: str, port: int = 80, timeout: int = 5, https: bool = False)
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_ntfy"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_ntfy"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -3905,6 +3917,8 @@ def check_gotify(host: str, port: int = 80, timeout: int = 5, https: bool = Fals
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_gotify"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_gotify"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -3933,6 +3947,8 @@ def check_searxng(host: str, port: int = 8080, timeout: int = 5, https: bool = F
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_searxng"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_searxng"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -3957,6 +3973,8 @@ def check_freshrss(host: str, port: int = 80, timeout: int = 5, https: bool = Fa
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_freshrss"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_freshrss"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -3985,6 +4003,8 @@ def check_bookstack(host: str, port: int = 80, timeout: int = 5, https: bool = F
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_bookstack"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_bookstack"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
