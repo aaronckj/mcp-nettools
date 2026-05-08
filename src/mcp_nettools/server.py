@@ -1811,6 +1811,146 @@ def dnssec_check(domain: str, nameserver: str = "") -> dict:
         return {"error": str(e), "tool": "dnssec_check", "domain": domain, "detail": type(e).__name__}
 
 
+@mcp.tool()
+def check_spf(domain: str, nameserver: str = "") -> dict:
+    """Check the SPF (Sender Policy Framework) record for a domain. Looks up TXT records at the domain root and extracts the v=spf1 policy. nameserver: optional custom resolver IP. Multiple SPF records is a misconfiguration (RFC 7208 §3.2)."""
+    if not domain or not domain.strip():
+        return {"error": "domain must not be empty", "tool": "check_spf"}
+    domain = domain.strip()
+    if nameserver and nameserver.strip():
+        try:
+            ipaddress.ip_address(nameserver.strip())
+        except ValueError:
+            return {"error": f"Invalid nameserver IP: '{nameserver}'", "tool": "check_spf"}
+    try:
+        resolver = dns.resolver.Resolver()
+        resolver.lifetime = 10.0
+        if nameserver and nameserver.strip():
+            resolver.nameservers = [nameserver.strip()]
+        answers = resolver.resolve(domain, "TXT")
+        spf_records = []
+        for rdata in answers:
+            txt = "".join(s.decode("utf-8", errors="replace") for s in rdata.strings)
+            if txt.startswith("v=spf1"):
+                spf_records.append(txt)
+        if not spf_records:
+            return {"result": {"domain": domain, "spf_found": False, "record": None}}
+        return {
+            "result": {
+                "domain": domain,
+                "spf_found": True,
+                "record": spf_records[0],
+                "multiple_records": len(spf_records) > 1,
+                "all_records": spf_records,
+            }
+        }
+    except dns.resolver.NXDOMAIN:
+        return {"result": {"domain": domain, "spf_found": False, "error": "NXDOMAIN — domain does not exist"}}
+    except dns.resolver.NoAnswer:
+        return {"result": {"domain": domain, "spf_found": False, "record": None}}
+    except Exception as e:
+        return {"error": str(e), "tool": "check_spf", "domain": domain, "detail": type(e).__name__}
+
+
+@mcp.tool()
+def check_dkim(domain: str, selector: str, nameserver: str = "") -> dict:
+    """Check whether a DKIM public key is published for a domain and selector. Looks up the TXT record at selector._domainkey.domain. selector: DKIM selector name (e.g. 'google', 'mail', 'default', 's1'). nameserver: optional custom resolver IP."""
+    if not domain or not domain.strip():
+        return {"error": "domain must not be empty", "tool": "check_dkim"}
+    domain = domain.strip()
+    if not selector or not selector.strip():
+        return {"error": "selector must not be empty", "tool": "check_dkim"}
+    selector = selector.strip()
+    if nameserver and nameserver.strip():
+        try:
+            ipaddress.ip_address(nameserver.strip())
+        except ValueError:
+            return {"error": f"Invalid nameserver IP: '{nameserver}'", "tool": "check_dkim"}
+    dkim_host = f"{selector}._domainkey.{domain}"
+    try:
+        resolver = dns.resolver.Resolver()
+        resolver.lifetime = 10.0
+        if nameserver and nameserver.strip():
+            resolver.nameservers = [nameserver.strip()]
+        answers = resolver.resolve(dkim_host, "TXT")
+        records = []
+        for rdata in answers:
+            txt = "".join(s.decode("utf-8", errors="replace") for s in rdata.strings)
+            records.append(txt)
+        dkim_record = next((r for r in records if "v=DKIM1" in r or "p=" in r), None)
+        return {
+            "result": {
+                "domain": domain,
+                "selector": selector,
+                "dkim_host": dkim_host,
+                "dkim_found": bool(dkim_record),
+                "record": dkim_record,
+                "all_txt_records": records,
+            }
+        }
+    except dns.resolver.NXDOMAIN:
+        return {"result": {"domain": domain, "selector": selector, "dkim_host": dkim_host, "dkim_found": False, "error": "NXDOMAIN — selector not found"}}
+    except dns.resolver.NoAnswer:
+        return {"result": {"domain": domain, "selector": selector, "dkim_host": dkim_host, "dkim_found": False, "record": None}}
+    except Exception as e:
+        return {"error": str(e), "tool": "check_dkim", "domain": domain, "detail": type(e).__name__}
+
+
+@mcp.tool()
+def check_dmarc(domain: str, nameserver: str = "") -> dict:
+    """Check the DMARC policy for a domain. Looks up the TXT record at _dmarc.domain and parses the policy tags: p (domain policy: none/quarantine/reject), sp (subdomain policy), rua (aggregate report URI), ruf (forensic report URI), adkim (DKIM alignment: r=relaxed/s=strict), aspf (SPF alignment), pct (percentage of messages subject to policy). nameserver: optional custom resolver IP."""
+    if not domain or not domain.strip():
+        return {"error": "domain must not be empty", "tool": "check_dmarc"}
+    domain = domain.strip()
+    if nameserver and nameserver.strip():
+        try:
+            ipaddress.ip_address(nameserver.strip())
+        except ValueError:
+            return {"error": f"Invalid nameserver IP: '{nameserver}'", "tool": "check_dmarc"}
+    dmarc_host = f"_dmarc.{domain}"
+    try:
+        resolver = dns.resolver.Resolver()
+        resolver.lifetime = 10.0
+        if nameserver and nameserver.strip():
+            resolver.nameservers = [nameserver.strip()]
+        answers = resolver.resolve(dmarc_host, "TXT")
+        records = []
+        for rdata in answers:
+            txt = "".join(s.decode("utf-8", errors="replace") for s in rdata.strings)
+            records.append(txt)
+        dmarc_record = next((r for r in records if r.startswith("v=DMARC1")), None)
+        if not dmarc_record:
+            return {"result": {"domain": domain, "dmarc_host": dmarc_host, "dmarc_found": False, "record": None}}
+        tags: dict = {}
+        for part in dmarc_record.split(";"):
+            part = part.strip()
+            if "=" in part:
+                k, _, v = part.partition("=")
+                tags[k.strip()] = v.strip()
+        return {
+            "result": {
+                "domain": domain,
+                "dmarc_host": dmarc_host,
+                "dmarc_found": True,
+                "record": dmarc_record,
+                "policy": tags.get("p"),
+                "subdomain_policy": tags.get("sp"),
+                "rua": tags.get("rua"),
+                "ruf": tags.get("ruf"),
+                "adkim": tags.get("adkim", "r"),
+                "aspf": tags.get("aspf", "r"),
+                "pct": tags.get("pct", "100"),
+                "tags": tags,
+            }
+        }
+    except dns.resolver.NXDOMAIN:
+        return {"result": {"domain": domain, "dmarc_host": dmarc_host, "dmarc_found": False, "error": "NXDOMAIN — _dmarc record not found"}}
+    except dns.resolver.NoAnswer:
+        return {"result": {"domain": domain, "dmarc_host": dmarc_host, "dmarc_found": False, "record": None}}
+    except Exception as e:
+        return {"error": str(e), "tool": "check_dmarc", "domain": domain, "detail": type(e).__name__}
+
+
 def main() -> None:
     mcp.run()
 
