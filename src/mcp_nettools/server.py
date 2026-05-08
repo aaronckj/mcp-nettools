@@ -4268,6 +4268,138 @@ def check_readarr(host: str, port: int = 8787, timeout: int = 5, https: bool = F
     return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy, "version": version}}
 
 
+@mcp.tool()
+def check_bazarr(host: str, port: int = 6767, timeout: int = 5, https: bool = False) -> dict:
+    """Check Bazarr subtitle management server health via GET /api/system/status. Returns version string. 401 = running but API key required (still healthy). Default port 6767."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_bazarr"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    healthy = False
+    version: str | None = None
+    try:
+        req = urllib.request.Request(
+            f"{scheme}://{host}:{port}/api/system/status",
+            headers={"Accept": "application/json"},
+        )
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            healthy = resp.status == 200
+            data = json.loads(resp.read().decode())
+            version = data.get("data", {}).get("bazarr_version") if isinstance(data.get("data"), dict) else None
+    except urllib.error.HTTPError as e:
+        healthy = e.code in (200, 401, 403)
+    except Exception:
+        pass
+    return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy, "version": version}}
+
+
+@mcp.tool()
+def check_audiobookshelf(host: str, port: int = 13378, timeout: int = 5, https: bool = False) -> dict:
+    """Check Audiobookshelf audiobook and podcast server health via GET /api/health. Returns server version. Default port 13378."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_audiobookshelf"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    healthy = False
+    version: str | None = None
+    try:
+        req = urllib.request.Request(
+            f"{scheme}://{host}:{port}/api/health",
+            headers={"Accept": "application/json"},
+        )
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            healthy = resp.status == 200
+            data = json.loads(resp.read().decode())
+            version = data.get("serverVersion")
+    except Exception:
+        pass
+    return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy, "version": version}}
+
+
+@mcp.tool()
+def check_kavita(host: str, port: int = 5000, timeout: int = 5, https: bool = False) -> dict:
+    """Check Kavita manga, comic, and book reader server health via GET /api/health. Default port 5000."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_kavita"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    healthy = False
+    try:
+        req = urllib.request.Request(f"{scheme}://{host}:{port}/api/health")
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            healthy = resp.status == 200
+    except Exception:
+        pass
+    return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy}}
+
+
+@mcp.tool()
+def check_transmission(host: str, port: int = 9091, timeout: int = 5, https: bool = False) -> dict:
+    """Check Transmission BitTorrent client RPC health via GET /transmission/rpc. A 409 response (CSRF token required) confirms Transmission is running. Default port 9091."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_transmission"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    healthy = False
+    try:
+        req = urllib.request.Request(f"{scheme}://{host}:{port}/transmission/rpc")
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            healthy = resp.status in (200, 409)
+    except urllib.error.HTTPError as e:
+        healthy = e.code in (200, 401, 403, 409)
+    except Exception:
+        pass
+    return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy}}
+
+
+@mcp.tool()
+def check_jellyseerr(host: str, port: int = 5055, timeout: int = 5, https: bool = False) -> dict:
+    """Check Jellyseerr media request and discovery manager health via GET /api/v1/status. Returns version string. Default port 5055."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_jellyseerr"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    healthy = False
+    version: str | None = None
+    try:
+        req = urllib.request.Request(
+            f"{scheme}://{host}:{port}/api/v1/status",
+            headers={"Accept": "application/json"},
+        )
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            healthy = resp.status == 200
+            data = json.loads(resp.read().decode())
+            version = data.get("version")
+    except Exception:
+        pass
+    return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy, "version": version}}
+
+
 def main() -> None:
     mcp.run()
 
