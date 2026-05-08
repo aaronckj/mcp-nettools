@@ -4619,6 +4619,115 @@ def check_flaresolverr(host: str, port: int = 8191, timeout: int = 5, https: boo
     return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy, "version": version, "sessions": sessions}}
 
 
+@mcp.tool()
+def check_penpot(host: str, port: int = 9001, timeout: int = 5, https: bool = False) -> dict:
+    """Check Penpot open-source design tool health via GET /api/rpc/command/get-profile. 401 = running (auth required). Default port 9001."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_penpot"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    healthy = False
+    try:
+        req = urllib.request.Request(f"{scheme}://{host}:{port}/api/rpc/command/get-profile")
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            healthy = resp.status in (200, 401, 403)
+    except urllib.error.HTTPError as e:
+        healthy = e.code in (200, 401, 403)
+    except Exception:
+        pass
+    return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy}}
+
+
+@mcp.tool()
+def check_joplin_server(host: str, port: int = 22300, timeout: int = 5, https: bool = False) -> dict:
+    """Check Joplin Server note-syncing backend health via GET /api/ping. Returns status 'ok'. Default port 22300."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_joplin_server"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    healthy = False
+    status: str | None = None
+    try:
+        req = urllib.request.Request(
+            f"{scheme}://{host}:{port}/api/ping",
+            headers={"Accept": "application/json"},
+        )
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            healthy = resp.status == 200
+            data = json.loads(resp.read().decode())
+            status = data.get("status")
+            healthy = healthy and status == "ok"
+    except Exception:
+        pass
+    return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy, "status": status}}
+
+
+@mcp.tool()
+def check_nocodb(host: str, port: int = 8080, timeout: int = 5, https: bool = False) -> dict:
+    """Check NocoDB no-code database platform health via GET /api/v1/health. Returns status 'ok'. Default port 8080."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_nocodb"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    healthy = False
+    try:
+        req = urllib.request.Request(
+            f"{scheme}://{host}:{port}/api/v1/health",
+            headers={"Accept": "application/json"},
+        )
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            healthy = resp.status == 200
+            data = json.loads(resp.read().decode())
+            healthy = data.get("message") == "OK" or data.get("status") == "ok" or healthy
+    except urllib.error.HTTPError as e:
+        healthy = e.code in (200, 302)
+    except Exception:
+        pass
+    return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy}}
+
+
+@mcp.tool()
+def check_hoppscotch(host: str, port: int = 3170, timeout: int = 5, https: bool = False) -> dict:
+    """Check Hoppscotch self-hosted API testing platform backend health via GET /api/health or root path. Default backend port 3170 (frontend is 3000)."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_hoppscotch"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    healthy = False
+    for path in ["/api/health", "/"]:
+        try:
+            req = urllib.request.Request(f"{scheme}://{host}:{port}{path}")
+            with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+                healthy = resp.status in (200, 302)
+                break
+        except urllib.error.HTTPError as e:
+            healthy = e.code in (200, 302, 401, 403)
+            break
+        except Exception:
+            pass
+    return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy}}
+
+
 def main() -> None:
     mcp.run()
 
