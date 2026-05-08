@@ -344,8 +344,8 @@ def cert_check(host: str, port: int = 443, timeout: int = 10) -> dict:
 
 
 @mcp.tool()
-def http_check(url: str, method: str = "HEAD", timeout: int = 10, expected_status: int = 0, contains: str = "") -> dict:
-    """Check an HTTP/HTTPS URL: status code, response time, content type, and server header. method: HEAD (default, efficient), GET, or OPTIONS. Use GET if HEAD returns 405. expected_status: if non-zero, also checks response matches this code. contains: optional string that must appear in response body (GET only)."""
+def http_check(url: str, method: str = "HEAD", timeout: int = 10, expected_status: int = 0, contains: str = "", headers: str = "") -> dict:
+    """Check an HTTP/HTTPS URL: status code, response time, content type, and server header. method: HEAD (default, efficient), GET, or OPTIONS. Use GET if HEAD returns 405. expected_status: if non-zero, also checks response matches this code. contains: optional string that must appear in response body (GET only). headers: optional extra request headers as 'Name: Value' pairs separated by newlines or semicolons (e.g. 'Authorization: Bearer token123;X-Custom: value')."""
     if not url or not url.strip():
         return {"error": "url must not be empty", "tool": "http_check"}
     url = url.strip()
@@ -356,8 +356,18 @@ def http_check(url: str, method: str = "HEAD", timeout: int = 10, expected_statu
         return {"error": f"Invalid method '{method}'. Use GET, HEAD, or OPTIONS", "tool": "http_check"}
     timeout = min(max(1, timeout), 60)
     start = time.monotonic()
+    extra_headers: dict[str, str] = {}
+    if headers and headers.strip():
+        for raw in re.split(r"[;\n]", headers):
+            raw = raw.strip()
+            if not raw:
+                continue
+            if ":" not in raw:
+                return {"error": f"Invalid header '{raw}': must be 'Name: Value'", "tool": "http_check"}
+            hname, _, hval = raw.partition(":")
+            extra_headers[hname.strip()] = hval.strip()
     try:
-        req = urllib.request.Request(url, method=method)
+        req = urllib.request.Request(url, method=method, headers=extra_headers)
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             elapsed_ms = round((time.monotonic() - start) * 1000, 2)
             body = resp.read().decode("utf-8", errors="replace") if method == "GET" else ""
@@ -919,6 +929,52 @@ def ssh_check(host: str, port: int = 22, timeout: int = 10) -> dict:
         return {"result": {"host": host, "port": port, "reachable": False, "reason": "timeout"}}
     except Exception as e:
         return {"error": str(e), "tool": "ssh_check", "host": host, "detail": type(e).__name__}
+
+
+@mcp.tool()
+def check_rdp(host: str, port: int = 3389, timeout: int = 10) -> dict:
+    """Check whether a Remote Desktop Protocol (RDP) server is reachable by connecting and reading the X.224 Connection Confirm response. Does not authenticate. Returns whether the port is open and whether the server speaks RDP. Useful for verifying RDP is exposed or verifying VPN tunnel connectivity to Windows hosts."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_rdp"}
+    host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"Invalid port {port}: must be 1-65535", "tool": "check_rdp"}
+    timeout = min(max(1, timeout), 30)
+    # X.224 Connection Request TPDU (COTP class 0, 11 bytes) over TPKT header
+    # This is the standard RDP pre-negotiation probe
+    _RDP_PROBE = bytes([
+        0x03, 0x00, 0x00, 0x0b,  # TPKT: version=3, length=11
+        0x06, 0xe0, 0x00, 0x00,  # TPDU: CR TPDU, dst=0, src=0
+        0x00, 0x00, 0x00,        # class/options
+    ])
+    try:
+        start = time.monotonic()
+        with socket.create_connection((host, port), timeout=timeout) as sock:
+            sock.settimeout(timeout)
+            sock.sendall(_RDP_PROBE)
+            data = b""
+            try:
+                data = sock.recv(256)
+            except socket.timeout:
+                pass
+        elapsed_ms = round((time.monotonic() - start) * 1000, 2)
+        # Valid TPKT+X.224 Connection Confirm: 0x03 0x00 (TPKT v3), then CC TPDU = 0xd0
+        is_rdp = len(data) >= 6 and data[0] == 0x03 and data[1] == 0x00 and data[4] == 0xd0
+        return {
+            "result": {
+                "host": host,
+                "port": port,
+                "reachable": True,
+                "rdp_response": is_rdp,
+                "elapsed_ms": elapsed_ms,
+            }
+        }
+    except ConnectionRefusedError:
+        return {"result": {"host": host, "port": port, "reachable": False, "reason": "connection refused"}}
+    except socket.timeout:
+        return {"result": {"host": host, "port": port, "reachable": False, "reason": "timeout"}}
+    except Exception as e:
+        return {"error": str(e), "tool": "check_rdp", "host": host, "detail": type(e).__name__}
 
 
 @mcp.tool()
