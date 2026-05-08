@@ -3820,6 +3820,117 @@ def check_actual_budget(host: str, port: int = 5006, timeout: int = 5, https: bo
     return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy}}
 
 
+@mcp.tool()
+def check_linkwarden(host: str, port: int = 3000, timeout: int = 5, https: bool = False) -> dict:
+    """Check Linkwarden bookmark manager availability via GET /api/v1/auth/session (returns 401 without auth, confirming service is running)."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_linkwarden"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    reachable = False
+    try:
+        req = urllib.request.Request(f"{scheme}://{host}:{port}/api/v1/auth/session")
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            reachable = resp.status in (200, 403)
+    except urllib.error.HTTPError as e:
+        reachable = e.code in (200, 401, 403)
+    except Exception:
+        pass
+    return {"result": {"host": host, "port": port, "reachable": reachable}}
+
+
+@mcp.tool()
+def check_photoprism(host: str, port: int = 2342, timeout: int = 5, https: bool = False) -> dict:
+    """Check PhotoPrism photo management server health via GET /api/v1/status. Returns running state and version."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_photoprism"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    healthy = False
+    version: str | None = None
+    try:
+        req = urllib.request.Request(
+            f"{scheme}://{host}:{port}/api/v1/status",
+            headers={"Accept": "application/json"},
+        )
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            healthy = resp.status == 200
+            data = json.loads(resp.read().decode())
+            version = data.get("version")
+    except Exception:
+        pass
+    return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy, "version": version}}
+
+
+@mcp.tool()
+def check_wallabag(host: str, port: int = 80, timeout: int = 5, https: bool = False) -> dict:
+    """Check Wallabag read-it-later service availability. Checks GET /api/info (401 without auth = running) or homepage."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_wallabag"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    reachable = False
+    for path in ["/api/info", "/"]:
+        try:
+            req = urllib.request.Request(
+                f"{scheme}://{host}:{port}{path}",
+                headers={"Accept": "application/json"},
+            )
+            with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+                reachable = resp.status in (200, 302)
+                break
+        except urllib.error.HTTPError as e:
+            reachable = e.code in (200, 401, 403, 302)
+            if reachable:
+                break
+        except Exception:
+            pass
+    return {"result": {"host": host, "port": port, "reachable": reachable}}
+
+
+@mcp.tool()
+def check_tandoor(host: str, port: int = 8080, timeout: int = 5, https: bool = False) -> dict:
+    """Check Tandoor recipe manager health via GET /api/schema/ (public OpenAPI schema endpoint). Returns reachable state."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_tandoor"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    healthy = False
+    for path in ["/api/schema/", "/api/"]:
+        try:
+            req = urllib.request.Request(f"{scheme}://{host}:{port}{path}")
+            with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+                healthy = resp.status == 200
+                break
+        except urllib.error.HTTPError as e:
+            healthy = e.code in (200, 403)
+            if healthy:
+                break
+        except Exception:
+            pass
+    return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy}}
+
+
 def main() -> None:
     mcp.run()
 
