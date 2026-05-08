@@ -413,7 +413,7 @@ def http_check(url: str, method: str = "HEAD", timeout: int = 10, expected_statu
             detail = reason
         return {"error": detail, "tool": "http_check", "url": url}
     except Exception as e:
-        return {"error": str(e), "tool": "http_check", "detail": type(e).__name__}
+        return {"error": str(e), "tool": "http_check", "url": url, "detail": type(e).__name__}
 
 
 @mcp.tool()
@@ -741,7 +741,7 @@ def ntp_check(host: str, port: int = 123, timeout: int = 5) -> dict:
     except socket.timeout:
         return {"result": {"host": host, "port": port, "reachable": False, "error": "connection timed out"}}
     except Exception as e:
-        return {"error": str(e), "tool": "ntp_check", "detail": type(e).__name__}
+        return {"error": str(e), "tool": "ntp_check", "host": host, "port": port, "detail": type(e).__name__}
 
 
 @mcp.tool()
