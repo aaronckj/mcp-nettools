@@ -2558,14 +2558,24 @@ def check_docker_api(host: str, port: int = 2375, timeout: int = 5, https: bool 
 
 
 @mcp.tool()
-def http_post(url: str, body: str = "", content_type: str = "application/json", timeout: int = 10) -> dict:
-    """Send an HTTP POST request with a body and return the status code and response. Useful for testing REST API endpoints. body: raw string (JSON, form data, etc). Returns status, response body, and parsed JSON if applicable."""
+def http_post(url: str, body: str = "", content_type: str = "application/json", timeout: int = 10, headers: str = "") -> dict:
+    """Send an HTTP POST request with a body and return the status code and response. Useful for testing REST API endpoints. body: raw string (JSON, form data, etc). headers: extra request headers as 'Name: Value' pairs separated by newlines or semicolons (e.g. 'Authorization: Bearer token'). Returns status, response body, and parsed JSON if applicable."""
     if not url or not url.strip():
         return {"error": "url must not be empty", "tool": "http_post"}
     url = url.strip()
+    extra_headers: dict[str, str] = {}
+    if headers and headers.strip():
+        for raw in re.split(r"[;\n]", headers):
+            raw = raw.strip()
+            if not raw:
+                continue
+            if ":" not in raw:
+                return {"error": f"Invalid header '{raw}': must be 'Name: Value'", "tool": "http_post"}
+            hname, _, hval = raw.partition(":")
+            extra_headers[hname.strip()] = hval.strip()
     try:
         data = body.encode("utf-8") if body else b""
-        req = urllib.request.Request(url, data=data, method="POST")
+        req = urllib.request.Request(url, data=data, method="POST", headers=extra_headers)
         req.add_header("Content-Type", content_type)
         req.add_header("Content-Length", str(len(data)))
         with urllib.request.urlopen(req, timeout=timeout) as resp:
@@ -3036,6 +3046,71 @@ def check_opensearch(host: str, port: int = 9200, timeout: int = 5, https: bool 
         return {"result": {"host": host, "port": port, "reachable": False, "error": str(e.reason)}}
     except Exception as e:
         return {"error": str(e), "tool": "check_opensearch", "detail": type(e).__name__}
+
+
+@mcp.tool()
+def check_loki(host: str, port: int = 3100, timeout: int = 5, https: bool = False) -> dict:
+    """Check Grafana Loki log aggregation service via GET /ready and /loki/api/v1/status/buildinfo. Returns readiness status and build version."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_loki"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    ready = False
+    version: str | None = None
+    try:
+        req = urllib.request.Request(f"{scheme}://{host}:{port}/ready")
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            ready = resp.status == 200
+    except Exception:
+        pass
+    try:
+        req = urllib.request.Request(f"{scheme}://{host}:{port}/loki/api/v1/status/buildinfo", headers={"Accept": "application/json"})
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            data = json.loads(resp.read().decode())
+            version = data.get("version")
+    except Exception:
+        pass
+    return {"result": {"host": host, "port": port, "reachable": ready, "ready": ready, "version": version}}
+
+
+@mcp.tool()
+def check_alertmanager(host: str, port: int = 9093, timeout: int = 5, https: bool = False) -> dict:
+    """Check Prometheus Alertmanager health via GET /-/healthy and /-/ready. Returns health/readiness status and version from the API."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_alertmanager"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    healthy = False
+    ready = False
+    version: str | None = None
+    for endpoint, key in [("/-/healthy", "healthy"), ("/-/ready", "ready")]:
+        try:
+            req = urllib.request.Request(f"{scheme}://{host}:{port}{endpoint}")
+            with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+                if key == "healthy":
+                    healthy = resp.status == 200
+                else:
+                    ready = resp.status == 200
+        except Exception:
+            pass
+    try:
+        req = urllib.request.Request(f"{scheme}://{host}:{port}/api/v2/status", headers={"Accept": "application/json"})
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            data = json.loads(resp.read().decode())
+            version = data.get("versionInfo", {}).get("version")
+    except Exception:
+        pass
+    return {"result": {"host": host, "port": port, "reachable": healthy or ready, "healthy": healthy, "ready": ready, "version": version}}
 
 
 def main() -> None:
