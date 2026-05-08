@@ -7039,6 +7039,146 @@ def check_overseerr(host: str, port: int = 5055, timeout: int = 5, https: bool =
 
 
 @mcp.tool()
+def check_organizr(host: str, port: int = 80, timeout: int = 5, https: bool = False) -> dict:
+    """Check Organizr v2 dashboard reachability via GET /api/v2/apps. Default port 80."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_organizr"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    try:
+        req = urllib.request.Request(f"{scheme}://{host}:{port}/api/v2/apps", headers={"Accept": "application/json"})
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            return {"result": {"host": host, "port": port, "healthy": True, "reachable": True, "http_code": resp.status}}
+    except urllib.error.HTTPError as e:
+        reachable = e.code in (200, 401)
+        return {"result": {"host": host, "port": port, "reachable": reachable, "healthy": reachable, "http_code": e.code}}
+    except Exception as e:
+        return {"error": str(e), "tool": "check_organizr", "host": host}
+
+
+@mcp.tool()
+def check_heimdall(host: str, port: int = 80, timeout: int = 5, https: bool = False) -> dict:
+    """Check Heimdall application dashboard reachability via GET /. Default port 80."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_heimdall"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    try:
+        req = urllib.request.Request(f"{scheme}://{host}:{port}/", headers={"Accept": "text/html"})
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            return {"result": {"host": host, "port": port, "healthy": True, "reachable": True, "http_code": resp.status}}
+    except urllib.error.HTTPError as e:
+        reachable = e.code < 500
+        return {"result": {"host": host, "port": port, "reachable": reachable, "healthy": reachable, "http_code": e.code}}
+    except Exception as e:
+        return {"error": str(e), "tool": "check_heimdall", "host": host}
+
+
+@mcp.tool()
+def check_invidious(host: str, port: int = 3000, timeout: int = 5, https: bool = False) -> dict:
+    """Check Invidious YouTube frontend reachability via GET /api/v1/stats. Returns software version when healthy. Default port 3000."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_invidious"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    try:
+        req = urllib.request.Request(f"{scheme}://{host}:{port}/api/v1/stats", headers={"Accept": "application/json"})
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            data = json.loads(resp.read().decode())
+            sw = data.get("software", {})
+            return {"result": {"host": host, "port": port, "healthy": True, "reachable": True, "version": sw.get("version"), "branch": sw.get("branch")}}
+    except urllib.error.HTTPError as e:
+        reachable = e.code < 500
+        return {"result": {"host": host, "port": port, "reachable": reachable, "healthy": reachable, "http_code": e.code}}
+    except Exception as e:
+        return {"error": str(e), "tool": "check_invidious", "host": host}
+
+
+@mcp.tool()
+def check_hoarder(host: str, port: int = 3000, timeout: int = 5, https: bool = False) -> dict:
+    """Check Hoarder bookmarks manager reachability via GET /api/v1/health. Default port 3000."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_hoarder"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    try:
+        req = urllib.request.Request(f"{scheme}://{host}:{port}/api/v1/health", headers={"Accept": "application/json"})
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            return {"result": {"host": host, "port": port, "healthy": True, "reachable": True, "http_code": resp.status}}
+    except urllib.error.HTTPError as e:
+        reachable = e.code in (200, 401)
+        return {"result": {"host": host, "port": port, "reachable": reachable, "healthy": reachable, "http_code": e.code}}
+    except Exception as e:
+        return {"error": str(e), "tool": "check_hoarder", "host": host}
+
+
+@mcp.tool()
+def check_trilium(host: str, port: int = 8080, timeout: int = 5, https: bool = False) -> dict:
+    """Check Trilium Notes hierarchical note-taking app reachability via GET /. Default port 8080."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_trilium"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    try:
+        req = urllib.request.Request(f"{scheme}://{host}:{port}/", headers={"Accept": "text/html"})
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            return {"result": {"host": host, "port": port, "healthy": True, "reachable": True, "http_code": resp.status}}
+    except urllib.error.HTTPError as e:
+        reachable = e.code < 500
+        return {"result": {"host": host, "port": port, "reachable": reachable, "healthy": reachable, "http_code": e.code}}
+    except Exception as e:
+        return {"error": str(e), "tool": "check_trilium", "host": host}
+
+
+@mcp.tool()
+def check_kasm(host: str, port: int = 443, timeout: int = 5, https: bool = True) -> dict:
+    """Check Kasm Workspaces containerized desktop reachability via GET /. Default port 443 with HTTPS."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_kasm"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    try:
+        req = urllib.request.Request(f"{scheme}://{host}:{port}/", headers={"Accept": "text/html"})
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            return {"result": {"host": host, "port": port, "healthy": True, "reachable": True, "http_code": resp.status}}
+    except urllib.error.HTTPError as e:
+        reachable = e.code < 500
+        return {"result": {"host": host, "port": port, "reachable": reachable, "healthy": reachable, "http_code": e.code}}
+    except Exception as e:
+        return {"error": str(e), "tool": "check_kasm", "host": host}
+
+
+@mcp.tool()
 def check_homarr(host: str, port: int = 7575, timeout: int = 5, https: bool = False) -> dict:
     """Check Homarr dashboard reachability via GET /api/health. Default port 7575."""
     if not host or not host.strip():
