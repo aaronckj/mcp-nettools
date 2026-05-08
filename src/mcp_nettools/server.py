@@ -4504,6 +4504,121 @@ def check_glances(host: str, port: int = 61208, timeout: int = 5, https: bool = 
     return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy, "version": version}}
 
 
+@mcp.tool()
+def check_netdata(host: str, port: int = 19999, timeout: int = 5, https: bool = False) -> dict:
+    """Check Netdata real-time performance monitoring server health via GET /api/v1/info. Returns version and operating system. Default port 19999."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_netdata"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    healthy = False
+    version: str | None = None
+    try:
+        req = urllib.request.Request(
+            f"{scheme}://{host}:{port}/api/v1/info",
+            headers={"Accept": "application/json"},
+        )
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            healthy = resp.status == 200
+            data = json.loads(resp.read().decode())
+            version = data.get("version")
+    except Exception:
+        pass
+    return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy, "version": version}}
+
+
+@mcp.tool()
+def check_cockpit(host: str, port: int = 9090, timeout: int = 5, https: bool = False) -> dict:
+    """Check Cockpit Linux server management web UI health. Tries GET /cockpit/login — 200, 302, or 401 = healthy. Default port 9090 (most installs use HTTPS)."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_cockpit"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    healthy = False
+    for check_path in ["/cockpit/login", "/"]:
+        try:
+            req = urllib.request.Request(f"{scheme}://{host}:{port}{check_path}")
+            with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+                healthy = resp.status in (200, 302)
+                break
+        except urllib.error.HTTPError as e:
+            healthy = e.code in (200, 302, 401, 403)
+            break
+        except Exception:
+            pass
+    return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy}}
+
+
+@mcp.tool()
+def check_changedetection(host: str, port: int = 5000, timeout: int = 5, https: bool = False) -> dict:
+    """Check changedetection.io web change monitoring server health via GET /api/v1/systeminfo. Returns version. Default port 5000."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_changedetection"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    healthy = False
+    version: str | None = None
+    try:
+        req = urllib.request.Request(
+            f"{scheme}://{host}:{port}/api/v1/systeminfo",
+            headers={"Accept": "application/json"},
+        )
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            healthy = resp.status == 200
+            data = json.loads(resp.read().decode())
+            version = data.get("version")
+    except urllib.error.HTTPError as e:
+        healthy = e.code in (200, 401, 403)
+    except Exception:
+        pass
+    return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy, "version": version}}
+
+
+@mcp.tool()
+def check_flaresolverr(host: str, port: int = 8191, timeout: int = 5, https: bool = False) -> dict:
+    """Check FlareSolverr Cloudflare bypass proxy health via GET /v1. Returns version and number of active sessions. Default port 8191."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_flaresolverr"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    healthy = False
+    version: str | None = None
+    sessions: int | None = None
+    try:
+        req = urllib.request.Request(
+            f"{scheme}://{host}:{port}/v1",
+            headers={"Accept": "application/json"},
+        )
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            healthy = resp.status == 200
+            data = json.loads(resp.read().decode())
+            version = data.get("version")
+            sessions = data.get("sessions")
+    except Exception:
+        pass
+    return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy, "version": version, "sessions": sessions}}
+
+
 def main() -> None:
     mcp.run()
 
