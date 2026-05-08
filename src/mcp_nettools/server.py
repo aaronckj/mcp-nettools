@@ -7652,10 +7652,10 @@ def check_zabbix(host: str, port: int = 80, timeout: int = 5, https: bool = Fals
 
 
 @mcp.tool()
-def check_loki(host: str, port: int = 3100, timeout: int = 5, https: bool = False) -> dict:
-    """Check Grafana Loki (log aggregation) reachability via GET /ready. Default port 3100. Returns ready status from response body."""
+def check_mimir(host: str, port: int = 8080, timeout: int = 5, https: bool = False) -> dict:
+    """Check Grafana Mimir (scalable Prometheus) reachability via GET /ready. Default port 8080. Returns ready status from response body."""
     if not host or not host.strip():
-        return {"error": "host must not be empty", "tool": "check_loki"}
+        return {"error": "host must not be empty", "tool": "check_mimir"}
     host = host.strip()
     scheme = "https" if https else "http"
     ctx = None
@@ -7671,9 +7671,35 @@ def check_loki(host: str, port: int = 3100, timeout: int = 5, https: bool = Fals
             return {"result": {"host": host, "port": port, "healthy": healthy, "reachable": True, "http_code": resp.status, "status": body}}
     except urllib.error.HTTPError as e:
         reachable = e.code < 500
-        return {"result": {"host": host, "port": port, "reachable": reachable, "healthy": reachable, "http_code": e.code}}
+        return {"result": {"host": host, "port": port, "reachable": reachable, "healthy": False, "http_code": e.code}}
     except Exception as e:
-        return {"error": str(e), "tool": "check_loki", "host": host}
+        return {"error": str(e), "tool": "check_mimir", "host": host}
+
+
+@mcp.tool()
+def check_vector(host: str, port: int = 8686, timeout: int = 5, https: bool = False) -> dict:
+    """Check Vector (log pipeline) reachability via GET /health. Default port 8686. Returns healthy status and component details from health response."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_vector"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    try:
+        req = urllib.request.Request(f"{scheme}://{host}:{port}/health", headers={"Accept": "application/json"})
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            body = resp.read()
+            data = json.loads(body) if body else {}
+            healthy = data.get("ok", resp.status == 200)
+            return {"result": {"host": host, "port": port, "healthy": bool(healthy), "reachable": True, "http_code": resp.status, "response": data}}
+    except urllib.error.HTTPError as e:
+        reachable = e.code < 500
+        return {"result": {"host": host, "port": port, "reachable": reachable, "healthy": False, "http_code": e.code}}
+    except Exception as e:
+        return {"error": str(e), "tool": "check_vector", "host": host}
 
 
 def main() -> None:
