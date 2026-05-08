@@ -698,6 +698,72 @@ def smtp_check(host: str, port: int = 25, timeout: int = 10, check_starttls: boo
 
 
 @mcp.tool()
+def check_ldap(host: str, port: int = 389, timeout: int = 5, use_ssl: bool = False) -> dict:
+    """Check LDAP server connectivity and verify it speaks the LDAP protocol. Sends an anonymous LDAPv3 bind request and checks for a valid response. port: 389 (LDAP), 636 (LDAPS). use_ssl: connect with TLS (default False; automatically True for port 636). Does not authenticate — anonymous bind only."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_ldap"}
+    host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"Invalid port {port}: must be 1-65535", "tool": "check_ldap"}
+    timeout = min(max(1, timeout), 30)
+    if port == 636:
+        use_ssl = True
+    # Anonymous LDAPv3 bind request (BER-encoded)
+    # BindRequest: version=3, name="", authentication=simple("")
+    bind_req = bytes([
+        0x30, 0x0c,             # SEQUENCE, length 12
+        0x02, 0x01, 0x01,       # INTEGER messageID=1
+        0x60, 0x07,             # APPLICATION 0 (BindRequest), length 7
+        0x02, 0x01, 0x03,       # INTEGER version=3
+        0x04, 0x00,             # OCTET STRING name="" (empty DN)
+        0x80, 0x00,             # CONTEXT [0] simple="" (empty password)
+    ])
+    try:
+        start = time.monotonic()
+        raw_sock = socket.create_connection((host, port), timeout=timeout)
+        raw_sock.settimeout(timeout)
+        if use_ssl:
+            ctx = ssl.create_default_context()
+            ctx.check_hostname = False
+            ctx.verify_mode = ssl.CERT_NONE
+            sock = ctx.wrap_socket(raw_sock, server_hostname=host)
+        else:
+            sock = raw_sock
+        with sock:
+            sock.sendall(bind_req)
+            response = sock.recv(1024)
+        elapsed_ms = round((time.monotonic() - start) * 1000, 2)
+        # Check response is a valid LDAP BindResponse (0x61 = APPLICATION 1)
+        is_ldap = len(response) >= 4 and response[0] == 0x30 and 0x61 in response
+        result_code = None
+        if is_ldap:
+            # Find the BindResponse tag and extract result code
+            idx = response.find(0x61)
+            if idx >= 0 and idx + 4 < len(response):
+                enum_idx = response.find(0x0a, idx)
+                if enum_idx >= 0 and enum_idx + 2 < len(response):
+                    result_code = response[enum_idx + 2]
+        return {
+            "result": {
+                "host": host,
+                "port": port,
+                "reachable": True,
+                "ldap_response": is_ldap,
+                "bind_result_code": result_code,
+                "bind_success": result_code == 0,
+                "tls": use_ssl,
+                "elapsed_ms": elapsed_ms,
+            }
+        }
+    except ConnectionRefusedError:
+        return {"result": {"host": host, "port": port, "reachable": False, "reason": "connection refused"}}
+    except socket.timeout:
+        return {"result": {"host": host, "port": port, "reachable": False, "reason": "timeout"}}
+    except Exception as e:
+        return {"error": str(e), "tool": "check_ldap", "host": host, "detail": type(e).__name__}
+
+
+@mcp.tool()
 def ntp_check(host: str, port: int = 123, timeout: int = 5) -> dict:
     """Check an NTP server: reachability and clock offset relative to local system time. Uses NTPv3 client packet over UDP. offset_seconds > 0 means server is ahead of local clock."""
     if not host or not host.strip():
