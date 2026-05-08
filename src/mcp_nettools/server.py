@@ -176,7 +176,7 @@ def port_check(host: str, port: int, timeout: int = 5) -> dict:
         return {"error": "host must not be empty", "tool": "port_check"}
     host = host.strip()
     if not 1 <= port <= 65535:
-        return {"error": f"Invalid port {port}: must be 1–65535", "tool": "port_check"}
+        return {"error": f"Invalid port {port}: must be 1-65535", "tool": "port_check"}
     timeout = min(max(1, timeout), 300)
     try:
         with socket.create_connection((host, port), timeout=timeout):
