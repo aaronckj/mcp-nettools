@@ -15,9 +15,9 @@ def test_ping_reachable():
     mock_result.stdout = "4 packets transmitted, 4 received"
     with patch("subprocess.run", return_value=mock_result):
         result = ping("8.8.8.8")
-    assert result["reachable"] is True
-    assert result["host"] == "8.8.8.8"
-    assert "output" in result
+    assert result["result"]["reachable"] is True
+    assert result["result"]["host"] == "8.8.8.8"
+    assert "output" in result["result"]
 
 
 def test_ping_unreachable():
@@ -26,7 +26,7 @@ def test_ping_unreachable():
     mock_result.stdout = "4 packets transmitted, 0 received"
     with patch("subprocess.run", return_value=mock_result):
         result = ping("192.0.2.1")
-    assert result["reachable"] is False
+    assert result["result"]["reachable"] is False
 
 
 def test_ping_timeout_error():
@@ -42,9 +42,9 @@ def test_dns_lookup_a_record():
     mock_record.__str__ = lambda self: "8.8.8.8"
     with patch("dns.resolver.resolve", return_value=[mock_record]):
         result = dns_lookup("google.com")
-    assert result["host"] == "google.com"
-    assert result["record_type"] == "A"
-    assert result["records"] == ["8.8.8.8"]
+    assert result["result"]["host"] == "google.com"
+    assert result["result"]["record_type"] == "A"
+    assert result["result"]["records"] == ["8.8.8.8"]
 
 
 def test_dns_lookup_custom_type():
@@ -52,7 +52,7 @@ def test_dns_lookup_custom_type():
     mock_record.__str__ = lambda self: "v=spf1 include:_spf.google.com ~all"
     with patch("dns.resolver.resolve", return_value=[mock_record]):
         result = dns_lookup("google.com", record_type="TXT")
-    assert result["record_type"] == "TXT"
+    assert result["result"]["record_type"] == "TXT"
 
 
 def test_dns_lookup_nxdomain():
@@ -64,29 +64,24 @@ def test_dns_lookup_nxdomain():
 
 
 def test_port_check_open():
-    mock_sock = MagicMock()
-    mock_sock.connect_ex.return_value = 0
-    mock_sock.__enter__ = MagicMock(return_value=mock_sock)
-    mock_sock.__exit__ = MagicMock(return_value=None)
-    with patch("socket.socket", return_value=mock_sock):
+    mock_conn = MagicMock()
+    mock_conn.__enter__ = MagicMock(return_value=mock_conn)
+    mock_conn.__exit__ = MagicMock(return_value=None)
+    with patch("socket.create_connection", return_value=mock_conn):
         result = port_check("8.8.8.8", 53)
-    assert result["open"] is True
-    assert result["host"] == "8.8.8.8"
-    assert result["port"] == 53
+    assert result["result"]["open"] is True
+    assert result["result"]["host"] == "8.8.8.8"
+    assert result["result"]["port"] == 53
 
 
 def test_port_check_closed():
-    mock_sock = MagicMock()
-    mock_sock.connect_ex.return_value = 111
-    mock_sock.__enter__ = MagicMock(return_value=mock_sock)
-    mock_sock.__exit__ = MagicMock(return_value=None)
-    with patch("socket.socket", return_value=mock_sock):
+    with patch("socket.create_connection", side_effect=ConnectionRefusedError()):
         result = port_check("8.8.8.8", 9999)
-    assert result["open"] is False
+    assert result["result"]["open"] is False
 
 
 def test_port_check_error():
-    with patch("socket.socket", side_effect=OSError("Network unreachable")):
+    with patch("socket.create_connection", side_effect=OSError("Network unreachable")):
         result = port_check("192.0.2.1", 80)
     assert "error" in result
     assert result["tool"] == "port_check"
@@ -99,9 +94,9 @@ def test_traceroute_success():
     mock_result.stdout = "traceroute to 8.8.8.8\n 1  10.0.0.1  1ms\n 2  8.8.8.8  5ms"
     with patch("subprocess.run", return_value=mock_result):
         result = traceroute("8.8.8.8")
-    assert result["host"] == "8.8.8.8"
-    assert "output" in result
-    assert result["returncode"] == 0
+    assert result["result"]["host"] == "8.8.8.8"
+    assert "output" in result["result"]
+    assert result["result"]["returncode"] == 0
 
 
 def test_traceroute_timeout():
@@ -120,10 +115,10 @@ def test_speedtest_success():
     mock_st.results.server = {"name": "Test Server"}
     with patch("mcp_nettools.server._speedtest_lib.Speedtest", return_value=mock_st):
         result = speedtest()
-    assert result["download_mbps"] == 500.0
-    assert result["upload_mbps"] == 100.0
-    assert result["ping_ms"] == 12.5
-    assert result["server"] == "Test Server"
+    assert result["result"]["download_mbps"] == 500.0
+    assert result["result"]["upload_mbps"] == 100.0
+    assert result["result"]["ping_ms"] == 12.5
+    assert result["result"]["server"] == "Test Server"
 
 
 def test_speedtest_error():
@@ -137,16 +132,16 @@ def test_wake_on_lan_default_broadcast():
     with patch("mcp_nettools.server.send_magic_packet") as mock_wol:
         result = wake_on_lan("aa:bb:cc:dd:ee:ff")
     mock_wol.assert_called_once_with("aa:bb:cc:dd:ee:ff", ip_address="255.255.255.255")
-    assert result["sent"] is True
-    assert result["mac"] == "aa:bb:cc:dd:ee:ff"
-    assert result["broadcast"] == "255.255.255.255"
+    assert result["result"]["sent"] is True
+    assert result["result"]["mac"] == "aa:bb:cc:dd:ee:ff"
+    assert result["result"]["broadcast"] == "255.255.255.255"
 
 
 def test_wake_on_lan_custom_broadcast():
     with patch("mcp_nettools.server.send_magic_packet") as mock_wol:
         result = wake_on_lan("aa:bb:cc:dd:ee:ff", broadcast="10.0.0.255")
     mock_wol.assert_called_once_with("aa:bb:cc:dd:ee:ff", ip_address="10.0.0.255")
-    assert result["broadcast"] == "10.0.0.255"
+    assert result["result"]["broadcast"] == "10.0.0.255"
 
 
 def test_wake_on_lan_invalid_mac():
@@ -160,40 +155,54 @@ def test_wake_on_lan_invalid_mac():
 def test_cert_check_valid():
     mock_cert = {
         "notAfter": "Dec 31 23:59:59 2099 GMT",
+        "notBefore": "Jan 01 00:00:00 2024 GMT",
         "subject": ((("commonName", "example.com"),),),
         "issuer": ((("organizationName", "Let's Encrypt"),),),
     }
+
+    def getpeercert_side_effect(binary_form=False):
+        if binary_form:
+            return b"fakecertbytes"
+        return mock_cert
+
     mock_sock = MagicMock()
-    mock_sock.getpeercert.return_value = mock_cert
+    mock_sock.getpeercert.side_effect = getpeercert_side_effect
     mock_sock.__enter__ = MagicMock(return_value=mock_sock)
     mock_sock.__exit__ = MagicMock(return_value=False)
     mock_ctx = MagicMock()
     mock_ctx.wrap_socket.return_value = mock_sock
     with patch("ssl.create_default_context", return_value=mock_ctx):
         result = cert_check("example.com")
-    assert result["host"] == "example.com"
-    assert result["port"] == 443
-    assert result["valid"] is True
-    assert result["days_remaining"] > 0
-    assert result["subject"] == {"commonName": "example.com"}
-    assert result["issuer"] == {"organizationName": "Let's Encrypt"}
+    assert result["result"]["host"] == "example.com"
+    assert result["result"]["port"] == 443
+    assert result["result"]["valid"] is True
+    assert result["result"]["days_remaining"] > 0
+    assert result["result"]["subject"] == {"commonName": "example.com"}
+    assert result["result"]["issuer"] == {"organizationName": "Let's Encrypt"}
 
 
 def test_cert_check_custom_port():
     mock_cert = {
         "notAfter": "Dec 31 23:59:59 2099 GMT",
+        "notBefore": "Jan 01 00:00:00 2024 GMT",
         "subject": ((("commonName", "example.com"),),),
         "issuer": ((("organizationName", "Self-Signed"),),),
     }
+
+    def getpeercert_side_effect(binary_form=False):
+        if binary_form:
+            return b"fakecertbytes"
+        return mock_cert
+
     mock_sock = MagicMock()
-    mock_sock.getpeercert.return_value = mock_cert
+    mock_sock.getpeercert.side_effect = getpeercert_side_effect
     mock_sock.__enter__ = MagicMock(return_value=mock_sock)
     mock_sock.__exit__ = MagicMock(return_value=False)
     mock_ctx = MagicMock()
     mock_ctx.wrap_socket.return_value = mock_sock
     with patch("ssl.create_default_context", return_value=mock_ctx):
         result = cert_check("example.com", port=8443)
-    assert result["port"] == 8443
+    assert result["result"]["port"] == 8443
 
 
 def test_cert_check_error():
@@ -211,8 +220,8 @@ async def test_mac_lookup_known_vendor():
     mock_lookup.lookup = AsyncMock(return_value="Apple, Inc.")
     with patch("mcp_nettools.server.AsyncMacLookup", return_value=mock_lookup):
         result = await mac_lookup("d0:11:e5:0f:be:b7")
-    assert result["mac"] == "d0:11:e5:0f:be:b7"
-    assert result["vendor"] == "Apple, Inc."
+    assert result["result"]["mac"] == "d0:11:e5:0f:be:b7"
+    assert result["result"]["vendor"] == "Apple, Inc."
 
 
 @pytest.mark.asyncio
