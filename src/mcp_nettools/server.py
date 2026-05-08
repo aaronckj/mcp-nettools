@@ -1822,7 +1822,7 @@ def check_sip(host: str, port: int = 5060, timeout: int = 5, transport: str = "u
     except socket.timeout:
         return {"result": {"host": host, "port": port, "transport": transport, "reachable": False, "reason": "timeout"}}
     except Exception as e:
-        return {"error": str(e), "tool": "check_sip", "host": host, "detail": type(e).__name__}
+        return {"error": str(e), "tool": "check_sip", "host": host, "port": port, "detail": type(e).__name__}
 
 
 @mcp.tool()
@@ -1926,7 +1926,7 @@ def check_mongodb(host: str, port: int = 27017, timeout: int = 5) -> dict:
     except socket.timeout:
         return {"result": {"host": host, "port": port, "reachable": False, "reason": "timeout"}}
     except Exception as e:
-        return {"error": str(e), "tool": "check_mongodb", "host": host, "detail": type(e).__name__}
+        return {"error": str(e), "tool": "check_mongodb", "host": host, "port": port, "detail": type(e).__name__}
 
 
 @mcp.tool()
@@ -1974,7 +1974,7 @@ def check_vnc(host: str, port: int = 5900, timeout: int = 5) -> dict:
     except socket.timeout:
         return {"result": {"host": host, "port": port, "reachable": False, "reason": "timeout"}}
     except Exception as e:
-        return {"error": str(e), "tool": "check_vnc", "host": host, "detail": type(e).__name__}
+        return {"error": str(e), "tool": "check_vnc", "host": host, "port": port, "detail": type(e).__name__}
 
 
 @mcp.tool()
@@ -2029,7 +2029,7 @@ def check_postgres(host: str, port: int = 5432, timeout: int = 5) -> dict:
     except socket.timeout:
         return {"result": {"host": host, "port": port, "reachable": False, "reason": "timeout"}}
     except Exception as e:
-        return {"error": str(e), "tool": "check_postgres", "host": host, "detail": type(e).__name__}
+        return {"error": str(e), "tool": "check_postgres", "host": host, "port": port, "detail": type(e).__name__}
 
 
 @mcp.tool()
@@ -2126,7 +2126,7 @@ def check_memcached(host: str, port: int = 11211, timeout: int = 5) -> dict:
     except socket.timeout:
         return {"result": {"host": host, "port": port, "reachable": False, "reason": "timeout"}}
     except Exception as e:
-        return {"error": str(e), "tool": "check_memcached", "host": host, "detail": type(e).__name__}
+        return {"error": str(e), "tool": "check_memcached", "host": host, "port": port, "detail": type(e).__name__}
 
 
 @mcp.tool()
