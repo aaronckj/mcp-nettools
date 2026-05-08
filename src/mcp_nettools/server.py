@@ -1150,7 +1150,7 @@ def pop3_check(host: str, port: int = 110, timeout: int = 10) -> dict:
     except socket.timeout:
         return {"result": {"host": host, "port": port, "reachable": False, "reason": "timeout"}}
     except Exception as e:
-        return {"error": str(e), "tool": "pop3_check", "host": host, "detail": type(e).__name__}
+        return {"error": str(e), "tool": "pop3_check", "host": host, "port": port, "detail": type(e).__name__}
 
 
 _SECURITY_HEADERS = [
