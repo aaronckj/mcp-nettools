@@ -484,6 +484,21 @@ def geolocation(ip: str) -> dict:
 
 
 @mcp.tool()
+def get_public_ip() -> dict:
+    """Return the public IP address of the machine running this MCP server, plus basic geolocation (country, region, city, ISP). Useful for verifying internet connectivity, checking what IP external services see, and confirming NAT is working as expected."""
+    try:
+        req = urllib.request.Request(
+            "https://ipinfo.io/json",
+            headers={"Accept": "application/json", "User-Agent": "mcp-nettools/1.0"},
+        )
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            data = json.loads(resp.read())
+        return {"result": data}
+    except Exception as e:
+        return {"error": str(e), "tool": "get_public_ip", "detail": type(e).__name__}
+
+
+@mcp.tool()
 def arp_table(interface: str = "") -> dict:
     """Show ARP/neighbor table entries (IP-to-MAC mappings) as structured records. interface: optional filter by network interface name. Returns list with ip, mac, interface, and state fields."""
     _NEIGH_STATES = {"REACHABLE", "STALE", "DELAY", "PROBE", "FAILED", "NOARP", "PERMANENT", "INCOMPLETE"}
