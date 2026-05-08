@@ -105,17 +105,18 @@ def reverse_dns(ip: str) -> dict:
     """Reverse DNS lookup for an IP address — returns the PTR hostname."""
     if not ip or not ip.strip():
         return {"error": "ip must not be empty", "tool": "reverse_dns"}
+    ip = ip.strip()
     try:
-        ipaddress.ip_address(ip.strip())
+        ipaddress.ip_address(ip)
     except ValueError:
         return {"error": f"Invalid IP address: '{ip}'. reverse_dns requires an IP, not a hostname. Use dns_lookup for forward lookups.", "tool": "reverse_dns"}
     try:
-        hostname, _, _ = socket.gethostbyaddr(ip.strip())
-        return {"result": {"ip": ip.strip(), "hostname": hostname}}
+        hostname, _, _ = socket.gethostbyaddr(ip)
+        return {"result": {"ip": ip, "hostname": hostname}}
     except socket.herror as e:
-        return {"error": str(e), "tool": "reverse_dns", "ip": ip.strip()}
+        return {"error": str(e), "tool": "reverse_dns", "ip": ip}
     except Exception as e:
-        return {"error": str(e), "tool": "reverse_dns", "ip": ip.strip()}
+        return {"error": str(e), "tool": "reverse_dns", "ip": ip}
 
 
 
@@ -1218,9 +1219,10 @@ def ping_sweep(network: str, timeout: int = 1) -> dict:
     """Ping all hosts in an IPv4 CIDR range and report which respond. Max /24 (256 addresses). Runs parallel pings. timeout: per-host wait in seconds. Returns list of alive IPs."""
     if not network or not network.strip():
         return {"error": "network must not be empty", "tool": "ping_sweep"}
+    network = network.strip()
     timeout = min(max(1, timeout), 10)
     try:
-        net = ipaddress.IPv4Network(network.strip(), strict=False)
+        net = ipaddress.IPv4Network(network, strict=False)
     except ValueError as e:
         return {"error": str(e), "tool": "ping_sweep"}
     if net.num_addresses > 256:
@@ -1374,6 +1376,53 @@ def network_interfaces() -> dict:
         return {"result": {"raw_output": result2.stdout}}
     except Exception as e:
         return {"error": str(e), "tool": "network_interfaces", "detail": type(e).__name__}
+
+@mcp.tool()
+def tls_version_check(host: str, port: int = 443, timeout: int = 10) -> dict:
+    """Test which TLS protocol versions a server accepts (TLS 1.2, TLS 1.3). Also returns the negotiated cipher suite and certificate subject for each accepted version. Useful for security audits — TLS 1.0 and 1.1 should be disabled."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "tls_version_check"}
+    host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"Invalid port {port}: must be 1-65535", "tool": "tls_version_check"}
+    timeout = min(max(1, timeout), 30)
+    results: dict = {}
+    version_map = {
+        "TLSv1.2": ssl.TLSVersion.TLSv1_2,
+        "TLSv1.3": ssl.TLSVersion.TLSv1_3,
+    }
+    for version_name, tls_version in version_map.items():
+        try:
+            ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+            ctx.check_hostname = False
+            ctx.verify_mode = ssl.CERT_NONE
+            ctx.minimum_version = tls_version
+            ctx.maximum_version = tls_version
+            with socket.create_connection((host, port), timeout=timeout) as raw_sock:
+                with ctx.wrap_socket(raw_sock, server_hostname=host) as tls_sock:
+                    cipher = tls_sock.cipher()
+                    cert = tls_sock.getpeercert()
+                    subject = dict(x[0] for x in cert.get("subject", [()])) if cert else {}
+                    results[version_name] = {
+                        "accepted": True,
+                        "cipher": cipher[0] if cipher else None,
+                        "bits": cipher[2] if cipher else None,
+                        "common_name": subject.get("commonName"),
+                    }
+        except ssl.SSLError as e:
+            results[version_name] = {"accepted": False, "reason": str(e)}
+        except Exception as e:
+            results[version_name] = {"accepted": False, "reason": str(e)}
+    return {
+        "result": {
+            "host": host,
+            "port": port,
+            "versions": results,
+            "tls12_accepted": results.get("TLSv1.2", {}).get("accepted", False),
+            "tls13_accepted": results.get("TLSv1.3", {}).get("accepted", False),
+        }
+    }
+
 
 def main() -> None:
     mcp.run()
