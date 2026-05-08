@@ -7482,6 +7482,200 @@ def check_it_tools(host: str, port: int = 80, timeout: int = 5, https: bool = Fa
         return {"error": str(e), "tool": "check_it_tools", "host": host}
 
 
+@mcp.tool()
+def check_kibana(host: str, port: int = 5601, timeout: int = 5, https: bool = False) -> dict:
+    """Check Kibana (Elastic Stack UI) reachability via GET /api/status. Default port 5601. Returns overall status color (green/yellow/red) from the health response."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_kibana"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    try:
+        req = urllib.request.Request(f"{scheme}://{host}:{port}/api/status", headers={"Accept": "application/json", "kbn-xsrf": "true"})
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            body = resp.read()
+            data = json.loads(body) if body else {}
+            status_color = data.get("status", {}).get("overall", {}).get("state", "unknown")
+            healthy = status_color == "green"
+            return {"result": {"host": host, "port": port, "healthy": healthy, "reachable": True, "http_code": resp.status, "status": status_color}}
+    except urllib.error.HTTPError as e:
+        reachable = e.code < 500
+        return {"result": {"host": host, "port": port, "reachable": reachable, "healthy": reachable, "http_code": e.code}}
+    except Exception as e:
+        return {"error": str(e), "tool": "check_kibana", "host": host}
+
+
+@mcp.tool()
+def check_signoz(host: str, port: int = 3301, timeout: int = 5, https: bool = False) -> dict:
+    """Check SigNoz (OpenTelemetry observability) reachability via GET /api/v1/health. Default port 3301. Returns status from health response."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_signoz"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    try:
+        req = urllib.request.Request(f"{scheme}://{host}:{port}/api/v1/health", headers={"Accept": "application/json"})
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            body = resp.read()
+            data = json.loads(body) if body else {}
+            status = data.get("status", "unknown")
+            healthy = status == "ok"
+            return {"result": {"host": host, "port": port, "healthy": healthy, "reachable": True, "http_code": resp.status, "status": status}}
+    except urllib.error.HTTPError as e:
+        reachable = e.code < 500
+        return {"result": {"host": host, "port": port, "reachable": reachable, "healthy": reachable, "http_code": e.code}}
+    except Exception as e:
+        return {"error": str(e), "tool": "check_signoz", "host": host}
+
+
+@mcp.tool()
+def check_librenms(host: str, port: int = 80, timeout: int = 5, https: bool = False) -> dict:
+    """Check LibreNMS (network monitoring) reachability via GET /. Default port 80."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_librenms"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    try:
+        req = urllib.request.Request(f"{scheme}://{host}:{port}/", headers={"Accept": "text/html"})
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            return {"result": {"host": host, "port": port, "healthy": True, "reachable": True, "http_code": resp.status}}
+    except urllib.error.HTTPError as e:
+        reachable = e.code < 500
+        return {"result": {"host": host, "port": port, "reachable": reachable, "healthy": reachable, "http_code": e.code}}
+    except Exception as e:
+        return {"error": str(e), "tool": "check_librenms", "host": host}
+
+
+@mcp.tool()
+def check_ntopng(host: str, port: int = 3000, timeout: int = 5, https: bool = False) -> dict:
+    """Check ntopng (network traffic monitoring) reachability via GET /. Default port 3000."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_ntopng"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    try:
+        req = urllib.request.Request(f"{scheme}://{host}:{port}/", headers={"Accept": "text/html"})
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            return {"result": {"host": host, "port": port, "healthy": True, "reachable": True, "http_code": resp.status}}
+    except urllib.error.HTTPError as e:
+        reachable = e.code < 500
+        return {"result": {"host": host, "port": port, "reachable": reachable, "healthy": reachable, "http_code": e.code}}
+    except Exception as e:
+        return {"error": str(e), "tool": "check_ntopng", "host": host}
+
+
+@mcp.tool()
+def check_checkmk(host: str, port: int = 5000, timeout: int = 5, https: bool = False) -> dict:
+    """Check Checkmk (IT monitoring) reachability via GET /. Default port 5000."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_checkmk"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    try:
+        req = urllib.request.Request(f"{scheme}://{host}:{port}/", headers={"Accept": "text/html"})
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            return {"result": {"host": host, "port": port, "healthy": True, "reachable": True, "http_code": resp.status}}
+    except urllib.error.HTTPError as e:
+        reachable = e.code < 500
+        return {"result": {"host": host, "port": port, "reachable": reachable, "healthy": reachable, "http_code": e.code}}
+    except Exception as e:
+        return {"error": str(e), "tool": "check_checkmk", "host": host}
+
+
+@mcp.tool()
+def check_icinga(host: str, port: int = 80, timeout: int = 5, https: bool = False) -> dict:
+    """Check Icinga (monitoring) reachability via GET /icingaweb2/. Default port 80."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_icinga"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    try:
+        req = urllib.request.Request(f"{scheme}://{host}:{port}/icingaweb2/", headers={"Accept": "text/html"})
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            return {"result": {"host": host, "port": port, "healthy": True, "reachable": True, "http_code": resp.status}}
+    except urllib.error.HTTPError as e:
+        reachable = e.code < 500
+        return {"result": {"host": host, "port": port, "reachable": reachable, "healthy": reachable, "http_code": e.code}}
+    except Exception as e:
+        return {"error": str(e), "tool": "check_icinga", "host": host}
+
+
+@mcp.tool()
+def check_zabbix(host: str, port: int = 80, timeout: int = 5, https: bool = False) -> dict:
+    """Check Zabbix (enterprise monitoring) reachability via GET /zabbix/. Default port 80."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_zabbix"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    try:
+        req = urllib.request.Request(f"{scheme}://{host}:{port}/zabbix/", headers={"Accept": "text/html"})
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            return {"result": {"host": host, "port": port, "healthy": True, "reachable": True, "http_code": resp.status}}
+    except urllib.error.HTTPError as e:
+        reachable = e.code < 500
+        return {"result": {"host": host, "port": port, "reachable": reachable, "healthy": reachable, "http_code": e.code}}
+    except Exception as e:
+        return {"error": str(e), "tool": "check_zabbix", "host": host}
+
+
+@mcp.tool()
+def check_loki(host: str, port: int = 3100, timeout: int = 5, https: bool = False) -> dict:
+    """Check Grafana Loki (log aggregation) reachability via GET /ready. Default port 3100. Returns ready status from response body."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_loki"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    try:
+        req = urllib.request.Request(f"{scheme}://{host}:{port}/ready", headers={"Accept": "text/plain"})
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            body = resp.read().decode("utf-8", errors="replace").strip()
+            healthy = "ready" in body.lower()
+            return {"result": {"host": host, "port": port, "healthy": healthy, "reachable": True, "http_code": resp.status, "status": body}}
+    except urllib.error.HTTPError as e:
+        reachable = e.code < 500
+        return {"result": {"host": host, "port": port, "reachable": reachable, "healthy": reachable, "http_code": e.code}}
+    except Exception as e:
+        return {"error": str(e), "tool": "check_loki", "host": host}
+
+
 def main() -> None:
     mcp.run()
 
