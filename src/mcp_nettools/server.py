@@ -3163,6 +3163,102 @@ def check_vaultwarden(host: str, port: int = 8080, timeout: int = 5, https: bool
     return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy}}
 
 
+@mcp.tool()
+def check_syncthing(host: str, port: int = 8384, timeout: int = 5, https: bool = False, api_key: str = "") -> dict:
+    """Check Syncthing file sync service health via GET /rest/noauth/health. Returns status and version. api_key: optional Syncthing API key for authenticated endpoints."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_syncthing"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    healthy = False
+    version: str | None = None
+    try:
+        req = urllib.request.Request(
+            f"{scheme}://{host}:{port}/rest/noauth/health",
+            headers={"Accept": "application/json"},
+        )
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            healthy = resp.status == 200
+            data = json.loads(resp.read().decode())
+            healthy = data.get("status") == "OK"
+    except Exception:
+        pass
+    if api_key:
+        try:
+            req = urllib.request.Request(
+                f"{scheme}://{host}:{port}/rest/system/version",
+                headers={"X-API-Key": api_key, "Accept": "application/json"},
+            )
+            with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+                data = json.loads(resp.read().decode())
+                version = data.get("version")
+        except Exception:
+            pass
+    return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy, "version": version}}
+
+
+@mcp.tool()
+def check_gitea(host: str, port: int = 3000, timeout: int = 5, https: bool = False) -> dict:
+    """Check Gitea/Forgejo git server health via GET /api/healthz. Returns status and availability."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_gitea"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    healthy = False
+    try:
+        req = urllib.request.Request(
+            f"{scheme}://{host}:{port}/api/healthz",
+            headers={"Accept": "application/json"},
+        )
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            healthy = resp.status == 200
+            data = json.loads(resp.read().decode())
+            healthy = data.get("status") == "pass"
+    except Exception:
+        pass
+    return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy}}
+
+
+@mcp.tool()
+def check_nextcloud(host: str, port: int = 443, timeout: int = 5, https: bool = True) -> dict:
+    """Check Nextcloud/ownCloud instance health via GET /status.php. Returns installed, maintenance mode, and version."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_nextcloud"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    installed = False
+    maintenance = False
+    version: str | None = None
+    try:
+        req = urllib.request.Request(
+            f"{scheme}://{host}:{port}/status.php",
+            headers={"Accept": "application/json"},
+        )
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            data = json.loads(resp.read().decode())
+            installed = bool(data.get("installed"))
+            maintenance = bool(data.get("maintenance"))
+            version = data.get("versionstring") or data.get("version")
+    except Exception:
+        pass
+    return {"result": {"host": host, "port": port, "reachable": installed, "installed": installed, "maintenance": maintenance, "version": version}}
+
+
 def main() -> None:
     mcp.run()
 
