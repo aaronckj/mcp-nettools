@@ -2089,7 +2089,7 @@ def check_redis(host: str, port: int = 6379, timeout: int = 5, password: str = "
     except socket.timeout:
         return {"result": {"host": host, "port": port, "reachable": False, "reason": "timeout"}}
     except Exception as e:
-        return {"error": str(e), "tool": "check_redis", "host": host, "detail": type(e).__name__}
+        return {"error": str(e), "tool": "check_redis", "host": host, "port": port, "detail": type(e).__name__}
 
 
 @mcp.tool()
@@ -2177,7 +2177,7 @@ def check_mqtt(host: str, port: int = 1883, timeout: int = 5, client_id: str = "
     except socket.timeout:
         return {"result": {"host": host, "port": port, "reachable": False, "reason": "timeout"}}
     except Exception as e:
-        return {"error": str(e), "tool": "check_mqtt", "host": host, "detail": type(e).__name__}
+        return {"error": str(e), "tool": "check_mqtt", "host": host, "port": port, "detail": type(e).__name__}
 
 
 @mcp.tool()
