@@ -242,16 +242,17 @@ def port_scan(host: str, ports: str, timeout: int = 3) -> dict:
 
 
 @mcp.tool()
-def traceroute(host: str, max_hops: int = 30, timeout: int = 60) -> dict:
-    """Trace the network path to a host. max_hops: 1-64. timeout: 1-300 s."""
+def traceroute(host: str, max_hops: int = 30, timeout: int = 60, wait: int = 2) -> dict:
+    """Trace the network path to a host. max_hops: 1-64. timeout: overall timeout in seconds. wait: per-hop probe wait time in seconds (1-10, default 2; increase to 5-10 for high-latency satellite/VPN links)."""
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "traceroute"}
     host = host.strip()
     max_hops = min(max(1, max_hops), 64)
     timeout = min(max(1, timeout), 300)
+    wait = min(max(1, wait), 10)
     try:
         result = subprocess.run(
-            ["traceroute", "-m", str(max_hops), "-w", "2", host],
+            ["traceroute", "-m", str(max_hops), "-w", str(wait), host],
             capture_output=True,
             text=True,
             timeout=timeout,
@@ -1682,6 +1683,132 @@ def cert_check_bulk(hosts: str, port: int = 443, timeout: int = 10) -> dict:
         if isinstance(d.get("days_remaining"), int) and 0 < d["days_remaining"] <= 30
     ]
     return {"result": {"port": port, "hosts": results, "expiring_soon_30d": expiring_soon}}
+
+
+@mcp.tool()
+def check_sip(host: str, port: int = 5060, timeout: int = 5, transport: str = "udp") -> dict:
+    """Check a SIP (Session Initiation Protocol) server by sending an OPTIONS probe. port: default 5060 (UDP/TCP) or 5061 (TLS). transport: 'udp' (default) or 'tcp'. Returns whether the server is reachable and responds with a valid SIP message. Useful for verifying VoIP server health."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_sip"}
+    host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"Invalid port {port}: must be 1-65535", "tool": "check_sip"}
+    transport = transport.strip().lower()
+    if transport not in {"udp", "tcp"}:
+        return {"error": "transport must be 'udp' or 'tcp'", "tool": "check_sip"}
+    timeout = min(max(1, timeout), 30)
+    # Minimal SIP OPTIONS probe (RFC 3261)
+    call_id = f"mcp-nettools-sip-check@{host}"
+    sip_msg = (
+        f"OPTIONS sip:{host} SIP/2.0\r\n"
+        f"Via: SIP/2.0/{'UDP' if transport == 'udp' else 'TCP'} 127.0.0.1:5060;branch=z9hG4bK-probe\r\n"
+        f"Max-Forwards: 1\r\n"
+        f"To: <sip:{host}>\r\n"
+        f"From: <sip:probe@127.0.0.1>;tag=mcp-probe\r\n"
+        f"Call-ID: {call_id}\r\n"
+        f"CSeq: 1 OPTIONS\r\n"
+        f"Content-Length: 0\r\n\r\n"
+    ).encode()
+    try:
+        start = time.monotonic()
+        if transport == "udp":
+            addrinfos = socket.getaddrinfo(host, port, socket.AF_UNSPEC, socket.SOCK_DGRAM)
+            if not addrinfos:
+                return {"result": {"host": host, "port": port, "reachable": False, "reason": "DNS resolution failed"}}
+            af, _, _, _, addr = addrinfos[0]
+            with socket.socket(af, socket.SOCK_DGRAM) as sock:
+                sock.settimeout(timeout)
+                sock.sendto(sip_msg, addr)
+                try:
+                    data, _ = sock.recvfrom(4096)
+                    response = data.decode("utf-8", errors="replace")
+                except socket.timeout:
+                    return {"result": {"host": host, "port": port, "transport": transport, "reachable": False, "reason": "no response (UDP timeout)"}}
+        else:
+            with socket.create_connection((host, port), timeout=timeout) as sock:
+                sock.settimeout(timeout)
+                sock.sendall(sip_msg)
+                try:
+                    data = sock.recv(4096)
+                    response = data.decode("utf-8", errors="replace")
+                except socket.timeout:
+                    response = ""
+        elapsed_ms = round((time.monotonic() - start) * 1000, 2)
+        is_sip = response.startswith("SIP/2.0")
+        status_line = response.split("\r\n")[0] if is_sip else ""
+        return {
+            "result": {
+                "host": host,
+                "port": port,
+                "transport": transport,
+                "reachable": True,
+                "sip_response": is_sip,
+                "status_line": status_line,
+                "elapsed_ms": elapsed_ms,
+            }
+        }
+    except ConnectionRefusedError:
+        return {"result": {"host": host, "port": port, "transport": transport, "reachable": False, "reason": "connection refused"}}
+    except socket.timeout:
+        return {"result": {"host": host, "port": port, "transport": transport, "reachable": False, "reason": "timeout"}}
+    except Exception as e:
+        return {"error": str(e), "tool": "check_sip", "host": host, "detail": type(e).__name__}
+
+
+@mcp.tool()
+def dnssec_check(domain: str, nameserver: str = "") -> dict:
+    """Check DNSSEC status for a domain: whether DNSKEY records are published, RRSIG signatures are present on A records, and the DS (Delegation Signer) record exists in the parent zone. Returns key algorithm, key tag, and whether validation appears correct. nameserver: optional custom resolver IP."""
+    if not domain or not domain.strip():
+        return {"error": "domain must not be empty", "tool": "dnssec_check"}
+    domain = domain.strip()
+    if nameserver and nameserver.strip():
+        try:
+            ipaddress.ip_address(nameserver.strip())
+        except ValueError:
+            return {"error": f"Invalid nameserver IP: '{nameserver}'", "tool": "dnssec_check"}
+    try:
+        resolver = dns.resolver.Resolver()
+        resolver.lifetime = 10.0
+        if nameserver and nameserver.strip():
+            resolver.nameservers = [nameserver.strip()]
+        result: dict = {"domain": domain, "dnskey": False, "rrsig_a": False, "ds": False}
+        try:
+            dnskey_answers = resolver.resolve(domain, "DNSKEY")
+            result["dnskey"] = True
+            keys = []
+            for rdata in dnskey_answers:
+                flags = rdata.flags
+                protocol = rdata.protocol
+                algorithm = rdata.algorithm
+                keys.append({"flags": flags, "protocol": protocol, "algorithm": int(algorithm)})
+            result["dnskey_records"] = keys
+        except (dns.resolver.NoAnswer, dns.resolver.NXDOMAIN):
+            result["dnskey_records"] = []
+        except Exception as e:
+            result["dnskey_error"] = str(e)
+        try:
+            rrsig_answers = resolver.resolve(domain, "RRSIG")
+            result["rrsig_a"] = True
+            result["rrsig_count"] = len(list(rrsig_answers))
+        except (dns.resolver.NoAnswer, dns.resolver.NXDOMAIN):
+            result["rrsig_count"] = 0
+        except Exception as e:
+            result["rrsig_error"] = str(e)
+        try:
+            ds_answers = resolver.resolve(domain, "DS")
+            result["ds"] = True
+            ds_records = []
+            for rdata in ds_answers:
+                ds_records.append({"key_tag": rdata.key_tag, "algorithm": int(rdata.algorithm), "digest_type": rdata.digest_type})
+            result["ds_records"] = ds_records
+        except (dns.resolver.NoAnswer, dns.resolver.NXDOMAIN):
+            result["ds_records"] = []
+        except Exception as e:
+            result["ds_error"] = str(e)
+        result["dnssec_enabled"] = result["dnskey"] and result["rrsig_a"] and result["ds"]
+        return {"result": result}
+    except Exception as e:
+        return {"error": str(e), "tool": "dnssec_check", "domain": domain, "detail": type(e).__name__}
 
 
 def main() -> None:
