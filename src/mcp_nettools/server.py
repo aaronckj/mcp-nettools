@@ -389,6 +389,7 @@ def geolocation(ip: str) -> dict:
     """Look up geolocation data for a public IP address: country, region, city, ISP, and coordinates. Uses ipinfo.io (no API key required for basic lookups)."""
     if not ip or not ip.strip():
         return {"error": "ip must not be empty", "tool": "geolocation"}
+    ip = ip.strip()
     try:
         addr = ipaddress.ip_address(ip)
     except ValueError:
