@@ -470,10 +470,12 @@ def speedtest() -> dict:
         st.get_best_server()
         results = st.results
         return {
-            "download_mbps": round(st.download() / 1_000_000, 2),
-            "upload_mbps": round(st.upload() / 1_000_000, 2),
-            "ping_ms": results.ping,
-            "server": (results.server or {}).get("name"),
+            "result": {
+                "download_mbps": round(st.download() / 1_000_000, 2),
+                "upload_mbps": round(st.upload() / 1_000_000, 2),
+                "ping_ms": results.ping,
+                "server": (results.server or {}).get("name"),
+            }
         }
     except Exception as e:
         return {"error": str(e), "tool": "speedtest"}
