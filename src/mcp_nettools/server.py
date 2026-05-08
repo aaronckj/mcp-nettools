@@ -5909,6 +5909,144 @@ def check_anythingllm(host: str, port: int = 3001, timeout: int = 5, https: bool
 
 
 @mcp.tool()
+def check_pihole(host: str, port: int = 80, timeout: int = 5, https: bool = False, api_token: str = "") -> dict:
+    """Check Pi-hole DNS ad blocker status via the admin API. Returns enabled, blocking status, DNS queries today, and ads blocked. api_token: Pi-hole API token from Settings > API/Web interface (optional — some stats available without auth). Default port 80."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_pihole"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    url = f"{scheme}://{host}:{port}/admin/api.php?summary"
+    if api_token:
+        url += f"&auth={api_token}"
+    try:
+        req = urllib.request.Request(url, headers={"Accept": "application/json"})
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            data = json.loads(resp.read().decode())
+    except urllib.error.HTTPError as e:
+        return {"error": f"HTTP {e.code}: {e.reason}", "tool": "check_pihole", "host": host}
+    except Exception as e:
+        return {"error": str(e), "tool": "check_pihole", "host": host}
+    if not data or not isinstance(data, dict):
+        return {"error": "Unexpected response from Pi-hole API", "tool": "check_pihole", "host": host}
+    return {"result": {
+        "host": host,
+        "port": port,
+        "reachable": True,
+        "status": data.get("status", "unknown"),
+        "blocking": data.get("status") == "enabled",
+        "dns_queries_today": data.get("dns_queries_today"),
+        "ads_blocked_today": data.get("ads_blocked_today"),
+        "ads_percentage_today": data.get("ads_percentage_today"),
+        "unique_domains": data.get("unique_domains"),
+        "gravity_last_updated": data.get("gravity_last_updated", {}).get("relative", {}).get("human_readable"),
+    }}
+
+
+@mcp.tool()
+def check_frigate(host: str, port: int = 5000, timeout: int = 5, https: bool = False) -> dict:
+    """Check Frigate NVR (network video recorder) health via GET /api/stats. Returns camera count, detection FPS, process load, and detector (GPU/CPU) stats. Default port 5000."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_frigate"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    try:
+        req = urllib.request.Request(f"{scheme}://{host}:{port}/api/stats", headers={"Accept": "application/json"})
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            healthy = resp.status == 200
+            data = json.loads(resp.read().decode())
+    except urllib.error.HTTPError as e:
+        return {"error": f"HTTP {e.code}: {e.reason}", "tool": "check_frigate", "host": host}
+    except Exception as e:
+        return {"error": str(e), "tool": "check_frigate", "host": host}
+    cameras = data.get("cameras", {})
+    detectors = data.get("detectors", {})
+    detector_info = {name: {"inference_speed": d.get("inference_speed"), "detection_start": d.get("detection_start")} for name, d in detectors.items()}
+    return {"result": {
+        "host": host,
+        "port": port,
+        "healthy": healthy,
+        "camera_count": len(cameras),
+        "cameras": list(cameras.keys()),
+        "detectors": detector_info,
+        "service": data.get("service", {}),
+    }}
+
+
+@mcp.tool()
+def check_homepage(host: str, port: int = 3000, timeout: int = 5, https: bool = False) -> dict:
+    """Check Homepage dashboard (gethomepage.dev) health via GET /api/healthcheck. Returns healthy status. Default port 3000."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_homepage"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    healthy = False
+    for path in ["/api/healthcheck", "/", ""]:
+        try:
+            req = urllib.request.Request(f"{scheme}://{host}:{port}{path}", headers={"Accept": "application/json, text/html"})
+            with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+                if resp.status == 200:
+                    healthy = True
+                    break
+        except urllib.error.HTTPError as e:
+            if e.code in (401, 403):
+                healthy = True
+                break
+        except Exception:
+            pass
+    return {"result": {"host": host, "port": port, "healthy": healthy, "reachable": healthy}}
+
+
+@mcp.tool()
+def check_dashdot(host: str, port: int = 3001, timeout: int = 5, https: bool = False) -> dict:
+    """Check Dashdot server stats dashboard health via GET /health. Returns healthy status and server info if available. Default port 3001."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_dashdot"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    try:
+        req = urllib.request.Request(f"{scheme}://{host}:{port}/health", headers={"Accept": "application/json"})
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            healthy = resp.status == 200
+            try:
+                data = json.loads(resp.read().decode())
+            except Exception:
+                data = {}
+    except urllib.error.HTTPError as e:
+        if e.code == 404:
+            # Some dashdot versions don't have /health — try root
+            try:
+                req2 = urllib.request.Request(f"{scheme}://{host}:{port}/", headers={"Accept": "text/html"})
+                with urllib.request.urlopen(req2, timeout=timeout, context=ctx) as resp2:
+                    return {"result": {"host": host, "port": port, "healthy": resp2.status == 200, "reachable": resp2.status == 200}}
+            except Exception as e2:
+                return {"error": str(e2), "tool": "check_dashdot", "host": host}
+        return {"error": f"HTTP {e.code}: {e.reason}", "tool": "check_dashdot", "host": host}
+    except Exception as e:
+        return {"error": str(e), "tool": "check_dashdot", "host": host}
+    return {"result": {"host": host, "port": port, "healthy": healthy, "reachable": healthy, "info": data}}
+
+
+@mcp.tool()
 def check_victoriametrics(host: str, port: int = 8428, timeout: int = 5, https: bool = False) -> dict:
     """Check VictoriaMetrics (time-series database) health via GET /health and retrieve /api/v1/status/tsdb summary. Returns healthy, version if available, and time series count. Default port 8428. Set https=True for HTTPS."""
     if not host or not host.strip():
