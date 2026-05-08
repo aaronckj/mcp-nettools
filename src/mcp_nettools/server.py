@@ -772,14 +772,20 @@ def ntp_check(host: str, port: int = 123, timeout: int = 5) -> dict:
         local_time = (send_time + recv_time) / 2
         offset = server_time - local_time
         rtt = recv_time - send_time
+        server_time_utc = None
+        if tx_int != 0:
+            try:
+                server_time_utc = datetime.fromtimestamp(server_time, tz=timezone.utc).isoformat()
+            except (OSError, ValueError, OverflowError):
+                pass
         return {
             "result": {
                 "host": host,
                 "port": port,
                 "reachable": True,
-                "offset_seconds": round(offset, 6),
+                "offset_seconds": round(offset, 6) if tx_int != 0 else None,
                 "rtt_seconds": round(rtt, 6),
-                "server_time_utc": datetime.fromtimestamp(server_time, tz=timezone.utc).isoformat(),
+                "server_time_utc": server_time_utc,
             }
         }
     except socket.timeout:
@@ -1876,6 +1882,8 @@ def check_postgres(host: str, port: int = 5432, timeout: int = 5) -> dict:
                 break
             msg_type = chr(data[i])
             msg_len = struct.unpack("!I", data[i+1:i+5])[0]
+            if msg_len < 4:
+                break
             msg_data = data[i+5:i+1+msg_len]
             if msg_type == "S":
                 null_pos = msg_data.find(b"\x00")
@@ -2462,6 +2470,9 @@ def check_elasticsearch(host: str, port: int = 9200, timeout: int = 5, https: bo
                 "timed_out": data.get("timed_out"),
             }
         }
+    except urllib.error.HTTPError as e:
+        return {"result": {"host": host, "port": port, "reachable": True, "status_code": e.code,
+                           "error": f"HTTP {e.code}: cluster returned error (authentication required or restricted)"}}
     except urllib.error.URLError as e:
         return {"result": {"host": host, "port": port, "reachable": False, "error": str(e.reason)}}
     except Exception as e:
