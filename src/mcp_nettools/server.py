@@ -2899,6 +2899,87 @@ def check_minio(host: str, port: int = 9000, timeout: int = 5, https: bool = Fal
     return {"result": {"host": host, "port": port, "reachable": live, "live": live, "ready": ready, "errors": errors or None}}
 
 
+@mcp.tool()
+def check_traefik(host: str, port: int = 8080, timeout: int = 5, https: bool = False) -> dict:
+    """Check Traefik reverse proxy health via GET /ping (returns 'OK') and GET /api/version. Port 8080 is the default Traefik dashboard/API port. Returns Traefik version if the API is accessible."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_traefik"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    ping_ok = False
+    version: str | None = None
+    try:
+        req = urllib.request.Request(f"{scheme}://{host}:{port}/ping")
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            ping_ok = resp.status == 200
+    except Exception:
+        pass
+    try:
+        req = urllib.request.Request(f"{scheme}://{host}:{port}/api/version", headers={"Accept": "application/json"})
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            data = json.loads(resp.read().decode())
+            version = data.get("Version")
+    except Exception:
+        pass
+    return {"result": {"host": host, "port": port, "reachable": ping_ok, "ping_ok": ping_ok, "version": version}}
+
+
+@mcp.tool()
+def http_put(url: str, body: str = "", content_type: str = "application/json", timeout: int = 10) -> dict:
+    """Send an HTTP PUT request with a body. Useful for testing REST APIs that use PUT to create or replace resources. body: raw string (JSON, etc). Returns status code, response body, and parsed JSON if applicable."""
+    if not url or not url.strip():
+        return {"error": "url must not be empty", "tool": "http_put"}
+    url = url.strip()
+    try:
+        data = body.encode("utf-8") if body else b""
+        req = urllib.request.Request(url, data=data, method="PUT")
+        req.add_header("Content-Type", content_type)
+        req.add_header("Content-Length", str(len(data)))
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            resp_body = resp.read().decode("utf-8", errors="replace")
+            status = resp.status
+        result: dict = {"status": status, "body": resp_body[:2000]}
+        try:
+            result["json"] = json.loads(resp_body)
+        except Exception:
+            pass
+        return {"result": result}
+    except urllib.error.HTTPError as e:
+        err_body = e.read().decode("utf-8", errors="replace")
+        return {"error": str(e), "tool": "http_put", "detail": type(e).__name__, "status": e.code, "body": err_body[:500]}
+    except Exception as e:
+        return {"error": str(e), "tool": "http_put", "detail": type(e).__name__}
+
+
+@mcp.tool()
+def http_delete(url: str, timeout: int = 10) -> dict:
+    """Send an HTTP DELETE request. Useful for testing REST APIs that use DELETE to remove resources. Returns status code and response body."""
+    if not url or not url.strip():
+        return {"error": "url must not be empty", "tool": "http_delete"}
+    url = url.strip()
+    try:
+        req = urllib.request.Request(url, method="DELETE")
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            resp_body = resp.read().decode("utf-8", errors="replace")
+            status = resp.status
+        result: dict = {"status": status, "body": resp_body[:2000]}
+        try:
+            result["json"] = json.loads(resp_body)
+        except Exception:
+            pass
+        return {"result": result}
+    except urllib.error.HTTPError as e:
+        err_body = e.read().decode("utf-8", errors="replace")
+        return {"error": str(e), "tool": "http_delete", "detail": type(e).__name__, "status": e.code, "body": err_body[:500]}
+    except Exception as e:
+        return {"error": str(e), "tool": "http_delete", "detail": type(e).__name__}
+
+
 def main() -> None:
     mcp.run()
 
