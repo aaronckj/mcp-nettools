@@ -303,6 +303,8 @@ def http_check(url: str, method: str = "HEAD", timeout: int = 10, expected_statu
     if not url or not url.strip():
         return {"error": "url must not be empty", "tool": "http_check"}
     url = url.strip()
+    if not url.startswith(("http://", "https://")):
+        url = f"https://{url}"
     method = method.upper()
     if method not in {"GET", "HEAD", "OPTIONS"}:
         return {"error": f"Invalid method '{method}'. Use GET, HEAD, or OPTIONS", "tool": "http_check"}
@@ -514,7 +516,7 @@ def whois(host: str) -> dict:
     _MAX = 8000
     try:
         result = subprocess.run(
-            ["whois", host.strip()],
+            ["whois", host],
             capture_output=True,
             text=True,
             timeout=30,
@@ -909,6 +911,8 @@ def http_redirect_chain(url: str, max_redirects: int = 10, timeout: int = 10) ->
     if not url or not url.strip():
         return {"error": "url must not be empty", "tool": "http_redirect_chain"}
     url = url.strip()
+    if not url.startswith(("http://", "https://")):
+        url = f"https://{url}"
     max_redirects = min(max(1, max_redirects), 20)
     timeout = min(max(1, timeout), 30)
 
