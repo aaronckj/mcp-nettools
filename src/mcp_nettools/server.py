@@ -24,6 +24,8 @@ _MAC_RE = re.compile(r"^([0-9a-fA-F]{2}[:\-]){5}[0-9a-fA-F]{2}$")
 @mcp.tool()
 def ping(host: str, count: int = 4, timeout: int = 5) -> dict:
     """Ping a host and return reachability and round-trip times. count: 1-30. timeout: 1-60 s per packet."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "ping"}
     count = min(max(1, count), 30)
     timeout = min(max(1, timeout), 60)
     try:
@@ -66,9 +68,10 @@ def dns_lookup(host: str, record_type: str = "A") -> dict:
 
 @mcp.tool()
 def port_check(host: str, port: int, timeout: int = 5) -> dict:
-    """Check if a TCP port is open on a host. port: 1-65535. Supports IPv4 and IPv6."""
+    """Check if a TCP port is open on a host. port: 1-65535. timeout: 1-300 s. Supports IPv4 and IPv6."""
     if not 1 <= port <= 65535:
         return {"error": f"Invalid port {port}: must be 1–65535", "tool": "port_check"}
+    timeout = min(max(1, timeout), 300)
     try:
         with socket.create_connection((host, port), timeout=timeout):
             pass
@@ -158,6 +161,29 @@ def speedtest() -> dict:
         }
     except Exception as e:
         return {"error": str(e), "tool": "speedtest"}
+
+
+@mcp.tool()
+def whois(host: str) -> dict:
+    """Look up WHOIS registration data for a domain or IP address."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "whois"}
+    try:
+        result = subprocess.run(
+            ["whois", host],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        return {
+            "host": host,
+            "output": result.stdout,
+            "returncode": result.returncode,
+        }
+    except FileNotFoundError:
+        return {"error": "whois command not found; install whois package", "tool": "whois", "host": host}
+    except Exception as e:
+        return {"error": str(e), "tool": "whois", "host": host}
 
 
 @mcp.tool()
