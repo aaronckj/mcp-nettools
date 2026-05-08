@@ -120,6 +120,43 @@ def reverse_dns(ip: str) -> dict:
 
 
 
+@mcp.tool()
+def reverse_dns_bulk(ips: str) -> dict:
+    """Reverse DNS lookup for multiple IP addresses at once. ips: comma-separated IPv4 or IPv6 addresses (max 50). Returns PTR hostname for each IP, or an error if lookup fails."""
+    if not ips or not ips.strip():
+        return {"error": "ips must not be empty", "tool": "reverse_dns_bulk"}
+    ips = ips.strip()
+    ip_list = [ip.strip() for ip in ips.split(",") if ip.strip()]
+    if not ip_list:
+        return {"error": "No valid IPs found in input", "tool": "reverse_dns_bulk"}
+    if len(ip_list) > 50:
+        return {"error": f"Too many IPs ({len(ip_list)}). Maximum 50 per call.", "tool": "reverse_dns_bulk"}
+    invalid = []
+    for ip in ip_list:
+        try:
+            ipaddress.ip_address(ip)
+        except ValueError:
+            invalid.append(ip)
+    if invalid:
+        return {"error": f"Invalid IP addresses: {invalid[:5]}", "tool": "reverse_dns_bulk"}
+
+    def _rdns(ip: str) -> tuple[str, str | None, str | None]:
+        try:
+            hostname, _, _ = socket.gethostbyaddr(ip)
+            return ip, hostname, None
+        except socket.herror as e:
+            return ip, None, str(e)
+        except Exception as e:
+            return ip, None, str(e)
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=min(len(ip_list), 20)) as pool:
+        raw = list(pool.map(_rdns, ip_list))
+
+    results = {ip: {"hostname": h, "error": err} if err else {"hostname": h} for ip, h, err in raw}
+    resolved = sum(1 for r in results.values() if "hostname" in r and r["hostname"])
+    return {"result": {"resolved": resolved, "total": len(ip_list), "ips": results}}
+
+
 def _probe_port(host: str, port: int, timeout: float) -> bool:
     """Return True if TCP port is open."""
     try:
@@ -1398,9 +1435,11 @@ def bgp_lookup(ip: str) -> dict:
         return {"error": "ip must not be empty", "tool": "bgp_lookup"}
     ip = ip.strip()
     try:
-        ipaddress.ip_address(ip)
+        addr = ipaddress.ip_address(ip)
     except ValueError:
         return {"error": f"Invalid IP address: '{ip}'", "tool": "bgp_lookup"}
+    if addr.is_private or addr.is_loopback or addr.is_link_local or addr.is_reserved:
+        return {"error": f"'{ip}' is a private/reserved address; BGP lookup is only meaningful for public IPs", "tool": "bgp_lookup"}
     try:
         with socket.create_connection(("whois.cymru.com", 43), timeout=10) as s:
             s.sendall(f" -v {ip}\r\n".encode())
