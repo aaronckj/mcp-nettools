@@ -2619,6 +2619,7 @@ def check_smb(host: str, port: int = 445, timeout: int = 5) -> dict:
     if not 1 <= port <= 65535:
         return {"error": f"port {port} out of range 1-65535", "tool": "check_smb"}
     try:
+        start = time.monotonic()
         with socket.create_connection((host, port), timeout=timeout) as sock:
             sock.settimeout(timeout)
             # Minimal SMB2 Negotiate request (RFC 8581): 4-byte NetBIOS header + SMB2 header + Negotiate body
@@ -2654,9 +2655,10 @@ def check_smb(host: str, port: int = 445, timeout: int = 5) -> dict:
             packet = struct.pack(">I", netbios_len) + smb2_header + negotiate_body
             sock.sendall(packet)
             response = sock.recv(256)
+        elapsed_ms = round((time.monotonic() - start) * 1000, 2)
         if len(response) >= 8 and b"\xfeSMB" in response:
-            return {"result": {"host": host, "port": port, "reachable": True, "protocol": "SMB2"}}
-        return {"result": {"host": host, "port": port, "reachable": True, "protocol": "unknown", "note": "TCP connected but SMB2 magic not in response"}}
+            return {"result": {"host": host, "port": port, "reachable": True, "protocol": "SMB2", "elapsed_ms": elapsed_ms}}
+        return {"result": {"host": host, "port": port, "reachable": True, "protocol": "unknown", "elapsed_ms": elapsed_ms, "note": "TCP connected but SMB2 magic not in response"}}
     except socket.timeout:
         return {"result": {"host": host, "port": port, "reachable": False, "error": "timeout"}}
     except ConnectionRefusedError:
@@ -2771,14 +2773,16 @@ def check_kafka(host: str, port: int = 9092, timeout: int = 5) -> dict:
     try:
         with socket.create_connection((host, port), timeout=timeout) as sock:
             sock.settimeout(timeout)
-            # Kafka ApiVersions request v0: length(4) + api_key(2) + api_version(2) + correlation_id(4) + client_id_length(2=-1 null)
-            request_body = struct.pack(">hhih", 18, 0, 0, 1, -1)
+            start = time.monotonic()
+            # Kafka ApiVersions v0: 4-byte length prefix + api_key(2) + api_version(2) + correlation_id(4) + client_id_len(2=-1 null)
+            request_body = struct.pack(">IHHih", 10, 18, 0, 1, -1)
             sock.sendall(request_body)
             header = sock.recv(4)
+            elapsed_ms = round((time.monotonic() - start) * 1000, 2)
             if len(header) == 4:
                 resp_len = struct.unpack(">I", header)[0]
                 sock.recv(min(resp_len, 256))
-                return {"result": {"host": host, "port": port, "reachable": True, "protocol": "Kafka"}}
+                return {"result": {"host": host, "port": port, "reachable": True, "protocol": "Kafka", "elapsed_ms": elapsed_ms}}
         return {"result": {"host": host, "port": port, "reachable": True, "protocol": "unknown", "note": "TCP connected but response too short"}}
     except socket.timeout:
         return {"result": {"host": host, "port": port, "reachable": False, "error": "timeout"}}
@@ -2828,18 +2832,19 @@ def check_cassandra(host: str, port: int = 9042, timeout: int = 5) -> dict:
     if not 1 <= port <= 65535:
         return {"error": f"port {port} out of range 1-65535", "tool": "check_cassandra"}
     try:
-        sock = socket.create_connection((host, port), timeout=timeout)
-        sock.settimeout(timeout)
-        # CQL binary v3 OPTIONS request: version(1) + flags(1) + stream(2) + opcode(1=OPTIONS) + body_length(4)
-        options_req = struct.pack(">BBHBI", 0x03, 0x00, 0x0000, 0x05, 0)
-        sock.sendall(options_req)
-        header = sock.recv(9)
-        sock.close()
+        start = time.monotonic()
+        with socket.create_connection((host, port), timeout=timeout) as sock:
+            sock.settimeout(timeout)
+            # CQL binary v3 OPTIONS request: version(1) + flags(1) + stream(2) + opcode(1=OPTIONS) + body_length(4)
+            options_req = struct.pack(">BBHBI", 0x03, 0x00, 0x0000, 0x05, 0)
+            sock.sendall(options_req)
+            header = sock.recv(9)
+        elapsed_ms = round((time.monotonic() - start) * 1000, 2)
         if len(header) >= 5 and header[4] == 0x06:  # opcode 0x06 = SUPPORTED
-            return {"result": {"host": host, "port": port, "reachable": True, "protocol": "CQL"}}
+            return {"result": {"host": host, "port": port, "reachable": True, "protocol": "CQL", "elapsed_ms": elapsed_ms}}
         if len(header) >= 5:
-            return {"result": {"host": host, "port": port, "reachable": True, "protocol": "unknown", "opcode": header[4]}}
-        return {"result": {"host": host, "port": port, "reachable": True, "protocol": "unknown", "note": "no response"}}
+            return {"result": {"host": host, "port": port, "reachable": True, "protocol": "unknown", "opcode": header[4], "elapsed_ms": elapsed_ms}}
+        return {"result": {"host": host, "port": port, "reachable": True, "protocol": "unknown", "note": "no response", "elapsed_ms": elapsed_ms}}
     except socket.timeout:
         return {"result": {"host": host, "port": port, "reachable": False, "error": "timeout"}}
     except ConnectionRefusedError:
