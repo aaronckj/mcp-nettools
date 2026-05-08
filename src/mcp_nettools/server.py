@@ -5488,6 +5488,8 @@ def check_seafile(host: str, port: int = 80, timeout: int = 5, https: bool = Fal
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_seafile"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_seafile"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -5510,6 +5512,8 @@ def check_onlyoffice(host: str, port: int = 80, timeout: int = 5, https: bool = 
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_onlyoffice"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_onlyoffice"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -5534,6 +5538,8 @@ def check_hedgedoc(host: str, port: int = 3000, timeout: int = 5, https: bool = 
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_hedgedoc"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_hedgedoc"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -5562,6 +5568,8 @@ def check_collabora(host: str, port: int = 9980, timeout: int = 5, https: bool =
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_collabora"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_collabora"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -5589,6 +5597,8 @@ def check_wordpress(host: str, port: int = 80, timeout: int = 5, https: bool = F
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_wordpress"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_wordpress"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -5617,6 +5627,8 @@ def check_ghost(host: str, port: int = 2368, timeout: int = 5, https: bool = Fal
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_ghost"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_ghost"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -5756,6 +5768,8 @@ def check_discourse(host: str, port: int = 80, timeout: int = 5, https: bool = F
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_discourse"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_discourse"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -5794,6 +5808,8 @@ def check_matomo(host: str, port: int = 80, timeout: int = 5, https: bool = Fals
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_matomo"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_matomo"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -5834,6 +5850,8 @@ def check_dokuwiki(host: str, port: int = 80, timeout: int = 5, https: bool = Fa
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_dokuwiki"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_dokuwiki"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -5858,6 +5876,8 @@ def check_invoiceninja(host: str, port: int = 80, timeout: int = 5, https: bool 
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_invoiceninja"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_invoiceninja"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
