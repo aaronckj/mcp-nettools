@@ -2190,6 +2190,119 @@ def check_dmarc(domain: str, nameserver: str = "") -> dict:
         return {"error": str(e), "tool": "check_dmarc", "domain": domain, "detail": type(e).__name__}
 
 
+@mcp.tool()
+def check_elasticsearch(host: str, port: int = 9200, timeout: int = 5, https: bool = False) -> dict:
+    """Connect to an Elasticsearch or OpenSearch node and check cluster health. Returns cluster name, status (green/yellow/red), node counts, shard counts, and unassigned shards. host: IP or hostname. port: default 9200. https: use HTTPS instead of HTTP (default False)."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_elasticsearch"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    url = f"{scheme}://{host}:{port}/_cluster/health"
+    try:
+        ctx = ssl.create_default_context() if https else None
+        if ctx and https:
+            ctx.check_hostname = False
+            ctx.verify_mode = ssl.CERT_NONE
+        req = urllib.request.Request(url, headers={"Accept": "application/json"})
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            data = json.loads(resp.read().decode())
+        return {
+            "result": {
+                "host": host,
+                "port": port,
+                "reachable": True,
+                "cluster_name": data.get("cluster_name"),
+                "status": data.get("status"),
+                "number_of_nodes": data.get("number_of_nodes"),
+                "number_of_data_nodes": data.get("number_of_data_nodes"),
+                "active_primary_shards": data.get("active_primary_shards"),
+                "active_shards": data.get("active_shards"),
+                "relocating_shards": data.get("relocating_shards"),
+                "unassigned_shards": data.get("unassigned_shards"),
+                "timed_out": data.get("timed_out"),
+            }
+        }
+    except urllib.error.URLError as e:
+        return {"result": {"host": host, "port": port, "reachable": False, "error": str(e.reason)}}
+    except Exception as e:
+        return {"error": str(e), "tool": "check_elasticsearch", "detail": type(e).__name__}
+
+
+@mcp.tool()
+def check_etcd(host: str, port: int = 2379, timeout: int = 5) -> dict:
+    """Check etcd v3 cluster health via its HTTP health endpoint. Returns health status and reason if unhealthy. host: IP or hostname. port: default 2379 (etcd client port)."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_etcd"}
+    host = host.strip()
+    url = f"http://{host}:{port}/health"
+    try:
+        req = urllib.request.Request(url, headers={"Accept": "application/json"})
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            data = json.loads(resp.read().decode())
+        return {
+            "result": {
+                "host": host,
+                "port": port,
+                "reachable": True,
+                "health": data.get("health"),
+                "reason": data.get("reason"),
+            }
+        }
+    except urllib.error.HTTPError as e:
+        try:
+            data = json.loads(e.read().decode())
+        except Exception:
+            data = {}
+        return {
+            "result": {
+                "host": host,
+                "port": port,
+                "reachable": True,
+                "status_code": e.code,
+                "health": data.get("health", "false"),
+                "reason": data.get("reason", e.reason),
+            }
+        }
+    except urllib.error.URLError as e:
+        return {"result": {"host": host, "port": port, "reachable": False, "error": str(e.reason)}}
+    except Exception as e:
+        return {"error": str(e), "tool": "check_etcd", "detail": type(e).__name__}
+
+
+@mcp.tool()
+def check_consul(host: str, port: int = 8500, timeout: int = 5) -> dict:
+    """Check Consul agent health and cluster leader. Returns agent node name, datacenter, server/client role, leader address, and Consul version. host: IP or hostname. port: default 8500 (Consul HTTP API port)."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_consul"}
+    host = host.strip()
+    base = f"http://{host}:{port}"
+    try:
+        with urllib.request.urlopen(urllib.request.Request(f"{base}/v1/status/leader"), timeout=timeout) as r:
+            leader = r.read().decode().strip().strip('"')
+        try:
+            with urllib.request.urlopen(urllib.request.Request(f"{base}/v1/agent/self"), timeout=timeout) as r:
+                agent = json.loads(r.read().decode())
+        except Exception:
+            agent = {}
+        config = agent.get("Config", {})
+        return {
+            "result": {
+                "host": host,
+                "port": port,
+                "reachable": True,
+                "leader": leader,
+                "node_name": config.get("NodeName"),
+                "datacenter": config.get("Datacenter"),
+                "server": config.get("Server"),
+                "version": config.get("Version"),
+            }
+        }
+    except urllib.error.URLError as e:
+        return {"result": {"host": host, "port": port, "reachable": False, "error": str(e.reason)}}
+    except Exception as e:
+        return {"error": str(e), "tool": "check_consul", "detail": type(e).__name__}
+
+
 def main() -> None:
     mcp.run()
 
