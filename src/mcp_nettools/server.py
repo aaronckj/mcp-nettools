@@ -4041,6 +4041,117 @@ def check_forgejo(host: str, port: int = 3000, timeout: int = 5, https: bool = F
     return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy}}
 
 
+@mcp.tool()
+def check_matrix_synapse(host: str, port: int = 8008, timeout: int = 5, https: bool = False) -> dict:
+    """Check Matrix Synapse homeserver health via GET /_matrix/federation/v1/version (public endpoint). Returns server version."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_matrix_synapse"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    healthy = False
+    version: str | None = None
+    try:
+        req = urllib.request.Request(
+            f"{scheme}://{host}:{port}/_matrix/federation/v1/version",
+            headers={"Accept": "application/json"},
+        )
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            healthy = resp.status == 200
+            data = json.loads(resp.read().decode())
+            version = data.get("server", {}).get("version")
+    except Exception:
+        pass
+    return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy, "version": version}}
+
+
+@mcp.tool()
+def check_zipline(host: str, port: int = 3000, timeout: int = 5, https: bool = False) -> dict:
+    """Check Zipline file sharing server health via GET /api/server/info. Returns version and build info."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_zipline"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    healthy = False
+    version: str | None = None
+    try:
+        req = urllib.request.Request(
+            f"{scheme}://{host}:{port}/api/server/info",
+            headers={"Accept": "application/json"},
+        )
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            healthy = resp.status == 200
+            data = json.loads(resp.read().decode())
+            version = data.get("version")
+    except Exception:
+        pass
+    return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy, "version": version}}
+
+
+@mcp.tool()
+def check_guacamole(host: str, port: int = 8080, timeout: int = 5, https: bool = False, path: str = "/guacamole") -> dict:
+    """Check Apache Guacamole clientless remote desktop gateway via GET /guacamole/api/ (returns API version). path: context path if non-default (e.g. '/guacamole')."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_guacamole"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    healthy = False
+    version: str | None = None
+    base = path.rstrip("/") if path else ""
+    try:
+        req = urllib.request.Request(
+            f"{scheme}://{host}:{port}{base}/api/",
+            headers={"Accept": "application/json"},
+        )
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            healthy = resp.status == 200
+            data = json.loads(resp.read().decode())
+            version = data.get("_version")
+    except urllib.error.HTTPError as e:
+        healthy = e.code in (200, 403)
+    except Exception:
+        pass
+    return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy, "version": version}}
+
+
+@mcp.tool()
+def check_navidrome(host: str, port: int = 4533, timeout: int = 5, https: bool = False) -> dict:
+    """Check Navidrome music streaming server health via GET /app/manifest.json (public endpoint). Returns reachable state."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_navidrome"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    healthy = False
+    for path in ["/app/manifest.json", "/"]:
+        try:
+            req = urllib.request.Request(f"{scheme}://{host}:{port}{path}")
+            with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+                healthy = resp.status == 200
+                break
+        except Exception:
+            pass
+    return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy}}
+
+
 def main() -> None:
     mcp.run()
 
