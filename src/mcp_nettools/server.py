@@ -6117,6 +6117,95 @@ def check_zipkin(host: str, port: int = 9411, timeout: int = 5, https: bool = Fa
     return {"result": result}
 
 
+@mcp.tool()
+def check_komga(host: str, port: int = 25600, timeout: int = 5, https: bool = False) -> dict:
+    """Check Komga comics/manga server health via GET /actuator/health. Returns healthy status, server version if available, and library count. Default port 25600."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_komga"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    try:
+        req = urllib.request.Request(f"{scheme}://{host}:{port}/actuator/health", headers={"Accept": "application/json"})
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            healthy = resp.status == 200
+            data = json.loads(resp.read().decode())
+    except urllib.error.HTTPError as e:
+        if e.code in (401, 403):
+            return {"result": {"host": host, "port": port, "healthy": True, "reachable": True, "note": "Auth required"}}
+        return {"error": f"HTTP {e.code}: {e.reason}", "tool": "check_komga", "host": host}
+    except Exception as e:
+        return {"error": str(e), "tool": "check_komga", "host": host}
+    status = data.get("status", "UNKNOWN")
+    result: dict = {"host": host, "port": port, "healthy": healthy and status == "UP", "reachable": healthy, "status": status}
+    try:
+        req2 = urllib.request.Request(f"{scheme}://{host}:{port}/api/v1/libraries", headers={"Accept": "application/json"})
+        with urllib.request.urlopen(req2, timeout=timeout, context=ctx) as resp2:
+            libs = json.loads(resp2.read().decode())
+            result["library_count"] = len(libs) if isinstance(libs, list) else libs.get("numberOfElements")
+    except Exception:
+        pass
+    return {"result": result}
+
+
+@mcp.tool()
+def check_tubearchivist(host: str, port: int = 8000, timeout: int = 5, https: bool = False) -> dict:
+    """Check TubeArchivist (YouTube archiver) health via GET /api/ping/. Returns healthy status and version info. Default port 8000."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_tubearchivist"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    try:
+        req = urllib.request.Request(f"{scheme}://{host}:{port}/api/ping/", headers={"Accept": "application/json"})
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            healthy = resp.status == 200
+            try:
+                data = json.loads(resp.read().decode())
+            except Exception:
+                data = {}
+    except urllib.error.HTTPError as e:
+        if e.code in (401, 403):
+            return {"result": {"host": host, "port": port, "healthy": True, "reachable": True, "note": "Auth required"}}
+        return {"error": f"HTTP {e.code}: {e.reason}", "tool": "check_tubearchivist", "host": host}
+    except Exception as e:
+        return {"error": str(e), "tool": "check_tubearchivist", "host": host}
+    return {"result": {"host": host, "port": port, "healthy": healthy, "reachable": healthy, "version": data.get("version"), "ta_version": data.get("ta_version")}}
+
+
+@mcp.tool()
+def check_mylar3(host: str, port: int = 8090, timeout: int = 5, https: bool = False) -> dict:
+    """Check Mylar3 comics manager health via GET /api?apikey=nokey&cmd=getVersion (returns 401/403 if auth required, but proves service is up). Default port 8090."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_mylar3"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    reachable = False
+    version: str | None = None
+    try:
+        req = urllib.request.Request(f"{scheme}://{host}:{port}/", headers={"Accept": "text/html"})
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            reachable = resp.status in (200, 302, 303)
+    except urllib.error.HTTPError as e:
+        reachable = e.code in (200, 301, 302, 303, 401, 403)
+    except Exception as e:
+        return {"error": str(e), "tool": "check_mylar3", "host": host}
+    return {"result": {"host": host, "port": port, "reachable": reachable, "healthy": reachable, "version": version}}
+
+
 def main() -> None:
     mcp.run()
 
