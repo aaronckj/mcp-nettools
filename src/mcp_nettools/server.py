@@ -2191,6 +2191,96 @@ def check_dmarc(domain: str, nameserver: str = "") -> dict:
 
 
 @mcp.tool()
+def check_vault(host: str, port: int = 8200, timeout: int = 5, https: bool = True) -> dict:
+    """Check HashiCorp Vault server health. Returns initialized/sealed/standby state and Vault version. Handles all Vault health status codes: 200=active, 429=standby, 472=DR secondary active, 473=performance standby, 501=uninitialized, 503=sealed. host: IP or hostname. port: default 8200. https: use HTTPS (default True — Vault almost always runs HTTPS; set False for dev mode)."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_vault"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    url = f"{scheme}://{host}:{port}/v1/sys/health"
+    _state_map = {200: "active", 429: "standby", 472: "dr_secondary_active", 473: "performance_standby", 501: "uninitialized", 503: "sealed"}
+    try:
+        ctx = None
+        if https:
+            ctx = ssl.create_default_context()
+            ctx.check_hostname = False
+            ctx.verify_mode = ssl.CERT_NONE
+        req = urllib.request.Request(url, headers={"Accept": "application/json"})
+        status_code = 200
+        data: dict = {}
+        try:
+            with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+                status_code = resp.status
+                data = json.loads(resp.read().decode())
+        except urllib.error.HTTPError as e:
+            status_code = e.code
+            try:
+                data = json.loads(e.read().decode())
+            except Exception:
+                pass
+        return {
+            "result": {
+                "host": host,
+                "port": port,
+                "reachable": True,
+                "state": _state_map.get(status_code, f"unknown_{status_code}"),
+                "status_code": status_code,
+                "initialized": data.get("initialized"),
+                "sealed": data.get("sealed"),
+                "standby": data.get("standby"),
+                "version": data.get("version"),
+                "cluster_name": data.get("cluster_name"),
+            }
+        }
+    except urllib.error.URLError as e:
+        return {"result": {"host": host, "port": port, "reachable": False, "error": str(e.reason)}}
+    except Exception as e:
+        return {"error": str(e), "tool": "check_vault", "detail": type(e).__name__}
+
+
+@mcp.tool()
+def check_zookeeper(host: str, port: int = 2181, timeout: int = 5) -> dict:
+    """Check ZooKeeper server health using the 'ruok' four-letter word command. Also attempts 'stat' to return mode (leader/follower/standalone) and client count. host: IP or hostname. port: default 2181."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_zookeeper"}
+    host = host.strip()
+    try:
+        with socket.create_connection((host, port), timeout=timeout) as s:
+            s.sendall(b"ruok")
+            ruok_resp = s.recv(64).decode(errors="replace").strip()
+        result: dict = {"host": host, "port": port, "reachable": True, "ruok": ruok_resp, "healthy": ruok_resp == "imok"}
+        try:
+            with socket.create_connection((host, port), timeout=timeout) as s:
+                s.sendall(b"stat")
+                raw = b""
+                s.settimeout(2.0)
+                while True:
+                    chunk = s.recv(4096)
+                    if not chunk:
+                        break
+                    raw += chunk
+            stat_text = raw.decode(errors="replace")
+            for line in stat_text.splitlines():
+                stripped = line.strip()
+                if stripped.startswith("Mode:"):
+                    result["mode"] = stripped.split(":", 1)[1].strip()
+                elif stripped.startswith("Connections:"):
+                    try:
+                        result["connections"] = int(stripped.split(":", 1)[1].strip())
+                    except ValueError:
+                        pass
+        except Exception:
+            pass
+        return {"result": result}
+    except socket.timeout:
+        return {"result": {"host": host, "port": port, "reachable": False, "error": "connection timed out"}}
+    except ConnectionRefusedError:
+        return {"result": {"host": host, "port": port, "reachable": False, "error": "connection refused"}}
+    except Exception as e:
+        return {"error": str(e), "tool": "check_zookeeper", "detail": type(e).__name__}
+
+
+@mcp.tool()
 def check_elasticsearch(host: str, port: int = 9200, timeout: int = 5, https: bool = False) -> dict:
     """Connect to an Elasticsearch or OpenSearch node and check cluster health. Returns cluster name, status (green/yellow/red), node counts, shard counts, and unassigned shards. host: IP or hostname. port: default 9200. https: use HTTPS instead of HTTP (default False)."""
     if not host or not host.strip():
