@@ -333,11 +333,12 @@ def speedtest() -> dict:
     try:
         st = _speedtest_lib.Speedtest()
         st.get_best_server()
+        results = st.results
         return {
             "download_mbps": round(st.download() / 1_000_000, 2),
             "upload_mbps": round(st.upload() / 1_000_000, 2),
-            "ping_ms": st.results.ping,
-            "server": st.results.server.get("name"),
+            "ping_ms": results.ping,
+            "server": (results.server or {}).get("name"),
         }
     except Exception as e:
         return {"error": str(e), "tool": "speedtest"}
@@ -370,6 +371,13 @@ def whois(host: str) -> dict:
 async def mac_lookup(mac: str) -> dict:
     """Look up the vendor/manufacturer for a MAC address (OUI database)."""
     global _mac_lookup_instance
+    if not mac or not mac.strip():
+        return {"error": "mac must not be empty", "tool": "mac_lookup"}
+    if not _MAC_RE.match(mac):
+        return {
+            "error": f"Invalid MAC address '{mac}'. Expected XX:XX:XX:XX:XX:XX or XX-XX-XX-XX-XX-XX",
+            "tool": "mac_lookup",
+        }
     try:
         if _mac_lookup_instance is None:
             instance = AsyncMacLookup()
