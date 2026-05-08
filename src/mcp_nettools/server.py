@@ -233,6 +233,8 @@ def cert_check(host: str, port: int = 443, timeout: int = 10) -> dict:
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "cert_check"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"Invalid port {port}: must be 1-65535", "tool": "cert_check"}
     timeout = min(max(1, timeout), 60)
     def _parse_cert(cert: dict, cert_der: bytes, verified: bool) -> dict:
         fmt = "%b %d %H:%M:%S %Y %Z"
@@ -809,6 +811,8 @@ def ssh_check(host: str, port: int = 22, timeout: int = 10) -> dict:
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "ssh_check"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"Invalid port {port}: must be 1-65535", "tool": "ssh_check"}
     timeout = min(max(1, timeout), 30)
     try:
         start = time.monotonic()
