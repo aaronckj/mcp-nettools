@@ -3632,6 +3632,83 @@ def check_searxng(host: str, port: int = 8080, timeout: int = 5, https: bool = F
     return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy}}
 
 
+@mcp.tool()
+def check_freshrss(host: str, port: int = 80, timeout: int = 5, https: bool = False) -> dict:
+    """Check FreshRSS feed aggregator availability. FreshRSS has no dedicated health endpoint; checks if the main page or /i/ returns HTTP 200."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_freshrss"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    healthy = False
+    for path in ["/i/", "/"]:
+        try:
+            req = urllib.request.Request(f"{scheme}://{host}:{port}{path}")
+            with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+                healthy = resp.status == 200
+                break
+        except urllib.error.HTTPError as e:
+            healthy = e.code in (200, 302, 301)
+            if healthy:
+                break
+        except Exception:
+            pass
+    return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy}}
+
+
+@mcp.tool()
+def check_bookstack(host: str, port: int = 80, timeout: int = 5, https: bool = False) -> dict:
+    """Check BookStack wiki platform health via GET /status. Returns health status."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_bookstack"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    healthy = False
+    try:
+        req = urllib.request.Request(
+            f"{scheme}://{host}:{port}/status",
+            headers={"Accept": "application/json"},
+        )
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            healthy = resp.status == 200
+    except Exception:
+        pass
+    return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy}}
+
+
+@mcp.tool()
+def check_monica(host: str, port: int = 80, timeout: int = 5, https: bool = False) -> dict:
+    """Check Monica personal CRM availability. Monica has no dedicated health endpoint; checks if the main page returns HTTP 200 or redirect."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_monica"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    healthy = False
+    try:
+        req = urllib.request.Request(f"{scheme}://{host}:{port}/")
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            healthy = resp.status in (200, 302, 301)
+    except urllib.error.HTTPError as e:
+        healthy = e.code in (200, 302, 301)
+    except Exception:
+        pass
+    return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy}}
+
+
 def main() -> None:
     mcp.run()
 
