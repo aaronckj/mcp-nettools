@@ -675,6 +675,150 @@ def scan_common_ports(host: str, timeout: int = 2) -> dict:
     }
 
 
+
+
+@mcp.tool()
+def ssh_check(host: str, port: int = 22, timeout: int = 10) -> dict:
+    """Check SSH server connectivity and retrieve the server banner (SSH version string, e.g. 'SSH-2.0-OpenSSH_8.9'). Does not attempt authentication."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "ssh_check"}
+    timeout = min(max(1, timeout), 30)
+    try:
+        start = time.monotonic()
+        with socket.create_connection((host, port), timeout=timeout) as sock:
+            sock.settimeout(timeout)
+            raw = sock.recv(256)
+            banner = raw.decode("utf-8", errors="replace").strip()
+            try:
+                sock.sendall(b"SSH-2.0-Claude_1.0
+")
+            except Exception:
+                pass
+        elapsed_ms = round((time.monotonic() - start) * 1000, 2)
+        return {
+            "result": {
+                "host": host,
+                "port": port,
+                "reachable": True,
+                "banner": banner,
+                "elapsed_ms": elapsed_ms,
+            }
+        }
+    except ConnectionRefusedError:
+        return {"result": {"host": host, "port": port, "reachable": False, "reason": "connection refused"}}
+    except socket.timeout:
+        return {"result": {"host": host, "port": port, "reachable": False, "reason": "timeout"}}
+    except Exception as e:
+        return {"error": str(e), "tool": "ssh_check", "host": host, "detail": type(e).__name__}
+
+
+@mcp.tool()
+def imap_check(host: str, port: int = 143, timeout: int = 10) -> dict:
+    """Check IMAP server connectivity. Reads server greeting and capabilities. Tests STARTTLS for port 143; uses implicit TLS for port 993. Does not authenticate."""
+    import imaplib
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "imap_check"}
+    timeout = min(max(1, timeout), 30)
+    old_timeout = socket.getdefaulttimeout()
+    socket.setdefaulttimeout(timeout)
+    try:
+        start = time.monotonic()
+        if port == 993:
+            import ssl as _ssl
+            ctx = _ssl.create_default_context()
+            imap = imaplib.IMAP4_SSL(host, port, ssl_context=ctx)
+            tls = True
+        else:
+            imap = imaplib.IMAP4(host, port)
+            tls = False
+
+        greeting = (imap.welcome or b"").decode("utf-8", errors="replace").strip()
+        caps = list(imap.capabilities) if imap.capabilities else []
+
+        starttls = False
+        if not tls and b"STARTTLS" in imap.capabilities:
+            try:
+                imap.starttls()
+                starttls = True
+            except Exception:
+                pass
+        try:
+            imap.logout()
+        except Exception:
+            pass
+
+        elapsed_ms = round((time.monotonic() - start) * 1000, 2)
+        return {
+            "result": {
+                "host": host,
+                "port": port,
+                "reachable": True,
+                "greeting": greeting,
+                "capabilities": [c.decode("utf-8", errors="replace") for c in caps],
+                "tls": tls,
+                "starttls": starttls,
+                "elapsed_ms": elapsed_ms,
+            }
+        }
+    except Exception as e:
+        return {"error": str(e), "tool": "imap_check", "host": host, "detail": type(e).__name__}
+    finally:
+        socket.setdefaulttimeout(old_timeout)
+
+
+@mcp.tool()
+def http_redirect_chain(url: str, max_redirects: int = 10, timeout: int = 10) -> dict:
+    """Follow an HTTP/HTTPS URL through all redirects and return every hop with status code and Location header. Useful for debugging redirect loops or verifying HTTPS redirect configuration."""
+    if not url or not url.strip():
+        return {"error": "url must not be empty", "tool": "http_redirect_chain"}
+    max_redirects = min(max(1, max_redirects), 20)
+    timeout = min(max(1, timeout), 30)
+
+    class _NoRedirect(urllib.request.HTTPRedirectHandler):
+        def redirect_request(self, req, fp, code, msg, headers, newurl):
+            return None
+
+    opener = urllib.request.build_opener(_NoRedirect())
+    chain = []
+    current = url.strip()
+
+    for hop in range(max_redirects + 1):
+        try:
+            req = urllib.request.Request(current, method="HEAD")
+            try:
+                resp = opener.open(req, timeout=timeout)
+                chain.append({"hop": hop, "url": current, "status_code": resp.status, "final": True})
+                break
+            except urllib.error.HTTPError as e:
+                location = e.headers.get("Location", "")
+                chain.append({
+                    "hop": hop,
+                    "url": current,
+                    "status_code": e.code,
+                    "location": location,
+                    "final": not location or e.code not in {301, 302, 303, 307, 308},
+                })
+                if not location or e.code not in {301, 302, 303, 307, 308}:
+                    break
+                if not location.startswith("http"):
+                    from urllib.parse import urljoin
+                    location = urljoin(current, location)
+                current = location
+        except Exception as e:
+            chain.append({"hop": hop, "url": current, "error": str(e), "final": True})
+            break
+    else:
+        chain.append({"hop": max_redirects + 1, "url": current, "error": "max_redirects exceeded", "final": True})
+
+    return {
+        "result": {
+            "original_url": url.strip(),
+            "final_url": current,
+            "hop_count": len(chain),
+            "chain": chain,
+        }
+    }
+
 def main() -> None:
     mcp.run()
 
