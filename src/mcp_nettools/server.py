@@ -1102,7 +1102,7 @@ def imap_check(host: str, port: int = 143, timeout: int = 10) -> dict:
     except socket.timeout:
         return {"result": {"host": host, "port": port, "reachable": False, "reason": "timeout"}}
     except Exception as e:
-        return {"error": str(e), "tool": "imap_check", "host": host, "detail": type(e).__name__}
+        return {"error": str(e), "tool": "imap_check", "host": host, "port": port, "detail": type(e).__name__}
     finally:
         socket.setdefaulttimeout(old_timeout)
 
@@ -1313,7 +1313,7 @@ def mysql_check(host: str, port: int = 3306, timeout: int = 5) -> dict:
     except socket.timeout:
         return {"result": {"host": host, "port": port, "reachable": False, "reason": "timeout"}}
     except Exception as e:
-        return {"error": str(e), "tool": "mysql_check", "host": host, "detail": type(e).__name__}
+        return {"error": str(e), "tool": "mysql_check", "host": host, "port": port, "detail": type(e).__name__}
 
 
 @mcp.tool()
@@ -1347,7 +1347,7 @@ def redis_check(host: str, port: int = 6379, timeout: int = 5) -> dict:
     except socket.timeout:
         return {"result": {"host": host, "port": port, "reachable": False, "reason": "timeout"}}
     except Exception as e:
-        return {"error": str(e), "tool": "redis_check", "host": host, "detail": type(e).__name__}
+        return {"error": str(e), "tool": "redis_check", "host": host, "port": port, "detail": type(e).__name__}
 
 
 @mcp.tool()
@@ -1395,7 +1395,7 @@ def ldap_check(host: str, port: int = 389, timeout: int = 5, use_tls: bool = Fal
     except ssl.SSLError as e:
         return {"result": {"host": host, "port": port, "reachable": True, "ldap_response": False, "tls_error": str(e)}}
     except Exception as e:
-        return {"error": str(e), "tool": "ldap_check", "host": host, "detail": type(e).__name__}
+        return {"error": str(e), "tool": "ldap_check", "host": host, "port": port, "detail": type(e).__name__}
 
 
 @mcp.tool()
@@ -1436,7 +1436,7 @@ def snmp_check(host: str, port: int = 161, timeout: int = 3, community: str = "p
     except OSError as e:
         return {"result": {"host": host, "port": port, "reachable": False, "reason": str(e)}}
     except Exception as e:
-        return {"error": str(e), "tool": "snmp_check", "host": host, "detail": type(e).__name__}
+        return {"error": str(e), "tool": "snmp_check", "host": host, "port": port, "detail": type(e).__name__}
 
 
 @mcp.tool()
