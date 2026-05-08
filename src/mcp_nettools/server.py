@@ -216,6 +216,7 @@ def port_scan(host: str, ports: str, timeout: int = 3) -> dict:
     out_of_range = [p for p in port_list if not 1 <= p <= 65535]
     if out_of_range:
         return {"error": f"Ports out of range 1-65535: {out_of_range[:5]}", "tool": "port_scan"}
+    port_list = sorted(set(port_list))
     if len(port_list) > 500:
         return {"error": f"Too many ports ({len(port_list)}). Maximum 500 per call.", "tool": "port_scan"}
     workers = min(len(port_list), 100)
@@ -365,6 +366,8 @@ def http_check(url: str, method: str = "HEAD", timeout: int = 10, expected_statu
                 result["status_ok"] = resp.status == expected_status
             if contains and method == "GET":
                 result["contains_ok"] = contains in body
+            elif contains and method != "GET":
+                result["contains_note"] = f"contains check skipped: requires method=GET, got {method}"
             return {"result": result}
     except urllib.error.HTTPError as e:
         elapsed_ms = round((time.monotonic() - start) * 1000, 2)
