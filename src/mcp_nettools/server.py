@@ -2839,6 +2839,66 @@ def check_clickhouse(host: str, port: int = 8123, timeout: int = 5, https: bool 
         return {"error": str(e), "tool": "check_clickhouse", "detail": type(e).__name__}
 
 
+@mcp.tool()
+def check_neo4j(host: str, port: int = 7474, timeout: int = 5, https: bool = False) -> dict:
+    """Check Neo4j graph database availability via the HTTP API. GET / returns server version and available endpoints. Port 7474 = HTTP, 7473 = HTTPS, 7687 = Bolt (use port_check for Bolt)."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_neo4j"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    try:
+        req = urllib.request.Request(f"{scheme}://{host}:{port}/", headers={"Accept": "application/json"})
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            data = json.loads(resp.read().decode())
+        neo4j_version = data.get("neo4j_version") or data.get("data", {}).get("neo4j_version")
+        return {"result": {
+            "host": host,
+            "port": port,
+            "reachable": True,
+            "version": neo4j_version,
+            "edition": data.get("neo4j_edition"),
+        }}
+    except urllib.error.URLError as e:
+        return {"result": {"host": host, "port": port, "reachable": False, "error": str(e.reason)}}
+    except Exception as e:
+        return {"error": str(e), "tool": "check_neo4j", "detail": type(e).__name__}
+
+
+@mcp.tool()
+def check_minio(host: str, port: int = 9000, timeout: int = 5, https: bool = False) -> dict:
+    """Check MinIO object storage availability via GET /minio/health/live (liveness) and /minio/health/ready (readiness). Port 9000 = default, 9001 = console. Returns liveness and readiness status separately."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_minio"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    live = False
+    ready = False
+    errors: dict = {}
+    for endpoint, key in [("/minio/health/live", "live"), ("/minio/health/ready", "ready")]:
+        try:
+            req = urllib.request.Request(f"{scheme}://{host}:{port}{endpoint}")
+            with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+                if key == "live":
+                    live = resp.status == 200
+                else:
+                    ready = resp.status == 200
+        except urllib.error.HTTPError as e:
+            errors[key] = f"HTTP {e.code}"
+        except Exception as e:
+            errors[key] = str(e)
+    return {"result": {"host": host, "port": port, "reachable": live, "live": live, "ready": ready, "errors": errors or None}}
+
+
 def main() -> None:
     mcp.run()
 
