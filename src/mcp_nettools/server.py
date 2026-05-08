@@ -4400,6 +4400,110 @@ def check_jellyseerr(host: str, port: int = 5055, timeout: int = 5, https: bool 
     return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy, "version": version}}
 
 
+@mcp.tool()
+def check_sabnzbd(host: str, port: int = 8080, timeout: int = 5, https: bool = False, path: str = "/sabnzbd") -> dict:
+    """Check SABnzbd usenet downloader health via GET /sabnzbd/. 200 or redirect to login page = healthy. path: context path if non-default (e.g. '/sabnzbd'). Default port 8080."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_sabnzbd"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    healthy = False
+    base = path.strip().rstrip("/") if path else ""
+    for check_path in [base + "/", base or "/"]:
+        try:
+            req = urllib.request.Request(f"{scheme}://{host}:{port}{check_path}")
+            with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+                healthy = resp.status in (200, 302)
+                break
+        except urllib.error.HTTPError as e:
+            healthy = e.code in (200, 302, 401, 403)
+            break
+        except Exception:
+            pass
+    return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy}}
+
+
+@mcp.tool()
+def check_nzbget(host: str, port: int = 6789, timeout: int = 5, https: bool = False) -> dict:
+    """Check NZBGet usenet downloader health via GET /. 200 or 401 (basic auth) = healthy. Default port 6789."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_nzbget"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    healthy = False
+    try:
+        req = urllib.request.Request(f"{scheme}://{host}:{port}/")
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            healthy = resp.status in (200, 302)
+    except urllib.error.HTTPError as e:
+        healthy = e.code in (200, 302, 401, 403)
+    except Exception:
+        pass
+    return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy}}
+
+
+@mcp.tool()
+def check_calibre_web(host: str, port: int = 8083, timeout: int = 5, https: bool = False) -> dict:
+    """Check Calibre-Web ebook library server health via GET /. 200 or redirect to /login = healthy. Default port 8083."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_calibre_web"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    healthy = False
+    try:
+        req = urllib.request.Request(f"{scheme}://{host}:{port}/")
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            healthy = resp.status in (200, 302)
+    except urllib.error.HTTPError as e:
+        healthy = e.code in (200, 302, 401, 403)
+    except Exception:
+        pass
+    return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy}}
+
+
+@mcp.tool()
+def check_glances(host: str, port: int = 61208, timeout: int = 5, https: bool = False) -> dict:
+    """Check Glances system monitoring server health via GET /api/3/status. Returns version. Default port 61208."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_glances"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    healthy = False
+    version: str | None = None
+    try:
+        req = urllib.request.Request(
+            f"{scheme}://{host}:{port}/api/3/status",
+            headers={"Accept": "application/json"},
+        )
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            healthy = resp.status == 200
+            data = json.loads(resp.read().decode())
+            version = data.get("version")
+    except Exception:
+        pass
+    return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy, "version": version}}
+
+
 def main() -> None:
     mcp.run()
 
