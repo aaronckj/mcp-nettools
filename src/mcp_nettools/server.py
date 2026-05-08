@@ -2564,6 +2564,9 @@ def http_post(url: str, body: str = "", content_type: str = "application/json", 
     if not url or not url.strip():
         return {"error": "url must not be empty", "tool": "http_post"}
     url = url.strip()
+    if not url.startswith(("http://", "https://")):
+        return {"error": "url must start with http:// or https://", "tool": "http_post", "url": url}
+    timeout = min(max(1, timeout), 60)
     extra_headers: dict[str, str] = {}
     if headers and headers.strip():
         for raw in re.split(r"[;\n]", headers):
@@ -2592,7 +2595,7 @@ def http_post(url: str, body: str = "", content_type: str = "application/json", 
         err_body = e.read().decode("utf-8", errors="replace")
         return {"error": str(e), "tool": "http_post", "detail": type(e).__name__, "status": e.code, "body": err_body[:500]}
     except Exception as e:
-        return {"error": str(e), "tool": "http_post", "detail": type(e).__name__}
+        return {"error": str(e), "tool": "http_post", "url": url, "detail": type(e).__name__}
 
 
 @mcp.tool()
@@ -5223,6 +5226,9 @@ def http_security_headers(host: str, port: int = 80, timeout: int = 5, https: bo
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "http_security_headers"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port must be 1-65535, got {port}", "tool": "http_security_headers"}
+    timeout = min(max(1, timeout), 30)
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -5279,7 +5285,7 @@ def http_security_headers(host: str, port: int = 80, timeout: int = 5, https: bo
             "score": f"{len(present)}/{len(security_header_names)}",
         }}
     except Exception as e:
-        return {"error": str(e), "tool": "http_security_headers"}
+        return {"error": str(e), "tool": "http_security_headers", "host": host, "port": port, "detail": type(e).__name__}
 
 
 @mcp.tool()
