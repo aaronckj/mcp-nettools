@@ -15,6 +15,9 @@ from wakeonlan import send_magic_packet
 
 mcp = FastMCP("nettools")
 
+_VALID_RECORD_TYPES = {"A", "AAAA", "MX", "TXT", "NS", "CNAME", "PTR", "SOA", "SRV"}
+_mac_lookup_instance: AsyncMacLookup | None = None
+
 
 @mcp.tool()
 def ping(host: str, count: int = 4, timeout: int = 5) -> dict:
@@ -37,7 +40,13 @@ def ping(host: str, count: int = 4, timeout: int = 5) -> dict:
 
 @mcp.tool()
 def dns_lookup(host: str, record_type: str = "A") -> dict:
-    """Look up DNS records for a hostname. record_type: A, AAAA, MX, TXT, NS, CNAME."""
+    """Look up DNS records for a hostname. record_type: A, AAAA, MX, TXT, NS, CNAME, PTR, SOA, SRV."""
+    record_type = record_type.upper()
+    if record_type not in _VALID_RECORD_TYPES:
+        return {
+            "error": f"Invalid record type '{record_type}'. Valid: {', '.join(sorted(_VALID_RECORD_TYPES))}",
+            "tool": "dns_lookup",
+        }
     try:
         answers = dns.resolver.resolve(host, record_type)
         return {
@@ -74,6 +83,7 @@ def traceroute(host: str, max_hops: int = 30, timeout: int = 60) -> dict:
         return {
             "host": host,
             "output": result.stdout,
+            "stderr": result.stderr,
             "returncode": result.returncode,
         }
     except Exception as e:
@@ -85,11 +95,11 @@ def cert_check(host: str, port: int = 443) -> dict:
     """Check the SSL certificate on a host — expiry, issuer, days remaining."""
     try:
         ctx = ssl.create_default_context()
-        raw = socket.socket()
-        raw.settimeout(10)
-        with ctx.wrap_socket(raw, server_hostname=host) as s:
-            s.connect((host, port))
-            cert = s.getpeercert()
+        with socket.socket() as raw:
+            raw.settimeout(10)
+            with ctx.wrap_socket(raw, server_hostname=host) as s:
+                s.connect((host, port))
+                cert = s.getpeercert()
         not_after = datetime.strptime(cert["notAfter"], "%b %d %H:%M:%S %Y %Z").replace(
             tzinfo=timezone.utc
         )
@@ -136,12 +146,15 @@ def speedtest() -> dict:
 @mcp.tool()
 async def mac_lookup(mac: str) -> dict:
     """Look up the vendor/manufacturer for a MAC address (OUI database)."""
+    global _mac_lookup_instance
     try:
-        lookup = AsyncMacLookup()
-        await lookup.load_vendors()
-        vendor = await lookup.lookup(mac)
+        if _mac_lookup_instance is None:
+            _mac_lookup_instance = AsyncMacLookup()
+            await _mac_lookup_instance.load_vendors()
+        vendor = await _mac_lookup_instance.lookup(mac)
         return {"mac": mac, "vendor": vendor}
     except Exception as e:
+        _mac_lookup_instance = None
         return {"error": str(e), "tool": "mac_lookup", "mac": mac}
 
 
