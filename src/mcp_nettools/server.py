@@ -3113,6 +3113,56 @@ def check_alertmanager(host: str, port: int = 9093, timeout: int = 5, https: boo
     return {"result": {"host": host, "port": port, "reachable": healthy or ready, "healthy": healthy, "ready": ready, "version": version}}
 
 
+@mcp.tool()
+def check_uptime_kuma(host: str, port: int = 3001, timeout: int = 5, https: bool = False) -> dict:
+    """Check Uptime Kuma monitoring service health via GET /api/health. Returns health status and version if available."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_uptime_kuma"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    healthy = False
+    version: str | None = None
+    try:
+        req = urllib.request.Request(
+            f"{scheme}://{host}:{port}/api/health",
+            headers={"Accept": "application/json"},
+        )
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            healthy = resp.status == 200
+            data = json.loads(resp.read().decode())
+            version = data.get("version")
+    except Exception:
+        pass
+    return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy, "version": version}}
+
+
+@mcp.tool()
+def check_vaultwarden(host: str, port: int = 8080, timeout: int = 5, https: bool = False) -> dict:
+    """Check Vaultwarden (Bitwarden-compatible) password manager health via GET /alive. Returns health status."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_vaultwarden"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    healthy = False
+    try:
+        req = urllib.request.Request(f"{scheme}://{host}:{port}/alive")
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            healthy = resp.status == 200
+    except Exception:
+        pass
+    return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy}}
+
+
 def main() -> None:
     mcp.run()
 
