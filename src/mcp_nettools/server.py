@@ -1952,13 +1952,16 @@ def check_redis(host: str, port: int = 6379, timeout: int = 5, password: str = "
             elapsed_ms = round((time.monotonic() - start) * 1000, 2)
             if not pong.startswith("+PONG"):
                 return {"result": {"host": host, "port": port, "reachable": True, "ping_ok": False, "response": pong, "elapsed_ms": elapsed_ms}}
-            sock.sendall(b"*2\r\n$4\r\nINFO\r\n$6\r\nserver\r\n")
-            info_lines = []
-            header = _readline(sock)
-            if header.startswith("$"):
-                byte_count = int(header[1:])
-                info_data = _readbytes(sock, byte_count).decode("utf-8", errors="replace")
-                info_lines = info_data.splitlines()
+            try:
+                sock.sendall(b"*2\r\n$4\r\nINFO\r\n$6\r\nserver\r\n")
+                info_lines = []
+                header = _readline(sock)
+                if header.startswith("$"):
+                    byte_count = int(header[1:])
+                    info_data = _readbytes(sock, byte_count).decode("utf-8", errors="replace")
+                    info_lines = info_data.splitlines()
+            except socket.timeout:
+                info_lines = []  # INFO is best-effort; PING already confirmed reachable
         server_version = None
         redis_mode = None
         for line in info_lines:
