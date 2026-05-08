@@ -2930,14 +2930,24 @@ def check_traefik(host: str, port: int = 8080, timeout: int = 5, https: bool = F
 
 
 @mcp.tool()
-def http_put(url: str, body: str = "", content_type: str = "application/json", timeout: int = 10) -> dict:
-    """Send an HTTP PUT request with a body. Useful for testing REST APIs that use PUT to create or replace resources. body: raw string (JSON, etc). Returns status code, response body, and parsed JSON if applicable."""
+def http_put(url: str, body: str = "", content_type: str = "application/json", timeout: int = 10, headers: str = "") -> dict:
+    """Send an HTTP PUT request with a body. Useful for testing REST APIs that use PUT to create or replace resources. body: raw string (JSON, etc). headers: extra request headers as 'Name: Value' pairs separated by newlines or semicolons (e.g. 'Authorization: Bearer token'). Returns status code, response body, and parsed JSON if applicable."""
     if not url or not url.strip():
         return {"error": "url must not be empty", "tool": "http_put"}
     url = url.strip()
+    extra_headers: dict[str, str] = {}
+    if headers and headers.strip():
+        for raw in re.split(r"[;\n]", headers):
+            raw = raw.strip()
+            if not raw:
+                continue
+            if ":" not in raw:
+                return {"error": f"Invalid header '{raw}': must be 'Name: Value'", "tool": "http_put"}
+            hname, _, hval = raw.partition(":")
+            extra_headers[hname.strip()] = hval.strip()
     try:
         data = body.encode("utf-8") if body else b""
-        req = urllib.request.Request(url, data=data, method="PUT")
+        req = urllib.request.Request(url, data=data, method="PUT", headers=extra_headers)
         req.add_header("Content-Type", content_type)
         req.add_header("Content-Length", str(len(data)))
         with urllib.request.urlopen(req, timeout=timeout) as resp:
@@ -2957,13 +2967,27 @@ def http_put(url: str, body: str = "", content_type: str = "application/json", t
 
 
 @mcp.tool()
-def http_delete(url: str, timeout: int = 10) -> dict:
-    """Send an HTTP DELETE request. Useful for testing REST APIs that use DELETE to remove resources. Returns status code and response body."""
+def http_delete(url: str, body: str = "", content_type: str = "application/json", timeout: int = 10, headers: str = "") -> dict:
+    """Send an HTTP DELETE request. Some REST APIs require a body with DELETE (e.g. bulk delete). body: optional request body. headers: extra request headers as 'Name: Value' pairs separated by newlines or semicolons. Returns status code and response body."""
     if not url or not url.strip():
         return {"error": "url must not be empty", "tool": "http_delete"}
     url = url.strip()
+    extra_headers: dict[str, str] = {}
+    if headers and headers.strip():
+        for raw in re.split(r"[;\n]", headers):
+            raw = raw.strip()
+            if not raw:
+                continue
+            if ":" not in raw:
+                return {"error": f"Invalid header '{raw}': must be 'Name: Value'", "tool": "http_delete"}
+            hname, _, hval = raw.partition(":")
+            extra_headers[hname.strip()] = hval.strip()
     try:
-        req = urllib.request.Request(url, method="DELETE")
+        data = body.encode("utf-8") if body else None
+        req = urllib.request.Request(url, data=data, method="DELETE", headers=extra_headers)
+        if data:
+            req.add_header("Content-Type", content_type)
+            req.add_header("Content-Length", str(len(data)))
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             resp_body = resp.read().decode("utf-8", errors="replace")
             status = resp.status
@@ -2978,6 +3002,40 @@ def http_delete(url: str, timeout: int = 10) -> dict:
         return {"error": str(e), "tool": "http_delete", "detail": type(e).__name__, "status": e.code, "body": err_body[:500]}
     except Exception as e:
         return {"error": str(e), "tool": "http_delete", "detail": type(e).__name__}
+
+
+@mcp.tool()
+def check_opensearch(host: str, port: int = 9200, timeout: int = 5, https: bool = False) -> dict:
+    """Check OpenSearch (or Elasticsearch-compatible) cluster health via GET /_cluster/health. Returns cluster name, status (green/yellow/red), node counts, and shard stats. Port 9200 = default HTTP, 9300 = transport."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_opensearch"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    try:
+        req = urllib.request.Request(f"{scheme}://{host}:{port}/_cluster/health", headers={"Accept": "application/json"})
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            data = json.loads(resp.read().decode())
+        return {"result": {
+            "host": host,
+            "port": port,
+            "reachable": True,
+            "cluster": data.get("cluster_name"),
+            "status": data.get("status"),
+            "nodes": data.get("number_of_nodes"),
+            "data_nodes": data.get("number_of_data_nodes"),
+            "active_shards": data.get("active_shards"),
+            "unassigned_shards": data.get("unassigned_shards"),
+            "healthy": data.get("status") == "green",
+        }}
+    except urllib.error.URLError as e:
+        return {"result": {"host": host, "port": port, "reachable": False, "error": str(e.reason)}}
+    except Exception as e:
+        return {"error": str(e), "tool": "check_opensearch", "detail": type(e).__name__}
 
 
 def main() -> None:
