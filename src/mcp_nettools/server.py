@@ -3418,6 +3418,8 @@ def check_uptime_kuma(host: str, port: int = 3001, timeout: int = 5, https: bool
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_uptime_kuma"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_uptime_kuma"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -3446,6 +3448,8 @@ def check_vaultwarden(host: str, port: int = 8080, timeout: int = 5, https: bool
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_vaultwarden"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_vaultwarden"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -3468,6 +3472,8 @@ def check_syncthing(host: str, port: int = 8384, timeout: int = 5, https: bool =
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_syncthing"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_syncthing"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -3507,6 +3513,8 @@ def check_gitea(host: str, port: int = 3000, timeout: int = 5, https: bool = Fal
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_gitea"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_gitea"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -3534,6 +3542,8 @@ def check_nextcloud(host: str, port: int = 443, timeout: int = 5, https: bool = 
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_nextcloud"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_nextcloud"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -3564,6 +3574,8 @@ def check_jellyfin(host: str, port: int = 8096, timeout: int = 5, https: bool = 
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_jellyfin"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_jellyfin"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -3597,6 +3609,8 @@ def check_immich(host: str, port: int = 2283, timeout: int = 5, https: bool = Fa
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_immich"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_immich"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -3624,6 +3638,8 @@ def check_portainer(host: str, port: int = 9443, timeout: int = 5, https: bool =
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_portainer"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_portainer"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -3652,6 +3668,8 @@ def check_homeassistant(host: str, port: int = 8123, timeout: int = 5, https: bo
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_homeassistant"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_homeassistant"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -3682,6 +3700,8 @@ def check_authentik(host: str, port: int = 9000, timeout: int = 5, https: bool =
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_authentik"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_authentik"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
