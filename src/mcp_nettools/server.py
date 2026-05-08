@@ -37,6 +37,7 @@ def ping(host: str, count: int = 4, timeout: int = 5) -> dict:
     """Ping a host and return reachability, packet loss %, and RTT stats. count: 1-30. timeout: 1-60 s per packet."""
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "ping"}
+    host = host.strip()
     count = min(max(1, count), 30)
     timeout = min(max(1, timeout), 60)
     try:
@@ -131,6 +132,7 @@ def port_check(host: str, port: int, timeout: int = 5) -> dict:
     """Check if a TCP port is open on a host. port: 1-65535. timeout: 1-300 s. Supports IPv4 and IPv6."""
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "port_check"}
+    host = host.strip()
     if not 1 <= port <= 65535:
         return {"error": f"Invalid port {port}: must be 1–65535", "tool": "port_check"}
     timeout = min(max(1, timeout), 300)
@@ -199,6 +201,7 @@ def traceroute(host: str, max_hops: int = 30, timeout: int = 60) -> dict:
     """Trace the network path to a host. max_hops: 1-64. timeout: 1-300 s."""
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "traceroute"}
+    host = host.strip()
     max_hops = min(max(1, max_hops), 64)
     timeout = min(max(1, timeout), 300)
     try:
@@ -548,6 +551,7 @@ def smtp_check(host: str, port: int = 25, timeout: int = 10, check_starttls: boo
     """Check an SMTP server: connectivity, banner, advertised capabilities, and STARTTLS support. port: 25 (SMTP), 465 (SMTPS/SSL), 587 (submission). check_starttls: attempt STARTTLS upgrade on port 25/587."""
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "smtp_check"}
+    host = host.strip()
     if not 1 <= port <= 65535:
         return {"error": f"Invalid port {port}: must be 1-65535", "tool": "smtp_check"}
     timeout = min(max(1, timeout), 60)
@@ -592,6 +596,7 @@ def ntp_check(host: str, port: int = 123, timeout: int = 5) -> dict:
     """Check an NTP server: reachability and clock offset relative to local system time. Uses NTPv3 client packet over UDP. offset_seconds > 0 means server is ahead of local clock."""
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "ntp_check"}
+    host = host.strip()
     if not 1 <= port <= 65535:
         return {"error": f"Invalid port {port}: must be 1-65535", "tool": "ntp_check"}
     timeout = min(max(1, timeout), 30)
