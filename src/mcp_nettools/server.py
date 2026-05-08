@@ -970,7 +970,7 @@ def http_redirect_chain(url: str, max_redirects: int = 10, timeout: int = 10) ->
 
     opener = urllib.request.build_opener(_NoRedirect())
     chain = []
-    current = url.strip()
+    current = url
 
     for hop in range(max_redirects + 1):
         try:
@@ -1002,7 +1002,7 @@ def http_redirect_chain(url: str, max_redirects: int = 10, timeout: int = 10) ->
 
     return {
         "result": {
-            "original_url": url.strip(),
+            "original_url": url,
             "final_url": current,
             "hop_count": len(chain),
             "chain": chain,
