@@ -156,6 +156,7 @@ def port_scan(host: str, ports: str, timeout: int = 3) -> dict:
     host = host.strip()
     if not ports or not ports.strip():
         return {"error": "ports must not be empty", "tool": "port_scan"}
+    ports = ports.strip()
     timeout = min(max(1, timeout), 30)
     port_list: list[int] = []
     for part in ports.split(","):
@@ -650,6 +651,7 @@ def dns_bulk_lookup(hosts: str, record_type: str = "A", nameserver: str = "") ->
     """Look up DNS records for multiple hostnames in one call. hosts: comma-separated list (e.g., 'google.com,github.com,cloudflare.com'). Max 20 hosts. record_type: A, AAAA, MX, TXT, etc. nameserver: optional custom resolver IP."""
     if not hosts or not hosts.strip():
         return {"error": "hosts must not be empty", "tool": "dns_bulk_lookup"}
+    hosts = hosts.strip()
     host_list = [h.strip() for h in hosts.split(",") if h.strip()]
     if not host_list:
         return {"error": "No valid hosts specified", "tool": "dns_bulk_lookup"}
@@ -902,6 +904,7 @@ def http_redirect_chain(url: str, max_redirects: int = 10, timeout: int = 10) ->
     """Follow an HTTP/HTTPS URL through all redirects and return every hop with status code and Location header. Useful for debugging redirect loops or verifying HTTPS redirect configuration."""
     if not url or not url.strip():
         return {"error": "url must not be empty", "tool": "http_redirect_chain"}
+    url = url.strip()
     max_redirects = min(max(1, max_redirects), 20)
     timeout = min(max(1, timeout), 30)
 
