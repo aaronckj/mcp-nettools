@@ -6684,6 +6684,124 @@ def check_leantime(host: str, port: int = 80, timeout: int = 5, https: bool = Fa
 
 
 @mcp.tool()
+def check_emby(host: str, port: int = 8096, timeout: int = 5, https: bool = False) -> dict:
+    """Check Emby Media Server reachability via GET /System/Info/Public. Returns server name and version when healthy. Default port 8096."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_emby"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    try:
+        req = urllib.request.Request(f"{scheme}://{host}:{port}/System/Info/Public", headers={"Accept": "application/json"})
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            data = json.loads(resp.read().decode())
+            return {"result": {"host": host, "port": port, "healthy": True, "reachable": True, "server_name": data.get("ServerName"), "version": data.get("Version")}}
+    except urllib.error.HTTPError as e:
+        reachable = e.code in (200, 401)
+        return {"result": {"host": host, "port": port, "reachable": reachable, "healthy": reachable, "http_code": e.code}}
+    except Exception as e:
+        return {"error": str(e), "tool": "check_emby", "host": host}
+
+
+@mcp.tool()
+def check_jackett(host: str, port: int = 9117, timeout: int = 5, https: bool = False) -> dict:
+    """Check Jackett indexer proxy reachability via GET /health. Returns healthy when service responds. Default port 9117."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_jackett"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    try:
+        req = urllib.request.Request(f"{scheme}://{host}:{port}/health", headers={"Accept": "application/json"})
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            return {"result": {"host": host, "port": port, "healthy": True, "reachable": True}}
+    except urllib.error.HTTPError as e:
+        reachable = e.code in (200, 401)
+        return {"result": {"host": host, "port": port, "reachable": reachable, "healthy": reachable, "http_code": e.code}}
+    except Exception as e:
+        return {"error": str(e), "tool": "check_jackett", "host": host}
+
+
+@mcp.tool()
+def check_readarr(host: str, port: int = 8787, timeout: int = 5, https: bool = False) -> dict:
+    """Check Readarr ebook manager reachability via GET /api/v1/health. Returns healthy when service responds. Default port 8787."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_readarr"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    try:
+        req = urllib.request.Request(f"{scheme}://{host}:{port}/api/v1/health", headers={"Accept": "application/json"})
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            return {"result": {"host": host, "port": port, "healthy": True, "reachable": True}}
+    except urllib.error.HTTPError as e:
+        reachable = e.code in (200, 401)
+        return {"result": {"host": host, "port": port, "reachable": reachable, "healthy": reachable, "http_code": e.code}}
+    except Exception as e:
+        return {"error": str(e), "tool": "check_readarr", "host": host}
+
+
+@mcp.tool()
+def check_lidarr(host: str, port: int = 8686, timeout: int = 5, https: bool = False) -> dict:
+    """Check Lidarr music manager reachability via GET /api/v1/health. Returns healthy when service responds. Default port 8686."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_lidarr"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    try:
+        req = urllib.request.Request(f"{scheme}://{host}:{port}/api/v1/health", headers={"Accept": "application/json"})
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            return {"result": {"host": host, "port": port, "healthy": True, "reachable": True}}
+    except urllib.error.HTTPError as e:
+        reachable = e.code in (200, 401)
+        return {"result": {"host": host, "port": port, "reachable": reachable, "healthy": reachable, "http_code": e.code}}
+    except Exception as e:
+        return {"error": str(e), "tool": "check_lidarr", "host": host}
+
+
+@mcp.tool()
+def check_bazarr(host: str, port: int = 6767, timeout: int = 5, https: bool = False) -> dict:
+    """Check Bazarr subtitle manager reachability via GET /api/system/status. Returns version when healthy. Default port 6767."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_bazarr"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    try:
+        req = urllib.request.Request(f"{scheme}://{host}:{port}/api/system/status", headers={"Accept": "application/json"})
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            data = json.loads(resp.read().decode())
+            bazarr_data = data.get("data", data)
+            return {"result": {"host": host, "port": port, "healthy": True, "reachable": True, "version": bazarr_data.get("bazarr_version")}}
+    except urllib.error.HTTPError as e:
+        reachable = e.code in (200, 401)
+        return {"result": {"host": host, "port": port, "reachable": reachable, "healthy": reachable, "http_code": e.code}}
+    except Exception as e:
+        return {"error": str(e), "tool": "check_bazarr", "host": host}
+
+
+@mcp.tool()
 def check_plex(host: str, port: int = 32400, timeout: int = 5, https: bool = False) -> dict:
     """Check Plex Media Server reachability via GET /identity. Returns server version and machine identifier when healthy. Default port 32400."""
     if not host or not host.strip():
