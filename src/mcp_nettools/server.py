@@ -114,6 +114,8 @@ def reverse_dns(ip: str) -> dict:
 @mcp.tool()
 def port_check(host: str, port: int, timeout: int = 5) -> dict:
     """Check if a TCP port is open on a host. port: 1-65535. timeout: 1-300 s. Supports IPv4 and IPv6."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "port_check"}
     if not 1 <= port <= 65535:
         return {"error": f"Invalid port {port}: must be 1–65535", "tool": "port_check"}
     timeout = min(max(1, timeout), 300)
@@ -527,6 +529,49 @@ def ntp_check(host: str, port: int = 123, timeout: int = 5) -> dict:
         return {"result": {"host": host, "port": port, "reachable": False, "error": "connection timed out"}}
     except Exception as e:
         return {"error": str(e), "tool": "ntp_check", "detail": type(e).__name__}
+
+
+@mcp.tool()
+def dns_bulk_lookup(hosts: str, record_type: str = "A", nameserver: str = "") -> dict:
+    """Look up DNS records for multiple hostnames in one call. hosts: comma-separated list (e.g., 'google.com,github.com,cloudflare.com'). Max 20 hosts. record_type: A, AAAA, MX, TXT, etc. nameserver: optional custom resolver IP."""
+    if not hosts or not hosts.strip():
+        return {"error": "hosts must not be empty", "tool": "dns_bulk_lookup"}
+    host_list = [h.strip() for h in hosts.split(",") if h.strip()]
+    if not host_list:
+        return {"error": "No valid hosts specified", "tool": "dns_bulk_lookup"}
+    if len(host_list) > 20:
+        return {"error": f"Too many hosts ({len(host_list)}). Maximum 20 per call.", "tool": "dns_bulk_lookup"}
+    record_type = record_type.upper()
+    if record_type not in _VALID_RECORD_TYPES:
+        return {
+            "error": f"Invalid record type '{record_type}'. Valid: {', '.join(sorted(_VALID_RECORD_TYPES))}",
+            "tool": "dns_bulk_lookup",
+        }
+    resolver = dns.resolver.Resolver()
+    resolver.lifetime = 10.0
+    if nameserver and nameserver.strip():
+        try:
+            ipaddress.ip_address(nameserver.strip())
+        except ValueError:
+            return {"error": f"Invalid nameserver IP: '{nameserver}'", "tool": "dns_bulk_lookup"}
+        resolver.nameservers = [nameserver.strip()]
+
+    results: dict = {}
+    for host in host_list:
+        try:
+            answers = resolver.resolve(host, record_type)
+            results[host] = {
+                "records": [str(r) for r in answers],
+                "ttl": answers.rrset.ttl if answers.rrset else None,
+            }
+        except dns.resolver.NXDOMAIN:
+            results[host] = {"error": "NXDOMAIN — domain does not exist"}
+        except dns.resolver.NoAnswer:
+            results[host] = {"error": f"No {record_type} records found"}
+        except Exception as e:
+            results[host] = {"error": str(e)}
+
+    return {"result": {"record_type": record_type, "nameserver": nameserver.strip() if nameserver and nameserver.strip() else None, "hosts": results}}
 
 def main() -> None:
     mcp.run()
