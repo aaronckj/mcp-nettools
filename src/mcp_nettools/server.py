@@ -70,6 +70,7 @@ def dns_lookup(host: str, record_type: str = "A", nameserver: str = "") -> dict:
     """Look up DNS records for a hostname. record_type: A, AAAA, MX, TXT, NS, CNAME, PTR, SOA, SRV. nameserver: optional custom resolver IP (e.g., '8.8.8.8' for Google DNS, '1.1.1.1' for Cloudflare)."""
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "dns_lookup"}
+    host = host.strip()
     record_type = record_type.upper()
     if record_type not in _VALID_RECORD_TYPES:
         return {
@@ -151,6 +152,7 @@ def port_scan(host: str, ports: str, timeout: int = 3) -> dict:
     """Check multiple TCP ports on a host. ports: comma-separated or ranges (e.g., '22,80,443,8000-8080'). Max 500 ports. timeout: 1-30 s."""
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "port_scan"}
+    host = host.strip()
     if not ports or not ports.strip():
         return {"error": "ports must not be empty", "tool": "port_scan"}
     timeout = min(max(1, timeout), 30)
@@ -228,6 +230,7 @@ def cert_check(host: str, port: int = 443, timeout: int = 10) -> dict:
     """Check the SSL certificate on a host — expiry, issued date, issuer, SANs, and days remaining. timeout: 1-60 s."""
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "cert_check"}
+    host = host.strip()
     timeout = min(max(1, timeout), 60)
     def _parse_cert(cert: dict, cert_der: bytes, verified: bool) -> dict:
         fmt = "%b %d %H:%M:%S %Y %Z"
@@ -295,6 +298,7 @@ def http_check(url: str, method: str = "HEAD", timeout: int = 10, expected_statu
     """Check an HTTP/HTTPS URL: status code, response time, content type, and server header. method: HEAD (default, efficient), GET, or OPTIONS. Use GET if HEAD returns 405. expected_status: if non-zero, also checks response matches this code. contains: optional string that must appear in response body (GET only)."""
     if not url or not url.strip():
         return {"error": "url must not be empty", "tool": "http_check"}
+    url = url.strip()
     method = method.upper()
     if method not in {"GET", "HEAD", "OPTIONS"}:
         return {"error": f"Invalid method '{method}'. Use GET, HEAD, or OPTIONS", "tool": "http_check"}
@@ -499,6 +503,7 @@ def whois(host: str) -> dict:
     """Look up WHOIS registration data for a domain or IP address. Output is truncated at 8000 characters."""
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "whois"}
+    host = host.strip()
     _MAX = 8000
     try:
         result = subprocess.run(
@@ -731,6 +736,7 @@ def tcp_banner(host: str, port: int, timeout: int = 5) -> dict:
     """Connect to any TCP port and read the initial server banner. Useful for identifying unknown services or verifying custom TCP servers. Returns raw banner text."""
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "tcp_banner"}
+    host = host.strip()
     if not 1 <= port <= 65535:
         return {"error": "port must be between 1 and 65535", "tool": "tcp_banner"}
     timeout = min(max(1, timeout), 30)
@@ -766,6 +772,7 @@ def scan_common_ports(host: str, timeout: int = 2) -> dict:
     """Scan 17 commonly used ports on a host and report which are open (FTP, SSH, HTTP, HTTPS, SMTP, DNS, MySQL, PostgreSQL, RDP, SMB, etc.). Faster alternative to running port_check 17 times."""
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "scan_common_ports"}
+    host = host.strip()
     timeout = min(max(1, timeout), 10)
     open_ports = []
     closed_ports = []
