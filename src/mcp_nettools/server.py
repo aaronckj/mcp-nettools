@@ -2638,6 +2638,75 @@ def check_smb(host: str, port: int = 445, timeout: int = 5) -> dict:
         return {"error": str(e), "tool": "check_smb", "detail": type(e).__name__}
 
 
+@mcp.tool()
+def check_prometheus(host: str, port: int = 9090, timeout: int = 5, https: bool = False) -> dict:
+    """Check Prometheus monitoring service health. Queries /-/healthy and /-/ready endpoints and returns status. Also fetches basic TSDB stats from /api/v1/status/tsdb if healthy."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_prometheus"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    try:
+        healthy = False
+        ready = False
+        for endpoint in ["/-/healthy", "/-/ready"]:
+            try:
+                req = urllib.request.Request(f"{scheme}://{host}:{port}{endpoint}")
+                with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+                    if endpoint == "/-/healthy":
+                        healthy = resp.status == 200
+                    else:
+                        ready = resp.status == 200
+            except Exception:
+                pass
+        stats: dict = {}
+        try:
+            req = urllib.request.Request(f"{scheme}://{host}:{port}/api/v1/status/tsdb", headers={"Accept": "application/json"})
+            with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+                tsdb = json.loads(resp.read().decode())
+                stats = tsdb.get("data", {}).get("headStats", {})
+        except Exception:
+            pass
+        return {"result": {"host": host, "port": port, "reachable": healthy or ready, "healthy": healthy, "ready": ready, "tsdb_stats": stats}}
+    except Exception as e:
+        return {"error": str(e), "tool": "check_prometheus", "detail": type(e).__name__}
+
+
+@mcp.tool()
+def check_grafana(host: str, port: int = 3000, timeout: int = 5, https: bool = False) -> dict:
+    """Check Grafana observability platform health via GET /api/health. Returns version, commit hash, database status, and memory usage."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_grafana"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    try:
+        req = urllib.request.Request(f"{scheme}://{host}:{port}/api/health", headers={"Accept": "application/json"})
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            data = json.loads(resp.read().decode())
+        return {"result": {
+            "host": host,
+            "port": port,
+            "reachable": True,
+            "version": data.get("version"),
+            "commit": data.get("commit"),
+            "database": data.get("database"),
+            "db_healthy": data.get("database") == "ok",
+        }}
+    except urllib.error.URLError as e:
+        return {"result": {"host": host, "port": port, "reachable": False, "error": str(e.reason)}}
+    except Exception as e:
+        return {"error": str(e), "tool": "check_grafana", "detail": type(e).__name__}
+
+
 def main() -> None:
     mcp.run()
 
