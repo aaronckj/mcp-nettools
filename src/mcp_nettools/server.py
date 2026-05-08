@@ -5439,6 +5439,90 @@ def check_invoiceninja(host: str, port: int = 80, timeout: int = 5, https: bool 
     return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy, "version": version}}
 
 
+@mcp.tool()
+def check_wikijs(host: str, port: int = 3000, timeout: int = 5, https: bool = False) -> dict:
+    """Check Wiki.js health via GET /healthcheck. Returns healthy status. Default port 3000."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_wikijs"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    healthy = False
+    try:
+        req = urllib.request.Request(
+            f"{scheme}://{host}:{port}/healthcheck",
+            headers={"Accept": "application/json"},
+        )
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            if resp.status == 200:
+                body = resp.read().decode()
+                try:
+                    data = json.loads(body)
+                    healthy = data.get("status") == "ok" or data.get("healthy") is True
+                except Exception:
+                    healthy = True
+    except Exception:
+        pass
+    return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy}}
+
+
+@mcp.tool()
+def check_limesurvey(host: str, port: int = 80, timeout: int = 5, https: bool = False) -> dict:
+    """Check LimeSurvey survey platform health via GET /index.php. A 200 or redirect response confirms the service is running. Default port 80."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_limesurvey"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    healthy = False
+    for path in ["/index.php", "/"]:
+        try:
+            req = urllib.request.Request(f"{scheme}://{host}:{port}{path}")
+            with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+                healthy = resp.status in (200, 301, 302)
+                break
+        except urllib.error.HTTPError as e:
+            if e.code in (200, 301, 302):
+                healthy = True
+                break
+        except Exception:
+            pass
+    return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy}}
+
+
+@mcp.tool()
+def check_bitwarden(host: str, port: int = 80, timeout: int = 5, https: bool = False) -> dict:
+    """Check Bitwarden (Unified) server health via GET /api/alive. A 200 response confirms the server is operational. Default port 80."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_bitwarden"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    healthy = False
+    try:
+        req = urllib.request.Request(f"{scheme}://{host}:{port}/api/alive")
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            healthy = resp.status == 200
+    except urllib.error.HTTPError as e:
+        if e.code in (401, 403):
+            healthy = True
+    except Exception:
+        pass
+    return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy}}
+
+
 def main() -> None:
     mcp.run()
 
