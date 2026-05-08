@@ -1124,10 +1124,6 @@ def snmp_check(host: str, port: int = 161, timeout: int = 3, community: str = "p
     timeout = min(max(1, timeout), 30)
     community_bytes = community.encode()
     community_len = len(community_bytes)
-    # SNMPv2c GetRequest for sysDescr OID 1.3.6.1.2.1.1.1.0
-    oid_bytes = bytes([0x30, 0x82, 0x00, 0x1d, 0x06, 0x09, 0x2b, 0x06, 0x01, 0x02, 0x01, 0x01, 0x01, 0x00, 0x05, 0x00])
-    pdu = bytes([0xa0, len(oid_bytes) + 8]) + bytes([0x02, 0x01, 0x01, 0x02, 0x01, 0x00, 0x02, 0x01, 0x00]) + bytes([0x30, len(oid_bytes)]) + oid_bytes
-    pdu = bytes([0xa0, 0x1c, 0x02, 0x01, 0x01, 0x02, 0x01, 0x00, 0x02, 0x01, 0x00, 0x30, 0x11]) + bytes([0x30, 0x0f, 0x06, 0x0b, 0x2b, 0x06, 0x01, 0x02, 0x01, 0x01, 0x01, 0x00, 0x04, 0x00, 0x05, 0x00])
     community_field = bytes([0x04, community_len]) + community_bytes
     msg_inner = bytes([0x02, 0x01, 0x01]) + community_field + bytes([0xa0, 0x1c, 0x02, 0x01, 0x01, 0x02, 0x01, 0x00, 0x02, 0x01, 0x00, 0x30, 0x11, 0x30, 0x0f, 0x06, 0x0b, 0x2b, 0x06, 0x01, 0x02, 0x01, 0x01, 0x01, 0x00, 0x00, 0x05, 0x00])
     msg = bytes([0x30, len(msg_inner)]) + msg_inner
@@ -1319,6 +1315,44 @@ def network_interfaces() -> dict:
         return {"result": {"raw_output": result2.stdout}}
     except Exception as e:
         return {"error": str(e), "tool": "network_interfaces", "detail": type(e).__name__}
+
+@mcp.tool()
+def http_check(url: str, method: str = "GET", timeout: int = 10, expected_status: int = 0, contains: str = "") -> dict:
+    """Check if an HTTP/HTTPS endpoint is reachable and responding correctly. url: full URL (e.g., 'https://example.com/health'). method: GET or HEAD. expected_status: if non-zero, verify the response matches this HTTP status code. contains: optional string that must appear in the response body (GET only). Returns status code, response time, and pass/fail for each check."""
+    if not url or not url.strip():
+        return {"error": "url must not be empty", "tool": "http_check"}
+    method = method.upper().strip()
+    if method not in {"GET", "HEAD"}:
+        return {"error": "method must be GET or HEAD", "tool": "http_check"}
+    timeout = min(max(1, timeout), 60)
+    try:
+        req = urllib.request.Request(url.strip(), method=method)
+        start = time.monotonic()
+        try:
+            with urllib.request.urlopen(req, timeout=timeout) as response:
+                elapsed_ms = round((time.monotonic() - start) * 1000, 2)
+                status_code = response.status
+                body = response.read().decode("utf-8", errors="replace") if method == "GET" else ""
+        except urllib.error.HTTPError as http_err:
+            elapsed_ms = round((time.monotonic() - start) * 1000, 2)
+            status_code = http_err.code
+            body = ""
+        result: dict = {
+            "url": url.strip(),
+            "status_code": status_code,
+            "elapsed_ms": elapsed_ms,
+            "reachable": True,
+        }
+        if expected_status:
+            result["status_ok"] = status_code == expected_status
+        if contains and method == "GET":
+            result["contains_ok"] = contains in body
+        return {"result": result}
+    except urllib.error.URLError as e:
+        return {"result": {"url": url.strip(), "reachable": False, "reason": str(e.reason)}}
+    except Exception as e:
+        return {"error": str(e), "tool": "http_check", "detail": type(e).__name__}
+
 
 def main() -> None:
     mcp.run()
