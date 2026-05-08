@@ -15,6 +15,9 @@ from datetime import datetime, timezone
 
 import hashlib
 
+import smtplib
+import struct
+
 import dns.resolver
 import speedtest as _speedtest_lib
 from mac_vendor_lookup import AsyncMacLookup
@@ -439,6 +442,91 @@ async def mac_lookup(mac: str) -> dict:
     except Exception as e:
         return {"error": str(e), "tool": "mac_lookup", "mac": mac}
 
+
+
+@mcp.tool()
+def smtp_check(host: str, port: int = 25, timeout: int = 10, check_starttls: bool = True) -> dict:
+    """Check an SMTP server: connectivity, banner, advertised capabilities, and STARTTLS support. port: 25 (SMTP), 465 (SMTPS/SSL), 587 (submission). check_starttls: attempt STARTTLS upgrade on port 25/587."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "smtp_check"}
+    if not 1 <= port <= 65535:
+        return {"error": f"Invalid port {port}: must be 1-65535", "tool": "smtp_check"}
+    timeout = min(max(1, timeout), 60)
+    try:
+        if port == 465:
+            with smtplib.SMTP_SSL(host, port, timeout=timeout) as smtp:
+                smtp.ehlo()
+                caps = list(smtp.esmtp_features.keys())
+                return {"result": {"host": host, "port": port, "reachable": True, "tls": "direct_ssl", "capabilities": caps}}
+        else:
+            with smtplib.SMTP(host, port, timeout=timeout) as smtp:
+                smtp.ehlo()
+                caps = list(smtp.esmtp_features.keys())
+                starttls_advertised = smtp.has_extn("STARTTLS")
+                tls_status = "none"
+                if check_starttls and starttls_advertised:
+                    try:
+                        smtp.starttls()
+                        smtp.ehlo()
+                        tls_status = "upgraded"
+                        caps = list(smtp.esmtp_features.keys())
+                    except Exception as tls_e:
+                        tls_status = f"failed: {tls_e}"
+                return {
+                    "result": {
+                        "host": host,
+                        "port": port,
+                        "reachable": True,
+                        "starttls_advertised": starttls_advertised,
+                        "tls": tls_status,
+                        "capabilities": caps,
+                    }
+                }
+    except (smtplib.SMTPConnectError, smtplib.SMTPServerDisconnected, ConnectionRefusedError, TimeoutError, socket.timeout) as e:
+        return {"result": {"host": host, "port": port, "reachable": False, "error": str(e)}}
+    except Exception as e:
+        return {"error": str(e), "tool": "smtp_check", "detail": type(e).__name__}
+
+
+@mcp.tool()
+def ntp_check(host: str, port: int = 123, timeout: int = 5) -> dict:
+    """Check an NTP server: reachability and clock offset relative to local system time. Uses NTPv3 client packet over UDP. offset_seconds > 0 means server is ahead of local clock."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "ntp_check"}
+    timeout = min(max(1, timeout), 30)
+    # NTPv3 client request: LI=0, VN=3, Mode=3
+    NTP_PACKET = b"\x1b" + b"\x00" * 47
+    NTP_DELTA = 2208988800  # seconds between NTP epoch (1900) and Unix epoch (1970)
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+            s.settimeout(timeout)
+            send_time = time.time()
+            s.sendto(NTP_PACKET, (host, port))
+            data, _ = s.recvfrom(1024)
+        recv_time = time.time()
+        if len(data) < 48:
+            return {"error": "NTP response too short — server may not speak NTP", "tool": "ntp_check", "host": host}
+        # Transmit timestamp: bytes 40-47, integer part in first 4 bytes
+        tx_int = struct.unpack("!I", data[40:44])[0]
+        tx_frac = struct.unpack("!I", data[44:48])[0]
+        server_time = (tx_int - NTP_DELTA) + tx_frac / 2**32
+        local_time = (send_time + recv_time) / 2
+        offset = server_time - local_time
+        rtt = recv_time - send_time
+        return {
+            "result": {
+                "host": host,
+                "port": port,
+                "reachable": True,
+                "offset_seconds": round(offset, 6),
+                "rtt_seconds": round(rtt, 6),
+                "server_time_utc": datetime.fromtimestamp(server_time, tz=timezone.utc).isoformat(),
+            }
+        }
+    except socket.timeout:
+        return {"result": {"host": host, "port": port, "reachable": False, "error": "connection timed out"}}
+    except Exception as e:
+        return {"error": str(e), "tool": "ntp_check", "detail": type(e).__name__}
 
 def main() -> None:
     mcp.run()
