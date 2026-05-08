@@ -2733,6 +2733,8 @@ def check_smb(host: str, port: int = 445, timeout: int = 5) -> dict:
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_smb"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_smb"}
     try:
         sock = socket.create_connection((host, port), timeout=timeout)
         sock.settimeout(timeout)
@@ -2787,6 +2789,8 @@ def check_prometheus(host: str, port: int = 9090, timeout: int = 5, https: bool 
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_prometheus"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_prometheus"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -2825,6 +2829,8 @@ def check_grafana(host: str, port: int = 3000, timeout: int = 5, https: bool = F
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_grafana"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_grafana"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -2878,6 +2884,8 @@ def check_kafka(host: str, port: int = 9092, timeout: int = 5) -> dict:
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_kafka"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_kafka"}
     try:
         sock = socket.create_connection((host, port), timeout=timeout)
         sock.settimeout(timeout)
