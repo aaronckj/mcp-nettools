@@ -6684,6 +6684,124 @@ def check_leantime(host: str, port: int = 80, timeout: int = 5, https: bool = Fa
 
 
 @mcp.tool()
+def check_authelia(host: str, port: int = 9091, timeout: int = 5, https: bool = False) -> dict:
+    """Check Authelia authentication server health via GET /api/health. Returns healthy when service is up. Default port 9091."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_authelia"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    try:
+        req = urllib.request.Request(f"{scheme}://{host}:{port}/api/health", headers={"Accept": "application/json"})
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            data = json.loads(resp.read().decode())
+            return {"result": {"host": host, "port": port, "healthy": data.get("status") == "OK", "reachable": True, "status": data.get("status")}}
+    except urllib.error.HTTPError as e:
+        reachable = e.code in (200, 204)
+        return {"result": {"host": host, "port": port, "reachable": reachable, "healthy": reachable, "http_code": e.code}}
+    except Exception as e:
+        return {"error": str(e), "tool": "check_authelia", "host": host}
+
+
+@mcp.tool()
+def check_authentik(host: str, port: int = 9000, timeout: int = 5, https: bool = False) -> dict:
+    """Check Authentik identity provider health via GET /-/health/ready/. Returns healthy when service is ready. Default port 9000."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_authentik"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    try:
+        req = urllib.request.Request(f"{scheme}://{host}:{port}/-/health/ready/", headers={"Accept": "application/json"})
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            return {"result": {"host": host, "port": port, "healthy": resp.status == 200, "reachable": True}}
+    except urllib.error.HTTPError as e:
+        reachable = e.code == 200
+        return {"result": {"host": host, "port": port, "reachable": reachable, "healthy": reachable, "http_code": e.code}}
+    except Exception as e:
+        return {"error": str(e), "tool": "check_authentik", "host": host}
+
+
+@mcp.tool()
+def check_joplin_server(host: str, port: int = 22300, timeout: int = 5, https: bool = False) -> dict:
+    """Check Joplin Server reachability via GET /api/ping. Returns healthy when service responds. Default port 22300."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_joplin_server"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    try:
+        req = urllib.request.Request(f"{scheme}://{host}:{port}/api/ping", headers={"Accept": "application/json"})
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            data = json.loads(resp.read().decode())
+            return {"result": {"host": host, "port": port, "healthy": data.get("status") == "ok", "reachable": True}}
+    except urllib.error.HTTPError as e:
+        reachable = e.code in (200, 401)
+        return {"result": {"host": host, "port": port, "reachable": reachable, "healthy": reachable, "http_code": e.code}}
+    except Exception as e:
+        return {"error": str(e), "tool": "check_joplin_server", "host": host}
+
+
+@mcp.tool()
+def check_searxng(host: str, port: int = 8080, timeout: int = 5, https: bool = False) -> dict:
+    """Check SearXNG metasearch engine health via GET /healthz. Returns healthy when service responds. Default port 8080."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_searxng"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    try:
+        req = urllib.request.Request(f"{scheme}://{host}:{port}/healthz", headers={"Accept": "text/plain"})
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            return {"result": {"host": host, "port": port, "healthy": resp.status == 200, "reachable": True}}
+    except urllib.error.HTTPError as e:
+        reachable = e.code == 200
+        return {"result": {"host": host, "port": port, "reachable": reachable, "healthy": reachable, "http_code": e.code}}
+    except Exception as e:
+        return {"error": str(e), "tool": "check_searxng", "host": host}
+
+
+@mcp.tool()
+def check_whoogle(host: str, port: int = 5000, timeout: int = 5, https: bool = False) -> dict:
+    """Check Whoogle search engine reachability via GET /. Returns healthy when main page loads. Default port 5000."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_whoogle"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    try:
+        req = urllib.request.Request(f"{scheme}://{host}:{port}/", headers={"Accept": "text/html"})
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            reachable = resp.status in (200, 302)
+            return {"result": {"host": host, "port": port, "healthy": reachable, "reachable": reachable}}
+    except urllib.error.HTTPError as e:
+        reachable = e.code in (200, 302)
+        return {"result": {"host": host, "port": port, "reachable": reachable, "healthy": reachable, "http_code": e.code}}
+    except Exception as e:
+        return {"error": str(e), "tool": "check_whoogle", "host": host}
+
+
+@mcp.tool()
 def check_emby(host: str, port: int = 8096, timeout: int = 5, https: bool = False) -> dict:
     """Check Emby Media Server reachability via GET /System/Info/Public. Returns server name and version when healthy. Default port 8096."""
     if not host or not host.strip():
