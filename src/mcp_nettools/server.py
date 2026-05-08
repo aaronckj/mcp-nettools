@@ -315,11 +315,12 @@ def cert_check(host: str, port: int = 443, timeout: int = 10) -> dict:
                 cert_der = s.getpeercert(binary_form=True)
         return {"result": _parse_cert(cert, cert_der, verified=True)}
     except ssl.SSLCertVerificationError as verify_err:
-        # Cert exists but chain/expiry invalid — retry without verification to get cert details
+        # Cert exists but chain/expiry invalid — retry with CERT_OPTIONAL (not CERT_NONE) so
+        # getpeercert() returns the parsed cert dict instead of an empty dict.
         try:
             ctx2 = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
             ctx2.check_hostname = False
-            ctx2.verify_mode = ssl.CERT_NONE
+            ctx2.verify_mode = ssl.CERT_OPTIONAL
             with socket.socket() as raw2:
                 raw2.settimeout(timeout)
                 with ctx2.wrap_socket(raw2, server_hostname=host) as s2:
@@ -330,7 +331,6 @@ def cert_check(host: str, port: int = 443, timeout: int = 10) -> dict:
                 result = _parse_cert(cert2, cert_der2, verified=False)
                 result["ssl_error"] = str(verify_err)
                 return {"result": result}
-            # CERT_NONE returns empty dict — return fingerprint only
             fp = hashlib.sha256(cert_der2).hexdigest() if cert_der2 else None
             return {
                 "result": {
@@ -1447,6 +1447,8 @@ def ping_sweep(network: str, timeout: int = 1) -> dict:
     network = network.strip()
     timeout = min(max(1, timeout), 10)
     try:
+        if ":" in network:
+            return {"error": "ping_sweep only supports IPv4 CIDR ranges (e.g. '192.168.1.0/24'). IPv6 is not supported.", "tool": "ping_sweep"}
         net = ipaddress.IPv4Network(network, strict=False)
     except ValueError as e:
         return {"error": str(e), "tool": "ping_sweep"}
