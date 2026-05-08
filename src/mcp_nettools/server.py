@@ -2880,6 +2880,10 @@ def check_nfs(host: str, portmapper_port: int = 111, nfs_port: int = 2049, timeo
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_nfs"}
     host = host.strip()
+    if not 1 <= portmapper_port <= 65535:
+        return {"error": f"portmapper_port {portmapper_port} out of range 1-65535", "tool": "check_nfs"}
+    if not 1 <= nfs_port <= 65535:
+        return {"error": f"nfs_port {nfs_port} out of range 1-65535", "tool": "check_nfs"}
     results = {}
     for label, port in [("portmapper", portmapper_port), ("nfs", nfs_port)]:
         try:
