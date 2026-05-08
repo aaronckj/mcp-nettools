@@ -2588,7 +2588,7 @@ def check_docker_api(host: str, port: int = 2375, timeout: int = 5, https: bool 
             "reachable": True,
             "response": body,
             "api_version": headers.get("Api-Version") or headers.get("api-version"),
-            "docker_version": headers.get("Docker-Experimental") or headers.get("Server"),
+            "docker_version": headers.get("Docker-Version") or headers.get("Docker-version") or headers.get("Server"),
         }}
     except urllib.error.URLError as e:
         return {"result": {"host": host, "port": port, "reachable": False, "error": str(e.reason)}}
