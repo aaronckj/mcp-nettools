@@ -2526,6 +2526,118 @@ def check_consul(host: str, port: int = 8500, timeout: int = 5) -> dict:
         return {"error": str(e), "tool": "check_consul", "detail": type(e).__name__}
 
 
+@mcp.tool()
+def check_docker_api(host: str, port: int = 2375, timeout: int = 5, https: bool = False) -> dict:
+    """Check Docker daemon REST API availability via GET /_ping. Port 2375 = unencrypted, 2376 = TLS. Returns daemon version info from the response headers."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_docker_api"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    try:
+        req = urllib.request.Request(f"{scheme}://{host}:{port}/_ping", headers={"Accept": "application/json"})
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            body = resp.read().decode().strip()
+            headers = dict(resp.headers)
+        return {"result": {
+            "host": host,
+            "port": port,
+            "reachable": True,
+            "response": body,
+            "api_version": headers.get("Api-Version") or headers.get("api-version"),
+            "docker_version": headers.get("Docker-Experimental") or headers.get("Server"),
+        }}
+    except urllib.error.URLError as e:
+        return {"result": {"host": host, "port": port, "reachable": False, "error": str(e.reason)}}
+    except Exception as e:
+        return {"error": str(e), "tool": "check_docker_api", "detail": type(e).__name__}
+
+
+@mcp.tool()
+def http_post(url: str, body: str = "", content_type: str = "application/json", timeout: int = 10) -> dict:
+    """Send an HTTP POST request with a body and return the status code and response. Useful for testing REST API endpoints. body: raw string (JSON, form data, etc). Returns status, response body, and parsed JSON if applicable."""
+    if not url or not url.strip():
+        return {"error": "url must not be empty", "tool": "http_post"}
+    url = url.strip()
+    try:
+        data = body.encode("utf-8") if body else b""
+        req = urllib.request.Request(url, data=data, method="POST")
+        req.add_header("Content-Type", content_type)
+        req.add_header("Content-Length", str(len(data)))
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            resp_body = resp.read().decode("utf-8", errors="replace")
+            status = resp.status
+        result: dict = {"status": status, "body": resp_body[:2000]}
+        try:
+            result["json"] = json.loads(resp_body)
+        except Exception:
+            pass
+        return {"result": result}
+    except urllib.error.HTTPError as e:
+        err_body = e.read().decode("utf-8", errors="replace")
+        return {"error": str(e), "tool": "http_post", "detail": type(e).__name__, "status": e.code, "body": err_body[:500]}
+    except Exception as e:
+        return {"error": str(e), "tool": "http_post", "detail": type(e).__name__}
+
+
+@mcp.tool()
+def check_smb(host: str, port: int = 445, timeout: int = 5) -> dict:
+    """Check SMB/CIFS file-sharing service reachability. Sends an SMB2 Negotiate request and verifies the response magic bytes. Port 445 = direct SMB, 139 = NetBIOS over TCP."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_smb"}
+    host = host.strip()
+    try:
+        sock = socket.create_connection((host, port), timeout=timeout)
+        sock.settimeout(timeout)
+        # Minimal SMB2 Negotiate request (RFC 8581): 4-byte NetBIOS header + SMB2 header + Negotiate body
+        smb2_header = struct.pack(
+            "<4sHHIHHIQIIQ16s",
+            b"\xfeSMB",   # ProtocolId
+            64,            # StructureSize
+            0,             # CreditCharge
+            0,             # Status
+            0,             # Command: Negotiate
+            0x1F,          # CreditResponse
+            0,             # Flags
+            0,             # NextCommand
+            0,             # MessageId
+            0,             # Reserved
+            0xFFFFFFFF,    # TreeId
+            0,             # SessionId
+            b"\x00" * 16,  # Signature
+        )
+        negotiate_body = struct.pack(
+            "<HHHHiQHH",
+            36,            # StructureSize
+            2,             # DialectCount
+            1,             # SecurityMode
+            0,             # Reserved
+            0x7F,          # Capabilities
+            0,             # ClientGuid (8 of 16 bytes; rest below)
+            0,             # NegotiateContextOffset
+            0,             # NegotiateContextCount
+            0,             # Reserved2
+        ) + b"\x00" * 8 + struct.pack("<HH", 0x0202, 0x0210)  # Guid tail + dialects
+        netbios_len = len(smb2_header) + len(negotiate_body)
+        packet = struct.pack(">I", netbios_len) + smb2_header + negotiate_body
+        sock.sendall(packet)
+        response = sock.recv(256)
+        sock.close()
+        if len(response) >= 8 and b"\xfeSMB" in response:
+            return {"result": {"host": host, "port": port, "reachable": True, "protocol": "SMB2"}}
+        return {"result": {"host": host, "port": port, "reachable": True, "protocol": "unknown", "note": "TCP connected but SMB2 magic not in response"}}
+    except socket.timeout:
+        return {"result": {"host": host, "port": port, "reachable": False, "error": "timeout"}}
+    except ConnectionRefusedError:
+        return {"result": {"host": host, "port": port, "reachable": False, "error": "connection refused"}}
+    except Exception as e:
+        return {"error": str(e), "tool": "check_smb", "detail": type(e).__name__}
+
+
 def main() -> None:
     mcp.run()
 
