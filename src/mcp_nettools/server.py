@@ -1284,14 +1284,20 @@ def snmp_check(host: str, port: int = 161, timeout: int = 3, community: str = "p
     timeout = min(max(1, timeout), 30)
     community_bytes = community.encode()
     community_len = len(community_bytes)
+    if community_len > 120:
+        return {"error": f"community string too long ({community_len} bytes); max 120 for BER short-form encoding", "tool": "snmp_check"}
     community_field = bytes([0x04, community_len]) + community_bytes
     msg_inner = bytes([0x02, 0x01, 0x01]) + community_field + bytes([0xa0, 0x1c, 0x02, 0x01, 0x01, 0x02, 0x01, 0x00, 0x02, 0x01, 0x00, 0x30, 0x11, 0x30, 0x0f, 0x06, 0x0b, 0x2b, 0x06, 0x01, 0x02, 0x01, 0x01, 0x01, 0x00, 0x00, 0x05, 0x00])
     msg = bytes([0x30, len(msg_inner)]) + msg_inner
     try:
+        addrinfos = socket.getaddrinfo(host, port, socket.AF_UNSPEC, socket.SOCK_DGRAM)
+        if not addrinfos:
+            return {"result": {"host": host, "port": port, "reachable": False, "reason": "DNS resolution failed"}}
+        af, _, _, _, addr = addrinfos[0]
         start = time.monotonic()
-        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+        with socket.socket(af, socket.SOCK_DGRAM) as sock:
             sock.settimeout(timeout)
-            sock.sendto(msg, (host, port))
+            sock.sendto(msg, addr)
             data, _ = sock.recvfrom(4096)
         elapsed_ms = round((time.monotonic() - start) * 1000, 2)
         is_snmp = len(data) >= 2 and data[0] == 0x30
@@ -2019,6 +2025,8 @@ def check_mqtt(host: str, port: int = 1883, timeout: int = 5, client_id: str = "
     )
     payload = struct.pack("!H", len(client_id_bytes)) + client_id_bytes
     remaining = variable_header + payload
+    if len(remaining) > 127:
+        return {"error": f"client_id too long; MQTT remaining-length {len(remaining)} exceeds single-byte encoding limit (127)", "tool": "check_mqtt", "host": host}
     connect_pkt = bytes([0x10, len(remaining)]) + remaining
     _CONNACK_CODES = {0: "accepted", 1: "refused: unacceptable protocol", 2: "refused: client ID rejected", 3: "refused: server unavailable", 4: "refused: bad credentials", 5: "refused: not authorized"}
     try:
