@@ -2754,42 +2754,41 @@ def check_smb(host: str, port: int = 445, timeout: int = 5) -> dict:
     if not 1 <= port <= 65535:
         return {"error": f"port {port} out of range 1-65535", "tool": "check_smb"}
     try:
-        sock = socket.create_connection((host, port), timeout=timeout)
-        sock.settimeout(timeout)
-        # Minimal SMB2 Negotiate request (RFC 8581): 4-byte NetBIOS header + SMB2 header + Negotiate body
-        smb2_header = struct.pack(
-            "<4sHHIHHIQIIQ16s",
-            b"\xfeSMB",   # ProtocolId
-            64,            # StructureSize
-            0,             # CreditCharge
-            0,             # Status
-            0,             # Command: Negotiate
-            0x1F,          # CreditResponse
-            0,             # Flags
-            0,             # NextCommand
-            0,             # MessageId
-            0,             # Reserved
-            0xFFFFFFFF,    # TreeId
-            0,             # SessionId
-            b"\x00" * 16,  # Signature
-        )
-        negotiate_body = struct.pack(
-            "<HHHHiQHH",
-            36,            # StructureSize
-            2,             # DialectCount
-            1,             # SecurityMode
-            0,             # Reserved
-            0x7F,          # Capabilities
-            0,             # ClientGuid (8 of 16 bytes; rest below)
-            0,             # NegotiateContextOffset
-            0,             # NegotiateContextCount
-            0,             # Reserved2
-        ) + b"\x00" * 8 + struct.pack("<HH", 0x0202, 0x0210)  # Guid tail + dialects
-        netbios_len = len(smb2_header) + len(negotiate_body)
-        packet = struct.pack(">I", netbios_len) + smb2_header + negotiate_body
-        sock.sendall(packet)
-        response = sock.recv(256)
-        sock.close()
+        with socket.create_connection((host, port), timeout=timeout) as sock:
+            sock.settimeout(timeout)
+            # Minimal SMB2 Negotiate request (RFC 8581): 4-byte NetBIOS header + SMB2 header + Negotiate body
+            smb2_header = struct.pack(
+                "<4sHHIHHIQIIQ16s",
+                b"\xfeSMB",   # ProtocolId
+                64,            # StructureSize
+                0,             # CreditCharge
+                0,             # Status
+                0,             # Command: Negotiate
+                0x1F,          # CreditResponse
+                0,             # Flags
+                0,             # NextCommand
+                0,             # MessageId
+                0,             # Reserved
+                0xFFFFFFFF,    # TreeId
+                0,             # SessionId
+                b"\x00" * 16,  # Signature
+            )
+            negotiate_body = struct.pack(
+                "<HHHHiQHH",
+                36,            # StructureSize
+                2,             # DialectCount
+                1,             # SecurityMode
+                0,             # Reserved
+                0x7F,          # Capabilities
+                0,             # ClientGuid (8 of 16 bytes; rest below)
+                0,             # NegotiateContextOffset
+                0,             # NegotiateContextCount
+                0,             # Reserved2
+            ) + b"\x00" * 8 + struct.pack("<HH", 0x0202, 0x0210)  # Guid tail + dialects
+            netbios_len = len(smb2_header) + len(negotiate_body)
+            packet = struct.pack(">I", netbios_len) + smb2_header + negotiate_body
+            sock.sendall(packet)
+            response = sock.recv(256)
         if len(response) >= 8 and b"\xfeSMB" in response:
             return {"result": {"host": host, "port": port, "reachable": True, "protocol": "SMB2"}}
         return {"result": {"host": host, "port": port, "reachable": True, "protocol": "unknown", "note": "TCP connected but SMB2 magic not in response"}}
@@ -2909,18 +2908,16 @@ def check_kafka(host: str, port: int = 9092, timeout: int = 5) -> dict:
     if not 1 <= port <= 65535:
         return {"error": f"port {port} out of range 1-65535", "tool": "check_kafka"}
     try:
-        sock = socket.create_connection((host, port), timeout=timeout)
-        sock.settimeout(timeout)
-        # Kafka ApiVersions request v0: length(4) + api_key(2) + api_version(2) + correlation_id(4) + client_id_length(2=-1 null)
-        request_body = struct.pack(">hhih", 18, 0, 0, 1, -1)
-        sock.sendall(request_body)
-        header = sock.recv(4)
-        if len(header) == 4:
-            resp_len = struct.unpack(">I", header)[0]
-            sock.recv(min(resp_len, 256))
-            sock.close()
-            return {"result": {"host": host, "port": port, "reachable": True, "protocol": "Kafka"}}
-        sock.close()
+        with socket.create_connection((host, port), timeout=timeout) as sock:
+            sock.settimeout(timeout)
+            # Kafka ApiVersions request v0: length(4) + api_key(2) + api_version(2) + correlation_id(4) + client_id_length(2=-1 null)
+            request_body = struct.pack(">hhih", 18, 0, 0, 1, -1)
+            sock.sendall(request_body)
+            header = sock.recv(4)
+            if len(header) == 4:
+                resp_len = struct.unpack(">I", header)[0]
+                sock.recv(min(resp_len, 256))
+                return {"result": {"host": host, "port": port, "reachable": True, "protocol": "Kafka"}}
         return {"result": {"host": host, "port": port, "reachable": True, "protocol": "unknown", "note": "TCP connected but response too short"}}
     except socket.timeout:
         return {"result": {"host": host, "port": port, "reachable": False, "error": "timeout"}}
