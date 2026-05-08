@@ -272,6 +272,11 @@ def cert_check(host: str, port: int = 443, timeout: int = 10) -> dict:
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "cert_check"}
     host = host.strip()
+    # Strip port suffix if present (e.g. "example.com:443" → "example.com") for correct SNI
+    if ":" in host and not host.startswith("["):
+        maybe_host, maybe_port = host.rsplit(":", 1)
+        if maybe_port.isdigit():
+            host = maybe_host
     if not 1 <= port <= 65535:
         return {"error": f"Invalid port {port}: must be 1-65535", "tool": "cert_check"}
     timeout = min(max(1, timeout), 60)
@@ -671,10 +676,14 @@ def ntp_check(host: str, port: int = 123, timeout: int = 5) -> dict:
     NTP_PACKET = b"\x1b" + b"\x00" * 47
     NTP_DELTA = 2208988800  # seconds between NTP epoch (1900) and Unix epoch (1970)
     try:
-        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+        addrinfos = socket.getaddrinfo(host, port, socket.AF_UNSPEC, socket.SOCK_DGRAM)
+        if not addrinfos:
+            return {"result": {"host": host, "port": port, "reachable": False, "reason": "DNS resolution failed"}}
+        af, _, _, _, addr = addrinfos[0]
+        with socket.socket(af, socket.SOCK_DGRAM) as s:
             s.settimeout(timeout)
             send_time = time.time()
-            s.sendto(NTP_PACKET, (host, port))
+            s.sendto(NTP_PACKET, addr)
             data, _ = s.recvfrom(1024)
         recv_time = time.time()
         if len(data) < 48:
@@ -728,20 +737,19 @@ def dns_bulk_lookup(hosts: str, record_type: str = "A", nameserver: str = "") ->
             return {"error": f"Invalid nameserver IP: '{nameserver}'", "tool": "dns_bulk_lookup"}
         resolver.nameservers = [nameserver.strip()]
 
-    results: dict = {}
-    for host in host_list:
+    def _lookup_one(h: str) -> tuple[str, dict]:
         try:
-            answers = resolver.resolve(host, record_type)
-            results[host] = {
-                "records": [str(r) for r in answers],
-                "ttl": answers.rrset.ttl if answers.rrset else None,
-            }
+            answers = resolver.resolve(h, record_type)
+            return h, {"records": [str(r) for r in answers], "ttl": answers.rrset.ttl if answers.rrset else None}
         except dns.resolver.NXDOMAIN:
-            results[host] = {"error": "NXDOMAIN — domain does not exist"}
+            return h, {"error": "NXDOMAIN — domain does not exist"}
         except dns.resolver.NoAnswer:
-            results[host] = {"error": f"No {record_type} records found"}
+            return h, {"error": f"No {record_type} records found"}
         except Exception as e:
-            results[host] = {"error": str(e)}
+            return h, {"error": str(e)}
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=min(len(host_list), 20)) as pool:
+        results = dict(pool.map(_lookup_one, host_list))
 
     return {"result": {"record_type": record_type, "nameserver": nameserver.strip() if nameserver and nameserver.strip() else None, "hosts": results}}
 
@@ -1093,8 +1101,19 @@ def check_security_headers(url: str, timeout: int = 10) -> dict:
                 headers = {k.lower(): v for k, v in resp.headers.items()}
                 status_code = resp.status
         except urllib.error.HTTPError as e:
-            headers = {k.lower(): v for k, v in e.headers.items()}
-            status_code = e.code
+            if e.code == 405:
+                # Server doesn't support HEAD — retry with GET to get response headers
+                req2 = urllib.request.Request(url, method="GET")
+                try:
+                    with urllib.request.urlopen(req2, timeout=timeout) as resp2:
+                        headers = {k.lower(): v for k, v in resp2.headers.items()}
+                        status_code = resp2.status
+                except urllib.error.HTTPError as e2:
+                    headers = {k.lower(): v for k, v in e2.headers.items()} if e2.headers else {}
+                    status_code = e2.code
+            else:
+                headers = {k.lower(): v for k, v in e.headers.items()} if e.headers else {}
+                status_code = e.code
     except Exception as e:
         return {"error": str(e), "tool": "check_security_headers", "url": url, "detail": type(e).__name__}
 
@@ -1547,11 +1566,17 @@ def cert_check_bulk(hosts: str, port: int = 443, timeout: int = 10) -> dict:
     def _check_one(host: str) -> tuple[str, dict]:
         fmt = "%b %d %H:%M:%S %Y %Z"
         try:
+            # Strip port suffix for SNI (e.g. "example.com:443" → "example.com")
+            sni = host
+            if ":" in host and not host.startswith("["):
+                maybe_host, maybe_port = host.rsplit(":", 1)
+                if maybe_port.isdigit():
+                    sni = maybe_host
             ctx = ssl.create_default_context()
             with socket.socket() as raw:
                 raw.settimeout(timeout)
-                with ctx.wrap_socket(raw, server_hostname=host) as s:
-                    s.connect((host, port))
+                with ctx.wrap_socket(raw, server_hostname=sni) as s:
+                    s.connect((sni, port))
                     cert = s.getpeercert()
             not_after = datetime.strptime(cert["notAfter"], fmt).replace(tzinfo=timezone.utc)
             days = (not_after - datetime.now(timezone.utc)).days
