@@ -86,11 +86,13 @@ def dns_lookup(host: str, record_type: str = "A", nameserver: str = "") -> dict:
             resolver.nameservers = [nameserver.strip()]
         answers = resolver.resolve(host, record_type)
         return {
-            "host": host,
-            "record_type": record_type,
-            "nameserver": nameserver.strip() if nameserver and nameserver.strip() else None,
-            "ttl": answers.rrset.ttl if answers.rrset else None,
-            "records": [str(r) for r in answers],
+            "result": {
+                "host": host,
+                "record_type": record_type,
+                "nameserver": nameserver.strip() if nameserver and nameserver.strip() else None,
+                "ttl": answers.rrset.ttl if answers.rrset else None,
+                "records": [str(r) for r in answers],
+            }
         }
     except Exception as e:
         return {"error": str(e), "tool": "dns_lookup", "host": host}
@@ -249,7 +251,7 @@ def cert_check(host: str, port: int = 443, timeout: int = 10) -> dict:
                 s.connect((host, port))
                 cert = s.getpeercert()
                 cert_der = s.getpeercert(binary_form=True)
-        return _parse_cert(cert, cert_der, verified=True)
+        return {"result": _parse_cert(cert, cert_der, verified=True)}
     except ssl.SSLCertVerificationError as verify_err:
         # Cert exists but chain/expiry invalid — retry without verification to get cert details
         try:
@@ -265,12 +267,14 @@ def cert_check(host: str, port: int = 443, timeout: int = 10) -> dict:
             if cert2:
                 result = _parse_cert(cert2, cert_der2, verified=False)
                 result["ssl_error"] = str(verify_err)
-                return result
+                return {"result": result}
             # CERT_NONE returns empty dict — return fingerprint only
             fp = hashlib.sha256(cert_der2).hexdigest() if cert_der2 else None
             return {
-                "host": host, "port": port, "verified": False,
-                "ssl_error": str(verify_err), "sha256_fingerprint": fp,
+                "result": {
+                    "host": host, "port": port, "verified": False,
+                    "ssl_error": str(verify_err), "sha256_fingerprint": fp,
+                }
             }
         except Exception:
             pass
