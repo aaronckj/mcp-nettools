@@ -406,7 +406,16 @@ def subnet_info(cidr: str) -> dict:
         return {"error": str(e), "tool": "subnet_info"}
 
     if isinstance(net, ipaddress.IPv4Network):
-        host_list = list(net.hosts())
+        # Don't materialize host list for large networks — /8 = 16M entries, /1 = 2.1B
+        if net.prefixlen >= 31:
+            # /31 (point-to-point) and /32 (host) have no conventional "usable hosts"
+            first_host = str(net.network_address)
+            last_host = str(net.broadcast_address)
+            host_count = net.num_addresses
+        else:
+            first_host = str(net.network_address + 1)
+            last_host = str(net.broadcast_address - 1)
+            host_count = net.num_addresses - 2
         return {
             "result": {
                 "version": 4,
@@ -414,9 +423,9 @@ def subnet_info(cidr: str) -> dict:
                 "broadcast": str(net.broadcast_address),
                 "netmask": str(net.netmask),
                 "prefix_length": net.prefixlen,
-                "first_host": str(host_list[0]) if host_list else None,
-                "last_host": str(host_list[-1]) if host_list else None,
-                "host_count": len(host_list),
+                "first_host": first_host,
+                "last_host": last_host,
+                "host_count": host_count,
                 "total_addresses": net.num_addresses,
                 "is_private": net.is_private,
             }
@@ -507,6 +516,8 @@ def arp_table(interface: str = "") -> dict:
 @mcp.tool()
 def wake_on_lan(mac: str, broadcast: str = "255.255.255.255") -> dict:
     """Send a Wake-on-LAN magic packet to a MAC address."""
+    if not mac or not mac.strip():
+        return {"error": "mac must not be empty", "tool": "wake_on_lan"}
     mac = mac.strip()
     if not _MAC_RE.match(mac):
         return {
@@ -1514,6 +1525,59 @@ def tls_version_check(host: str, port: int = 443, timeout: int = 10) -> dict:
             "tls13_accepted": results.get("TLSv1.3", {}).get("accepted", False),
         }
     }
+
+
+@mcp.tool()
+def cert_check_bulk(hosts: str, port: int = 443, timeout: int = 10) -> dict:
+    """Check TLS certificates for multiple hosts in one call. hosts: comma-separated hostnames (max 20). Returns expiry, days remaining, issuer, SANs, and validity for each. Useful for monitoring certificate renewals across many domains at once."""
+    if not hosts or not hosts.strip():
+        return {"error": "hosts must not be empty", "tool": "cert_check_bulk"}
+    hosts = hosts.strip()
+    host_list = [h.strip() for h in hosts.split(",") if h.strip()]
+    if not host_list:
+        return {"error": "No valid hosts specified", "tool": "cert_check_bulk"}
+    if len(host_list) > 20:
+        return {"error": f"Too many hosts ({len(host_list)}). Maximum 20 per call.", "tool": "cert_check_bulk"}
+    if not 1 <= port <= 65535:
+        return {"error": f"Invalid port {port}: must be 1-65535", "tool": "cert_check_bulk"}
+    timeout = min(max(1, timeout), 60)
+
+    def _check_one(host: str) -> tuple[str, dict]:
+        fmt = "%b %d %H:%M:%S %Y %Z"
+        try:
+            ctx = ssl.create_default_context()
+            with socket.socket() as raw:
+                raw.settimeout(timeout)
+                with ctx.wrap_socket(raw, server_hostname=host) as s:
+                    s.connect((host, port))
+                    cert = s.getpeercert()
+            not_after = datetime.strptime(cert["notAfter"], fmt).replace(tzinfo=timezone.utc)
+            days = (not_after - datetime.now(timezone.utc)).days
+            return host, {
+                "expires": cert["notAfter"],
+                "days_remaining": days,
+                "valid": days > 0,
+                "verified": True,
+                "issuer": dict(x[0] for x in cert.get("issuer", [])),
+                "san": [v for _, v in cert.get("subjectAltName", [])],
+            }
+        except ssl.SSLCertVerificationError as e:
+            return host, {"verified": False, "ssl_error": str(e)}
+        except Exception as e:
+            return host, {"error": str(e)}
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=min(len(host_list), 10)) as pool:
+        future_to_host = {pool.submit(_check_one, h): h for h in host_list}
+        results = {}
+        for f in concurrent.futures.as_completed(future_to_host):
+            h, data = f.result()
+            results[h] = data
+
+    expiring_soon = [
+        h for h, d in results.items()
+        if isinstance(d.get("days_remaining"), int) and 0 < d["days_remaining"] <= 30
+    ]
+    return {"result": {"port": port, "hosts": results, "expiring_soon_30d": expiring_soon}}
 
 
 def main() -> None:
