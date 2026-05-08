@@ -573,6 +573,108 @@ def dns_bulk_lookup(hosts: str, record_type: str = "A", nameserver: str = "") ->
 
     return {"result": {"record_type": record_type, "nameserver": nameserver.strip() if nameserver and nameserver.strip() else None, "hosts": results}}
 
+
+_COMMON_PORTS: dict[int, str] = {
+    21: "ftp", 22: "ssh", 23: "telnet", 25: "smtp", 53: "dns",
+    80: "http", 110: "pop3", 143: "imap", 443: "https", 445: "smb",
+    993: "imaps", 995: "pop3s", 3306: "mysql", 3389: "rdp",
+    5432: "postgresql", 8080: "http-alt", 8443: "https-alt",
+}
+
+
+@mcp.tool()
+def ftp_check(host: str, port: int = 21, timeout: int = 10) -> dict:
+    """Connect to an FTP server and read its banner. Also tests whether anonymous login is accepted. Useful for verifying FTP service availability."""
+    import ftplib
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "ftp_check"}
+    timeout = min(max(1, timeout), 30)
+    try:
+        ftp = ftplib.FTP()
+        ftp.connect(host, port, timeout)
+        welcome = ftp.getwelcome()
+        anon_ok = False
+        try:
+            ftp.login()
+            anon_ok = True
+        except ftplib.all_errors:
+            pass
+        try:
+            ftp.quit()
+        except Exception:
+            pass
+        return {
+            "result": {
+                "host": host,
+                "port": port,
+                "reachable": True,
+                "welcome": welcome,
+                "anonymous_login": anon_ok,
+            }
+        }
+    except Exception as e:
+        return {"error": str(e), "tool": "ftp_check", "host": host, "detail": type(e).__name__}
+
+
+@mcp.tool()
+def tcp_banner(host: str, port: int, timeout: int = 5) -> dict:
+    """Connect to any TCP port and read the initial server banner. Useful for identifying unknown services or verifying custom TCP servers. Returns raw banner text."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "tcp_banner"}
+    if not 1 <= port <= 65535:
+        return {"error": "port must be between 1 and 65535", "tool": "tcp_banner"}
+    timeout = min(max(1, timeout), 30)
+    try:
+        start = time.monotonic()
+        with socket.create_connection((host, port), timeout=timeout) as sock:
+            sock.settimeout(timeout)
+            try:
+                raw = sock.recv(4096)
+                banner = raw.decode("utf-8", errors="replace").strip()
+            except socket.timeout:
+                banner = ""
+        elapsed_ms = round((time.monotonic() - start) * 1000, 2)
+        return {
+            "result": {
+                "host": host,
+                "port": port,
+                "open": True,
+                "banner": banner,
+                "elapsed_ms": elapsed_ms,
+            }
+        }
+    except ConnectionRefusedError:
+        return {"result": {"host": host, "port": port, "open": False, "reason": "connection refused"}}
+    except socket.timeout:
+        return {"result": {"host": host, "port": port, "open": False, "reason": "timeout"}}
+    except Exception as e:
+        return {"error": str(e), "tool": "tcp_banner", "host": host, "detail": type(e).__name__}
+
+
+@mcp.tool()
+def scan_common_ports(host: str, timeout: int = 2) -> dict:
+    """Scan 17 commonly used ports on a host and report which are open (FTP, SSH, HTTP, HTTPS, SMTP, DNS, MySQL, PostgreSQL, RDP, SMB, etc.). Faster alternative to running port_check 17 times."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "scan_common_ports"}
+    timeout = min(max(1, timeout), 10)
+    open_ports = []
+    closed_ports = []
+    for port, service in sorted(_COMMON_PORTS.items()):
+        try:
+            with socket.create_connection((host, port), timeout=timeout):
+                open_ports.append({"port": port, "service": service})
+        except (ConnectionRefusedError, socket.timeout, OSError):
+            closed_ports.append({"port": port, "service": service})
+    return {
+        "result": {
+            "host": host,
+            "open": open_ports,
+            "closed": closed_ports,
+            "open_count": len(open_ports),
+        }
+    }
+
+
 def main() -> None:
     mcp.run()
 
