@@ -5144,6 +5144,137 @@ def check_collabora(host: str, port: int = 9980, timeout: int = 5, https: bool =
     return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy}}
 
 
+@mcp.tool()
+def check_wordpress(host: str, port: int = 80, timeout: int = 5, https: bool = False) -> dict:
+    """Check WordPress site health via GET /wp-json/. Returns site name and description. Default port 80."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_wordpress"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    healthy = False
+    site_name: str | None = None
+    try:
+        req = urllib.request.Request(
+            f"{scheme}://{host}:{port}/wp-json/",
+            headers={"Accept": "application/json"},
+        )
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            healthy = resp.status == 200
+            data = json.loads(resp.read().decode())
+            site_name = data.get("name")
+    except Exception:
+        pass
+    return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy, "site_name": site_name}}
+
+
+@mcp.tool()
+def check_ghost(host: str, port: int = 2368, timeout: int = 5, https: bool = False) -> dict:
+    """Check Ghost blog platform health via GET /ghost/api/admin/site/. Returns version and site title. Default port 2368."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_ghost"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    healthy = False
+    version: str | None = None
+    title: str | None = None
+    for path in ["/ghost/api/admin/site/", "/ghost/api/v4/admin/site/"]:
+        try:
+            req = urllib.request.Request(
+                f"{scheme}://{host}:{port}{path}",
+                headers={"Accept": "application/json"},
+            )
+            with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+                if resp.status == 200:
+                    healthy = True
+                    data = json.loads(resp.read().decode())
+                    site = data.get("site", {})
+                    version = site.get("version")
+                    title = site.get("title")
+                    break
+        except urllib.error.HTTPError as e:
+            if e.code in (401, 403):
+                healthy = True
+                break
+        except Exception:
+            pass
+    return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy, "version": version, "title": title}}
+
+
+@mcp.tool()
+def http_security_headers(host: str, port: int = 80, timeout: int = 5, https: bool = False, path: str = "/") -> dict:
+    """Audit HTTP security headers on a web server. Checks for: Strict-Transport-Security, Content-Security-Policy, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy, and X-XSS-Protection. Returns which are present with their values, which are missing, and a score."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "http_security_headers"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    security_header_names = [
+        "Strict-Transport-Security",
+        "Content-Security-Policy",
+        "X-Frame-Options",
+        "X-Content-Type-Options",
+        "Referrer-Policy",
+        "Permissions-Policy",
+        "X-XSS-Protection",
+    ]
+    try:
+        req = urllib.request.Request(f"{scheme}://{host}:{port}{path}")
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            headers_lower = {k.lower(): v for k, v in resp.headers.items()}
+            present = {}
+            missing = []
+            for h in security_header_names:
+                val = headers_lower.get(h.lower())
+                if val:
+                    present[h] = val
+                else:
+                    missing.append(h)
+            return {"result": {
+                "host": host,
+                "port": port,
+                "reachable": True,
+                "status": resp.status,
+                "present": present,
+                "missing": missing,
+                "score": f"{len(present)}/{len(security_header_names)}",
+            }}
+    except urllib.error.HTTPError as e:
+        headers_lower = {k.lower(): v for k, v in e.headers.items()}
+        present = {}
+        missing = []
+        for h in security_header_names:
+            val = headers_lower.get(h.lower())
+            if val:
+                present[h] = val
+            else:
+                missing.append(h)
+        return {"result": {
+            "host": host,
+            "port": port,
+            "reachable": True,
+            "status": e.code,
+            "present": present,
+            "missing": missing,
+            "score": f"{len(present)}/{len(security_header_names)}",
+        }}
+    except Exception as e:
+        return {"error": str(e), "tool": "http_security_headers"}
+
+
 def main() -> None:
     mcp.run()
 
