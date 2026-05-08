@@ -4030,6 +4030,8 @@ def check_monica(host: str, port: int = 80, timeout: int = 5, https: bool = Fals
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_monica"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_monica"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -4054,6 +4056,8 @@ def check_vikunja(host: str, port: int = 3456, timeout: int = 5, https: bool = F
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_vikunja"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_vikunja"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -4082,6 +4086,8 @@ def check_stirling_pdf(host: str, port: int = 8080, timeout: int = 5, https: boo
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_stirling_pdf"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_stirling_pdf"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -4113,6 +4119,8 @@ def check_grocy(host: str, port: int = 9283, timeout: int = 5, https: bool = Fal
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_grocy"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_grocy"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -4143,6 +4151,8 @@ def check_actual_budget(host: str, port: int = 5006, timeout: int = 5, https: bo
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_actual_budget"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_actual_budget"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -4165,6 +4175,8 @@ def check_linkwarden(host: str, port: int = 3000, timeout: int = 5, https: bool 
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_linkwarden"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_linkwarden"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -4189,6 +4201,8 @@ def check_photoprism(host: str, port: int = 2342, timeout: int = 5, https: bool 
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_photoprism"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_photoprism"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -4217,6 +4231,8 @@ def check_wallabag(host: str, port: int = 80, timeout: int = 5, https: bool = Fa
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_wallabag"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_wallabag"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -4248,6 +4264,8 @@ def check_tandoor(host: str, port: int = 8080, timeout: int = 5, https: bool = F
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_tandoor"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_tandoor"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -4276,6 +4294,8 @@ def check_outline(host: str, port: int = 3000, timeout: int = 5, https: bool = F
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_outline"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_outline"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
