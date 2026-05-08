@@ -3259,6 +3259,94 @@ def check_nextcloud(host: str, port: int = 443, timeout: int = 5, https: bool = 
     return {"result": {"host": host, "port": port, "reachable": installed, "installed": installed, "maintenance": maintenance, "version": version}}
 
 
+@mcp.tool()
+def check_jellyfin(host: str, port: int = 8096, timeout: int = 5, https: bool = False) -> dict:
+    """Check Jellyfin media server health via GET /health. Returns health status and version from public system info."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_jellyfin"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    healthy = False
+    version: str | None = None
+    try:
+        req = urllib.request.Request(f"{scheme}://{host}:{port}/health")
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            healthy = resp.status == 200
+    except Exception:
+        pass
+    try:
+        req = urllib.request.Request(
+            f"{scheme}://{host}:{port}/System/Info/Public",
+            headers={"Accept": "application/json"},
+        )
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            data = json.loads(resp.read().decode())
+            version = data.get("Version")
+    except Exception:
+        pass
+    return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy, "version": version}}
+
+
+@mcp.tool()
+def check_immich(host: str, port: int = 2283, timeout: int = 5, https: bool = False) -> dict:
+    """Check Immich photo management server health via GET /api/server-info/ping. Returns ping response."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_immich"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    healthy = False
+    try:
+        req = urllib.request.Request(
+            f"{scheme}://{host}:{port}/api/server-info/ping",
+            headers={"Accept": "application/json"},
+        )
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            healthy = resp.status == 200
+            data = json.loads(resp.read().decode())
+            healthy = data.get("res") == "pong"
+    except Exception:
+        pass
+    return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy}}
+
+
+@mcp.tool()
+def check_portainer(host: str, port: int = 9443, timeout: int = 5, https: bool = True) -> dict:
+    """Check Portainer container management UI health via GET /api/status. Returns version and instance ID."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_portainer"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    healthy = False
+    version: str | None = None
+    try:
+        req = urllib.request.Request(
+            f"{scheme}://{host}:{port}/api/status",
+            headers={"Accept": "application/json"},
+        )
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            healthy = resp.status == 200
+            data = json.loads(resp.read().decode())
+            version = data.get("Version")
+    except Exception:
+        pass
+    return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy, "version": version}}
+
+
 def main() -> None:
     mcp.run()
 
