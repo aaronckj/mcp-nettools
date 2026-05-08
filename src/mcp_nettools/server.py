@@ -7327,6 +7327,8 @@ def check_nitter(host: str, port: int = 8080, timeout: int = 5, https: bool = Fa
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_nitter"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_nitter"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -7350,6 +7352,8 @@ def check_redlib(host: str, port: int = 8080, timeout: int = 5, https: bool = Fa
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_redlib"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_redlib"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -7373,6 +7377,8 @@ def check_speedtest_tracker(host: str, port: int = 80, timeout: int = 5, https: 
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_speedtest_tracker"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_speedtest_tracker"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -7396,6 +7402,8 @@ def check_strapi(host: str, port: int = 1337, timeout: int = 5, https: bool = Fa
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_strapi"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_strapi"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -7420,6 +7428,8 @@ def check_organizr(host: str, port: int = 80, timeout: int = 5, https: bool = Fa
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_organizr"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_organizr"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -7443,6 +7453,8 @@ def check_heimdall(host: str, port: int = 80, timeout: int = 5, https: bool = Fa
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_heimdall"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_heimdall"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -7466,6 +7478,8 @@ def check_invidious(host: str, port: int = 3000, timeout: int = 5, https: bool =
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_invidious"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_invidious"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -7491,6 +7505,8 @@ def check_hoarder(host: str, port: int = 3000, timeout: int = 5, https: bool = F
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_hoarder"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_hoarder"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -7514,6 +7530,8 @@ def check_trilium(host: str, port: int = 8080, timeout: int = 5, https: bool = F
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_trilium"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_trilium"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -7537,6 +7555,8 @@ def check_kasm(host: str, port: int = 443, timeout: int = 5, https: bool = True)
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_kasm"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_kasm"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
