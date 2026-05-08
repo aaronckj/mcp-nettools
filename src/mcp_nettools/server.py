@@ -2504,6 +2504,7 @@ def check_etcd(host: str, port: int = 2379, timeout: int = 5) -> dict:
                 "port": port,
                 "reachable": True,
                 "health": data.get("health"),
+                "healthy": data.get("health") == "true",
                 "reason": data.get("reason"),
             }
         }
@@ -2771,11 +2772,13 @@ def check_nfs(host: str, portmapper_port: int = 111, nfs_port: int = 2049, timeo
     if not 1 <= nfs_port <= 65535:
         return {"error": f"nfs_port {nfs_port} out of range 1-65535", "tool": "check_nfs"}
     results = {}
+    total_start = time.monotonic()
     for label, port in [("portmapper", portmapper_port), ("nfs", nfs_port)]:
+        t0 = time.monotonic()
         try:
             sock = socket.create_connection((host, port), timeout=timeout)
             sock.close()
-            results[label] = {"port": port, "reachable": True}
+            results[label] = {"port": port, "reachable": True, "elapsed_ms": round((time.monotonic() - t0) * 1000, 2)}
         except socket.timeout:
             results[label] = {"port": port, "reachable": False, "error": "timeout"}
         except ConnectionRefusedError:
@@ -2783,7 +2786,7 @@ def check_nfs(host: str, portmapper_port: int = 111, nfs_port: int = 2049, timeo
         except Exception as e:
             results[label] = {"port": port, "reachable": False, "error": str(e)}
     reachable = all(v["reachable"] for v in results.values())
-    return {"result": {"host": host, "reachable": reachable, "ports": results}}
+    return {"result": {"host": host, "reachable": reachable, "elapsed_ms": round((time.monotonic() - total_start) * 1000, 2), "ports": results}}
 
 @mcp.tool()
 def check_kafka(host: str, port: int = 9092, timeout: int = 5) -> dict:
