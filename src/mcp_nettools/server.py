@@ -1253,11 +1253,10 @@ def snmp_check(host: str, port: int = 161, timeout: int = 3, community: str = "p
     msg = bytes([0x30, len(msg_inner)]) + msg_inner
     try:
         start = time.monotonic()
-        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        sock.settimeout(timeout)
-        sock.sendto(msg, (host, port))
-        data, _ = sock.recvfrom(4096)
-        sock.close()
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+            sock.settimeout(timeout)
+            sock.sendto(msg, (host, port))
+            data, _ = sock.recvfrom(4096)
         elapsed_ms = round((time.monotonic() - start) * 1000, 2)
         is_snmp = len(data) >= 2 and data[0] == 0x30
         return {
@@ -1293,7 +1292,11 @@ def ping_sweep(network: str, timeout: int = 1) -> dict:
     if net.num_addresses > 256:
         return {"error": f"Network too large ({net.num_addresses} addresses). Maximum /24 (256).", "tool": "ping_sweep"}
 
-    hosts = list(net.hosts()) if net.prefixlen < 32 else [net.network_address]
+    if net.prefixlen <= 30:
+        hosts = list(net.hosts())
+    else:
+        # /31 (RFC 3021 point-to-point) and /32 (host route): all addresses are usable
+        hosts = [net.network_address + i for i in range(net.num_addresses)]
 
     def _ping_one(ip: str) -> tuple[str, bool]:
         try:
