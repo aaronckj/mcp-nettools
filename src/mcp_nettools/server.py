@@ -720,18 +720,18 @@ def check_ldap(host: str, port: int = 389, timeout: int = 5, use_ssl: bool = Fal
     ])
     try:
         start = time.monotonic()
-        raw_sock = socket.create_connection((host, port), timeout=timeout)
-        raw_sock.settimeout(timeout)
-        if use_ssl:
-            ctx = ssl.create_default_context()
-            ctx.check_hostname = False
-            ctx.verify_mode = ssl.CERT_NONE
-            sock = ctx.wrap_socket(raw_sock, server_hostname=host)
-        else:
-            sock = raw_sock
-        with sock:
-            sock.sendall(bind_req)
-            response = sock.recv(1024)
+        with socket.create_connection((host, port), timeout=timeout) as raw_sock:
+            raw_sock.settimeout(timeout)
+            if use_ssl:
+                ctx = ssl.create_default_context()
+                ctx.check_hostname = False
+                ctx.verify_mode = ssl.CERT_NONE
+                sock = ctx.wrap_socket(raw_sock, server_hostname=host)
+            else:
+                sock = raw_sock
+            with sock:
+                sock.sendall(bind_req)
+                response = sock.recv(1024)
         elapsed_ms = round((time.monotonic() - start) * 1000, 2)
         # Check response is a valid LDAP BindResponse (0x61 = APPLICATION 1)
         is_ldap = len(response) >= 4 and response[0] == 0x30 and 0x61 in response
@@ -1056,33 +1056,33 @@ def imap_check(host: str, port: int = 143, timeout: int = 10) -> dict:
     if not 1 <= port <= 65535:
         return {"error": f"Invalid port {port}: must be 1-65535", "tool": "imap_check"}
     timeout = min(max(1, timeout), 30)
-    old_timeout = socket.getdefaulttimeout()
-    socket.setdefaulttimeout(timeout)
     try:
         start = time.monotonic()
         if port == 993:
             import ssl as _ssl
             ctx = _ssl.create_default_context()
-            imap = imaplib.IMAP4_SSL(host, port, ssl_context=ctx)
+            imap = imaplib.IMAP4_SSL(host, port, ssl_context=ctx, timeout=timeout)
             tls = True
         else:
-            imap = imaplib.IMAP4(host, port)
+            imap = imaplib.IMAP4(host, port, timeout=timeout)
             tls = False
 
-        greeting = (imap.welcome or b"").decode("utf-8", errors="replace").strip()
-        caps = list(imap.capabilities) if imap.capabilities else []
+        try:
+            greeting = (imap.welcome or b"").decode("utf-8", errors="replace").strip()
+            caps = list(imap.capabilities) if imap.capabilities else []
 
-        starttls = False
-        if not tls and b"STARTTLS" in imap.capabilities:
+            starttls = False
+            if not tls and b"STARTTLS" in imap.capabilities:
+                try:
+                    imap.starttls()
+                    starttls = True
+                except Exception:
+                    pass
+        finally:
             try:
-                imap.starttls()
-                starttls = True
+                imap.logout()
             except Exception:
                 pass
-        try:
-            imap.logout()
-        except Exception:
-            pass
 
         elapsed_ms = round((time.monotonic() - start) * 1000, 2)
         return {
@@ -1103,8 +1103,6 @@ def imap_check(host: str, port: int = 143, timeout: int = 10) -> dict:
         return {"result": {"host": host, "port": port, "reachable": False, "reason": "timeout"}}
     except Exception as e:
         return {"error": str(e), "tool": "imap_check", "host": host, "port": port, "detail": type(e).__name__}
-    finally:
-        socket.setdefaulttimeout(old_timeout)
 
 
 @mcp.tool()
