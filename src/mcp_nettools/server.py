@@ -7,6 +7,9 @@ import re
 import socket
 import ssl
 import subprocess
+import time
+import urllib.error
+import urllib.request
 from datetime import datetime, timezone
 
 import dns.resolver
@@ -111,8 +114,60 @@ def port_check(host: str, port: int, timeout: int = 5) -> dict:
 
 
 @mcp.tool()
+def port_scan(host: str, ports: str, timeout: int = 3) -> dict:
+    """Check multiple TCP ports on a host. ports: comma-separated or ranges (e.g., '22,80,443,8000-8080'). Max 100 ports. timeout: 1-30 s."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "port_scan"}
+    if not ports or not ports.strip():
+        return {"error": "ports must not be empty", "tool": "port_scan"}
+    timeout = min(max(1, timeout), 30)
+    port_list: list[int] = []
+    for part in ports.split(","):
+        part = part.strip()
+        if not part:
+            continue
+        if "-" in part:
+            try:
+                lo, hi = part.split("-", 1)
+                port_list.extend(range(int(lo), int(hi) + 1))
+            except ValueError:
+                return {"error": f"Invalid port range: '{part}'", "tool": "port_scan"}
+        else:
+            try:
+                port_list.append(int(part))
+            except ValueError:
+                return {"error": f"Invalid port number: '{part}'", "tool": "port_scan"}
+    if not port_list:
+        return {"error": "No valid ports specified", "tool": "port_scan"}
+    out_of_range = [p for p in port_list if not 1 <= p <= 65535]
+    if out_of_range:
+        return {"error": f"Ports out of range 1-65535: {out_of_range[:5]}", "tool": "port_scan"}
+    if len(port_list) > 100:
+        return {"error": f"Too many ports ({len(port_list)}). Maximum 100 per call.", "tool": "port_scan"}
+    results: dict[int, str] = {}
+    for port in port_list:
+        try:
+            with socket.create_connection((host, port), timeout=timeout):
+                results[port] = "open"
+        except (socket.timeout, ConnectionRefusedError, OSError):
+            results[port] = "closed"
+    open_ports = sorted(p for p, state in results.items() if state == "open")
+    return {
+        "result": {
+            "host": host,
+            "scanned": len(port_list),
+            "open_count": len(open_ports),
+            "open": open_ports,
+            "ports": {str(k): v for k, v in sorted(results.items())},
+        }
+    }
+
+
+@mcp.tool()
 def traceroute(host: str, max_hops: int = 30, timeout: int = 60) -> dict:
     """Trace the network path to a host. max_hops: 1-64. timeout: 1-300 s."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "traceroute"}
     max_hops = min(max(1, max_hops), 64)
     timeout = min(max(1, timeout), 300)
     try:
@@ -133,12 +188,15 @@ def traceroute(host: str, max_hops: int = 30, timeout: int = 60) -> dict:
 
 
 @mcp.tool()
-def cert_check(host: str, port: int = 443) -> dict:
-    """Check the SSL certificate on a host — expiry, issued date, issuer, SANs, and days remaining."""
+def cert_check(host: str, port: int = 443, timeout: int = 10) -> dict:
+    """Check the SSL certificate on a host — expiry, issued date, issuer, SANs, and days remaining. timeout: 1-60 s."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "cert_check"}
+    timeout = min(max(1, timeout), 60)
     try:
         ctx = ssl.create_default_context()
         with socket.socket() as raw:
-            raw.settimeout(10)
+            raw.settimeout(timeout)
             with ctx.wrap_socket(raw, server_hostname=host) as s:
                 s.connect((host, port))
                 cert = s.getpeercert()
@@ -150,8 +208,8 @@ def cert_check(host: str, port: int = 443) -> dict:
         return {
             "host": host,
             "port": port,
-            "subject": dict(x[0] for x in cert["subject"]),
-            "issuer": dict(x[0] for x in cert["issuer"]),
+            "subject": dict(x[0] for x in cert.get("subject", [])),
+            "issuer": dict(x[0] for x in cert.get("issuer", [])),
             "not_before": cert["notBefore"],
             "expires": cert["notAfter"],
             "days_remaining": days_remaining,
@@ -160,6 +218,66 @@ def cert_check(host: str, port: int = 443) -> dict:
         }
     except Exception as e:
         return {"error": str(e), "tool": "cert_check", "host": host}
+
+
+@mcp.tool()
+def http_check(url: str, timeout: int = 10) -> dict:
+    """Check an HTTP/HTTPS URL: status code, response time in ms, and content type. Uses HEAD request for efficiency."""
+    if not url or not url.strip():
+        return {"error": "url must not be empty", "tool": "http_check"}
+    timeout = min(max(1, timeout), 60)
+    start = time.monotonic()
+    try:
+        req = urllib.request.Request(url, method="HEAD")
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            elapsed_ms = round((time.monotonic() - start) * 1000, 2)
+            return {
+                "result": {
+                    "status_code": resp.status,
+                    "url": resp.url,
+                    "elapsed_ms": elapsed_ms,
+                    "ok": True,
+                    "content_type": resp.headers.get("Content-Type", ""),
+                }
+            }
+    except urllib.error.HTTPError as e:
+        elapsed_ms = round((time.monotonic() - start) * 1000, 2)
+        return {
+            "result": {
+                "status_code": e.code,
+                "url": url,
+                "elapsed_ms": elapsed_ms,
+                "ok": False,
+            }
+        }
+    except Exception as e:
+        return {"error": str(e), "tool": "http_check", "detail": type(e).__name__}
+
+
+@mcp.tool()
+def subnet_info(cidr: str) -> dict:
+    """Parse a CIDR block: network address, broadcast, host range, host count, and whether it is a private range."""
+    if not cidr or not cidr.strip():
+        return {"error": "cidr must not be empty", "tool": "subnet_info"}
+    try:
+        net = ipaddress.IPv4Network(cidr, strict=False)
+        host_list = list(net.hosts())
+        usable = len(host_list)
+        return {
+            "result": {
+                "network": str(net.network_address),
+                "broadcast": str(net.broadcast_address),
+                "netmask": str(net.netmask),
+                "prefix_length": net.prefixlen,
+                "first_host": str(host_list[0]) if host_list else None,
+                "last_host": str(host_list[-1]) if host_list else None,
+                "host_count": usable,
+                "total_addresses": net.num_addresses,
+                "is_private": net.is_private,
+            }
+        }
+    except ValueError as e:
+        return {"error": str(e), "tool": "subnet_info"}
 
 
 @mcp.tool()
@@ -228,7 +346,7 @@ async def mac_lookup(mac: str) -> dict:
         if _mac_lookup_instance is None:
             instance = AsyncMacLookup()
             await instance.load_vendors()
-            _mac_lookup_instance = instance  # only assigned after successful load
+            _mac_lookup_instance = instance
         vendor = await _mac_lookup_instance.lookup(mac)
         return {"mac": mac, "vendor": vendor}
     except Exception as e:
