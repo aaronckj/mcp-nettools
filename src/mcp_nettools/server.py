@@ -3709,6 +3709,117 @@ def check_monica(host: str, port: int = 80, timeout: int = 5, https: bool = Fals
     return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy}}
 
 
+@mcp.tool()
+def check_vikunja(host: str, port: int = 3456, timeout: int = 5, https: bool = False) -> dict:
+    """Check Vikunja task manager health via GET /api/v1/info. Returns version and build information."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_vikunja"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    healthy = False
+    version: str | None = None
+    try:
+        req = urllib.request.Request(
+            f"{scheme}://{host}:{port}/api/v1/info",
+            headers={"Accept": "application/json"},
+        )
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            healthy = resp.status == 200
+            data = json.loads(resp.read().decode())
+            version = data.get("version")
+    except Exception:
+        pass
+    return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy, "version": version}}
+
+
+@mcp.tool()
+def check_stirling_pdf(host: str, port: int = 8080, timeout: int = 5, https: bool = False) -> dict:
+    """Check Stirling-PDF tools server health via GET /api/v1/info. Returns healthy state and version."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_stirling_pdf"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    healthy = False
+    version: str | None = None
+    for path in ["/api/v1/info", "/actuator/health"]:
+        try:
+            req = urllib.request.Request(
+                f"{scheme}://{host}:{port}{path}",
+                headers={"Accept": "application/json"},
+            )
+            with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+                healthy = resp.status == 200
+                data = json.loads(resp.read().decode())
+                version = data.get("version") or (data.get("status") == "UP" and "UP") or None
+                if healthy:
+                    break
+        except Exception:
+            pass
+    return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy, "version": version}}
+
+
+@mcp.tool()
+def check_grocy(host: str, port: int = 9283, timeout: int = 5, https: bool = False) -> dict:
+    """Check Grocy grocery and household management server via GET /api/system/info. Returns version and PHP info."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_grocy"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    healthy = False
+    version: str | None = None
+    try:
+        req = urllib.request.Request(
+            f"{scheme}://{host}:{port}/api/system/info",
+            headers={"Accept": "application/json", "GROCY-API-KEY": "demo_mode"},
+        )
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            healthy = resp.status == 200
+            data = json.loads(resp.read().decode())
+            version = data.get("grocy_version")
+    except urllib.error.HTTPError as e:
+        healthy = e.code in (200, 401, 403)
+    except Exception:
+        pass
+    return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy, "version": version}}
+
+
+@mcp.tool()
+def check_actual_budget(host: str, port: int = 5006, timeout: int = 5, https: bool = False) -> dict:
+    """Check Actual Budget personal finance server health via GET /health. Returns healthy state."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_actual_budget"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    healthy = False
+    try:
+        req = urllib.request.Request(f"{scheme}://{host}:{port}/health")
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            healthy = resp.status == 200
+    except Exception:
+        pass
+    return {"result": {"host": host, "port": port, "reachable": healthy, "healthy": healthy}}
+
+
 def main() -> None:
     mcp.run()
 
