@@ -2980,12 +2980,13 @@ def check_traefik(host: str, port: int = 8080, timeout: int = 5, https: bool = F
         ctx.verify_mode = ssl.CERT_NONE
     ping_ok = False
     version: str | None = None
+    ping_error: str | None = None
     try:
         req = urllib.request.Request(f"{scheme}://{host}:{port}/ping")
         with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
             ping_ok = resp.status == 200
-    except Exception:
-        pass
+    except Exception as e:
+        ping_error = f"{type(e).__name__}: {e}"
     try:
         req = urllib.request.Request(f"{scheme}://{host}:{port}/api/version", headers={"Accept": "application/json"})
         with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
@@ -2993,7 +2994,10 @@ def check_traefik(host: str, port: int = 8080, timeout: int = 5, https: bool = F
             version = data.get("Version")
     except Exception:
         pass
-    return {"result": {"host": host, "port": port, "reachable": ping_ok, "ping_ok": ping_ok, "version": version}}
+    result: dict = {"host": host, "port": port, "reachable": ping_ok, "ping_ok": ping_ok, "version": version}
+    if ping_error and not ping_ok:
+        result["error"] = ping_error
+    return {"result": result}
 
 @mcp.tool()
 def http_put(url: str, body: str = "", content_type: str = "application/json", timeout: int = 10, headers: str = "") -> dict:
