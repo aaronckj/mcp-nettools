@@ -847,6 +847,7 @@ def ftp_check(host: str, port: int = 21, timeout: int = 10) -> dict:
         return {"error": f"Invalid port {port}: must be 1-65535", "tool": "ftp_check"}
     timeout = min(max(1, timeout), 30)
     try:
+        start = time.monotonic()
         with ftplib.FTP() as ftp:
             ftp.connect(host, port, timeout)
             welcome = ftp.getwelcome()
@@ -856,6 +857,7 @@ def ftp_check(host: str, port: int = 21, timeout: int = 10) -> dict:
                 anon_ok = True
             except ftplib.all_errors:
                 pass
+        elapsed_ms = round((time.monotonic() - start) * 1000, 2)
         return {
             "result": {
                 "host": host,
@@ -863,6 +865,7 @@ def ftp_check(host: str, port: int = 21, timeout: int = 10) -> dict:
                 "reachable": True,
                 "welcome": welcome,
                 "anonymous_login": anon_ok,
+                "elapsed_ms": elapsed_ms,
             }
         }
     except ConnectionRefusedError:
@@ -1674,7 +1677,8 @@ def check_sip(host: str, port: int = 5060, timeout: int = 5, transport: str = "u
                     data = sock.recv(4096)
                     response = data.decode("utf-8", errors="replace")
                 except socket.timeout:
-                    response = ""
+                    elapsed_ms = round((time.monotonic() - start) * 1000, 2)
+                    return {"result": {"host": host, "port": port, "transport": transport, "reachable": False, "reason": "no response (TCP timeout)", "elapsed_ms": elapsed_ms}}
         elapsed_ms = round((time.monotonic() - start) * 1000, 2)
         is_sip = response.startswith("SIP/2.0")
         status_line = response.split("\r\n")[0] if is_sip else ""
@@ -1932,7 +1936,8 @@ def check_redis(host: str, port: int = 6379, timeout: int = 5, password: str = "
                 sock.sendall(f"*2\r\n$4\r\nAUTH\r\n${len(password)}\r\n{password}\r\n".encode())
                 auth_resp = _readline(sock)
                 if not auth_resp.startswith("+OK"):
-                    return {"result": {"host": host, "port": port, "reachable": True, "authenticated": False, "auth_error": auth_resp}}
+                    elapsed_ms = round((time.monotonic() - start) * 1000, 2)
+                    return {"result": {"host": host, "port": port, "reachable": True, "authenticated": False, "auth_error": auth_resp, "elapsed_ms": elapsed_ms}}
             sock.sendall(b"*1\r\n$4\r\nPING\r\n")
             pong = _readline(sock)
             elapsed_ms = round((time.monotonic() - start) * 1000, 2)
