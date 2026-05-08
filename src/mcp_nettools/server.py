@@ -6206,6 +6206,125 @@ def check_mylar3(host: str, port: int = 8090, timeout: int = 5, https: bool = Fa
     return {"result": {"host": host, "port": port, "reachable": reachable, "healthy": reachable, "version": version}}
 
 
+@mcp.tool()
+def check_dozzle(host: str, port: int = 8080, timeout: int = 5, https: bool = False) -> dict:
+    """Check Dozzle Docker log viewer health via GET /healthcheck. Returns healthy/reachable status. Default port 8080."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_dozzle"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    try:
+        req = urllib.request.Request(f"{scheme}://{host}:{port}/healthcheck", headers={"Accept": "application/json"})
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            healthy = resp.status == 200
+            return {"result": {"host": host, "port": port, "healthy": healthy, "reachable": healthy}}
+    except urllib.error.HTTPError as e:
+        return {"error": f"HTTP {e.code}: {e.reason}", "tool": "check_dozzle", "host": host}
+    except Exception as e:
+        return {"error": str(e), "tool": "check_dozzle", "host": host}
+
+
+@mcp.tool()
+def check_scrutiny(host: str, port: int = 8080, timeout: int = 5, https: bool = False) -> dict:
+    """Check Scrutiny disk health monitoring health via GET /api/health. Returns healthy/reachable status. Default port 8080."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_scrutiny"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    try:
+        req = urllib.request.Request(f"{scheme}://{host}:{port}/api/health", headers={"Accept": "application/json"})
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            data = json.loads(resp.read().decode())
+            healthy = resp.status == 200 and data.get("success", False)
+            return {"result": {"host": host, "port": port, "healthy": healthy, "reachable": resp.status == 200}}
+    except urllib.error.HTTPError as e:
+        return {"error": f"HTTP {e.code}: {e.reason}", "tool": "check_scrutiny", "host": host}
+    except Exception as e:
+        return {"error": str(e), "tool": "check_scrutiny", "host": host}
+
+
+@mcp.tool()
+def check_radicale(host: str, port: int = 5232, timeout: int = 5, https: bool = False) -> dict:
+    """Check Radicale CalDAV/CardDAV server reachability via GET /. Returns 200 or 401 when service is up. Default port 5232."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_radicale"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    try:
+        req = urllib.request.Request(f"{scheme}://{host}:{port}/", headers={"Accept": "text/html"})
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            reachable = resp.status in (200, 401)
+            return {"result": {"host": host, "port": port, "reachable": reachable, "healthy": reachable}}
+    except urllib.error.HTTPError as e:
+        reachable = e.code in (200, 401)
+        return {"result": {"host": host, "port": port, "reachable": reachable, "healthy": reachable, "http_code": e.code}}
+    except Exception as e:
+        return {"error": str(e), "tool": "check_radicale", "host": host}
+
+
+@mcp.tool()
+def check_archivebox(host: str, port: int = 8000, timeout: int = 5, https: bool = False) -> dict:
+    """Check ArchiveBox web archiving service reachability via GET /. Returns 200 or 302 when service is up. Default port 8000."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_archivebox"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    try:
+        req = urllib.request.Request(f"{scheme}://{host}:{port}/", headers={"Accept": "text/html"})
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            reachable = resp.status in (200, 302)
+            return {"result": {"host": host, "port": port, "reachable": reachable, "healthy": reachable}}
+    except urllib.error.HTTPError as e:
+        reachable = e.code in (200, 301, 302)
+        return {"result": {"host": host, "port": port, "reachable": reachable, "healthy": reachable, "http_code": e.code}}
+    except Exception as e:
+        return {"error": str(e), "tool": "check_archivebox", "host": host}
+
+
+@mcp.tool()
+def check_leantime(host: str, port: int = 80, timeout: int = 5, https: bool = False) -> dict:
+    """Check Leantime project management service reachability via GET /. Returns 200 or 302 when service is up. Default port 80."""
+    if not host or not host.strip():
+        return {"error": "host must not be empty", "tool": "check_leantime"}
+    host = host.strip()
+    scheme = "https" if https else "http"
+    ctx = None
+    if https:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    try:
+        req = urllib.request.Request(f"{scheme}://{host}:{port}/", headers={"Accept": "text/html"})
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            reachable = resp.status in (200, 302)
+            return {"result": {"host": host, "port": port, "reachable": reachable, "healthy": reachable}}
+    except urllib.error.HTTPError as e:
+        reachable = e.code in (200, 301, 302)
+        return {"result": {"host": host, "port": port, "reachable": reachable, "healthy": reachable, "http_code": e.code}}
+    except Exception as e:
+        return {"error": str(e), "tool": "check_leantime", "host": host}
+
+
 def main() -> None:
     mcp.run()
 
