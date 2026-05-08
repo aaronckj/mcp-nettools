@@ -1036,6 +1036,8 @@ def check_security_headers(url: str, timeout: int = 10) -> dict:
     if not url or not url.strip():
         return {"error": "url must not be empty", "tool": "check_security_headers"}
     url = url.strip()
+    if not url.startswith(("http://", "https://")):
+        url = f"https://{url}"
     timeout = min(max(1, timeout), 30)
     try:
         req = urllib.request.Request(url, method="HEAD")
