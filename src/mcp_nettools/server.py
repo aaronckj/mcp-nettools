@@ -7070,6 +7070,8 @@ def check_plex(host: str, port: int = 32400, timeout: int = 5, https: bool = Fal
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_plex"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_plex"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -7095,6 +7097,8 @@ def check_sonarr(host: str, port: int = 8989, timeout: int = 5, https: bool = Fa
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_sonarr"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_sonarr"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -7118,6 +7122,8 @@ def check_radarr(host: str, port: int = 7878, timeout: int = 5, https: bool = Fa
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_radarr"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_radarr"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -7141,6 +7147,8 @@ def check_tautulli(host: str, port: int = 8181, timeout: int = 5, https: bool = 
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_tautulli"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_tautulli"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -7165,6 +7173,8 @@ def check_overseerr(host: str, port: int = 5055, timeout: int = 5, https: bool =
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_overseerr"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_overseerr"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -7189,6 +7199,8 @@ def check_beszel(host: str, port: int = 8090, timeout: int = 5, https: bool = Fa
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_beszel"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_beszel"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -7212,6 +7224,8 @@ def check_gatus(host: str, port: int = 8080, timeout: int = 5, https: bool = Fal
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_gatus"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_gatus"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -7236,6 +7250,8 @@ def check_technitium(host: str, port: int = 5380, timeout: int = 5, https: bool 
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_technitium"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_technitium"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -7261,6 +7277,8 @@ def check_crowdsec(host: str, port: int = 6060, timeout: int = 5, https: bool = 
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_crowdsec"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_crowdsec"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
@@ -7284,6 +7302,8 @@ def check_wazuh(host: str, port: int = 55000, timeout: int = 5, https: bool = Tr
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "check_wazuh"}
     host = host.strip()
+    if not 1 <= port <= 65535:
+        return {"error": f"port {port} out of range 1-65535", "tool": "check_wazuh"}
     scheme = "https" if https else "http"
     ctx = None
     if https:
