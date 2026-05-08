@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import socket
 import ssl
 import subprocess
@@ -17,11 +18,14 @@ mcp = FastMCP("nettools")
 
 _VALID_RECORD_TYPES = {"A", "AAAA", "MX", "TXT", "NS", "CNAME", "PTR", "SOA", "SRV"}
 _mac_lookup_instance: AsyncMacLookup | None = None
+_MAC_RE = re.compile(r"^([0-9a-fA-F]{2}[:\-]){5}[0-9a-fA-F]{2}$")
 
 
 @mcp.tool()
 def ping(host: str, count: int = 4, timeout: int = 5) -> dict:
-    """Ping a host and return reachability and round-trip times."""
+    """Ping a host and return reachability and round-trip times. count: 1-30. timeout: 1-60 s per packet."""
+    count = min(max(1, count), 30)
+    timeout = min(max(1, timeout), 60)
     try:
         result = subprocess.run(
             ["ping", "-c", str(count), "-W", str(timeout), host],
@@ -48,7 +52,9 @@ def dns_lookup(host: str, record_type: str = "A") -> dict:
             "tool": "dns_lookup",
         }
     try:
-        answers = dns.resolver.resolve(host, record_type)
+        resolver = dns.resolver.Resolver()
+        resolver.lifetime = 10.0
+        answers = resolver.resolve(host, record_type)
         return {
             "host": host,
             "record_type": record_type,
@@ -60,19 +66,21 @@ def dns_lookup(host: str, record_type: str = "A") -> dict:
 
 @mcp.tool()
 def port_check(host: str, port: int, timeout: int = 5) -> dict:
-    """Check if a TCP port is open on a host."""
+    """Check if a TCP port is open on a host. Supports IPv4 and IPv6."""
     try:
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-            sock.settimeout(timeout)
-            result = sock.connect_ex((host, port))
-        return {"host": host, "port": port, "open": result == 0}
+        with socket.create_connection((host, port), timeout=timeout):
+            pass
+        return {"host": host, "port": port, "open": True}
+    except OSError:
+        return {"host": host, "port": port, "open": False}
     except Exception as e:
         return {"error": str(e), "tool": "port_check", "host": host, "port": port}
 
 
 @mcp.tool()
 def traceroute(host: str, max_hops: int = 30, timeout: int = 60) -> dict:
-    """Trace the network path to a host."""
+    """Trace the network path to a host. max_hops: 1-64."""
+    max_hops = min(max(1, max_hops), 64)
     try:
         result = subprocess.run(
             ["traceroute", "-m", str(max_hops), host],
@@ -120,6 +128,11 @@ def cert_check(host: str, port: int = 443) -> dict:
 @mcp.tool()
 def wake_on_lan(mac: str, broadcast: str = "255.255.255.255") -> dict:
     """Send a Wake-on-LAN magic packet to a MAC address."""
+    if not _MAC_RE.match(mac):
+        return {
+            "error": f"Invalid MAC address '{mac}'. Expected XX:XX:XX:XX:XX:XX or XX-XX-XX-XX-XX-XX",
+            "tool": "wake_on_lan",
+        }
     try:
         send_magic_packet(mac, ip_address=broadcast)
         return {"mac": mac, "broadcast": broadcast, "sent": True}
@@ -149,12 +162,12 @@ async def mac_lookup(mac: str) -> dict:
     global _mac_lookup_instance
     try:
         if _mac_lookup_instance is None:
-            _mac_lookup_instance = AsyncMacLookup()
-            await _mac_lookup_instance.load_vendors()
+            instance = AsyncMacLookup()
+            await instance.load_vendors()
+            _mac_lookup_instance = instance  # only assigned after successful load
         vendor = await _mac_lookup_instance.lookup(mac)
         return {"mac": mac, "vendor": vendor}
     except Exception as e:
-        _mac_lookup_instance = None
         return {"error": str(e), "tool": "mac_lookup", "mac": mac}
 
 
