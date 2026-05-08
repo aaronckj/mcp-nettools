@@ -645,7 +645,7 @@ def smtp_check(host: str, port: int = 25, timeout: int = 10, check_starttls: boo
             with smtplib.SMTP_SSL(host, port, timeout=timeout) as smtp:
                 smtp.ehlo()
                 caps = list(smtp.esmtp_features.keys())
-                return {"result": {"host": host, "port": port, "reachable": True, "tls": "direct_ssl", "capabilities": caps}}
+                return {"result": {"host": host, "port": port, "reachable": True, "tls": "direct_ssl", "starttls_advertised": False, "capabilities": caps}}
         else:
             with smtplib.SMTP(host, port, timeout=timeout) as smtp:
                 smtp.ehlo()
@@ -2333,8 +2333,11 @@ def check_influxdb(host: str, port: int = 8086, timeout: int = 5, https: bool = 
                     "commit": data.get("commit"),
                 }
             }
-        except urllib.error.HTTPError:
-            pass
+        except urllib.error.HTTPError as _he:
+            if _he.code != 404:
+                return {"result": {"host": host, "port": port, "reachable": True,
+                                   "status": "error", "status_code": _he.code,
+                                   "error": f"HTTP {_he.code} on /health (auth required or server unhealthy)"}}
         req_ping = urllib.request.Request(f"{scheme}://{host}:{port}/ping")
         with urllib.request.urlopen(req_ping, timeout=timeout, context=ctx) as resp:
             x_influxdb_version = resp.headers.get("X-Influxdb-Version", "")
@@ -2801,8 +2804,10 @@ def check_kafka(host: str, port: int = 9092, timeout: int = 5) -> dict:
             elapsed_ms = round((time.monotonic() - start) * 1000, 2)
             if len(header) == 4:
                 resp_len = struct.unpack(">I", header)[0]
-                sock.recv(min(resp_len, 256))
-                return {"result": {"host": host, "port": port, "reachable": True, "protocol": "Kafka", "elapsed_ms": elapsed_ms}}
+                body = sock.recv(min(resp_len, 256))
+                # Validate Kafka response: first 4 bytes of body must be the correlation_id we sent (1)
+                if len(body) >= 4 and struct.unpack(">i", body[:4])[0] == 1:
+                    return {"result": {"host": host, "port": port, "reachable": True, "protocol": "Kafka", "elapsed_ms": elapsed_ms}}
         return {"result": {"host": host, "port": port, "reachable": True, "protocol": "unknown", "note": "TCP connected but response too short"}}
     except socket.timeout:
         return {"result": {"host": host, "port": port, "reachable": False, "error": "timeout"}}
