@@ -5992,6 +5992,7 @@ def check_frigate(host: str, port: int = 5000, timeout: int = 5, https: bool = F
     return {"result": {
         "host": host,
         "port": port,
+        "reachable": True,
         "healthy": healthy,
         "camera_count": len(cameras),
         "cameras": list(cameras.keys()),
