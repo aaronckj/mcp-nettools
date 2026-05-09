@@ -26,9 +26,9 @@ from wakeonlan import send_magic_packet
 
 mcp = FastMCP("nettools")
 
-_VALID_RECORD_TYPES = {"A", "AAAA", "MX", "TXT", "NS", "CNAME", "PTR", "SOA", "SRV"}
+_VALID_RECORD_TYPES = {"A", "AAAA", "MX", "TXT", "NS", "CNAME", "PTR", "SOA", "SRV", "CAA", "DNSKEY", "DS"}
 _mac_lookup_instance: AsyncMacLookup | None = None
-_MAC_RE = re.compile(r"^([0-9a-fA-F]{2}[:\-]){5}[0-9a-fA-F]{2}$")
+_MAC_RE = re.compile(r"^([0-9a-fA-F]{2}[:\-.]){5}[0-9a-fA-F]{2}$")
 _PING_LOSS_RE = re.compile(r"(\d+(?:\.\d+)?)%\s+packet loss")
 _PING_RTT_RE = re.compile(r"(?:rtt|round-trip)[^\d]*([\d.]+)/([\d.]+)/([\d.]+)/([\d.]+)")
 
@@ -275,8 +275,11 @@ def cert_check(host: str, port: int = 443, timeout: int = 10) -> dict:
         return {"error": f"Invalid port {port}: must be 1-65535", "tool": "cert_check"}
     timeout = min(max(1, timeout), 60)
     def _parse_cert(cert: dict, cert_der: bytes, verified: bool) -> dict:
-        fmt = "%b %d %H:%M:%S %Y %Z"
-        not_after = datetime.strptime(cert["notAfter"], fmt).replace(tzinfo=timezone.utc)
+        not_after_str = cert["notAfter"]
+        try:
+            not_after = datetime.strptime(not_after_str, "%b %d %H:%M:%S %Y %Z").replace(tzinfo=timezone.utc)
+        except ValueError:
+            not_after = datetime.strptime(not_after_str.rsplit(" ", 1)[0], "%b %d %H:%M:%S %Y").replace(tzinfo=timezone.utc)
         days_remaining = (not_after - datetime.now(timezone.utc)).days
         sans = [v for _type, v in cert.get("subjectAltName", [])]
         fp = hashlib.sha256(cert_der).hexdigest() if cert_der else None
@@ -1594,7 +1597,6 @@ def cert_check_bulk(hosts: str, port: int = 443, timeout: int = 10) -> dict:
     timeout = min(max(1, timeout), 60)
 
     def _check_one(host: str) -> tuple[str, dict]:
-        fmt = "%b %d %H:%M:%S %Y %Z"
         try:
             # Strip port suffix for SNI (e.g. "example.com:443" → "example.com")
             sni = host
@@ -1608,7 +1610,11 @@ def cert_check_bulk(hosts: str, port: int = 443, timeout: int = 10) -> dict:
                 with ctx.wrap_socket(raw, server_hostname=sni) as s:
                     s.connect((sni, port))
                     cert = s.getpeercert()
-            not_after = datetime.strptime(cert["notAfter"], fmt).replace(tzinfo=timezone.utc)
+            not_after_str = cert["notAfter"]
+            try:
+                not_after = datetime.strptime(not_after_str, "%b %d %H:%M:%S %Y %Z").replace(tzinfo=timezone.utc)
+            except ValueError:
+                not_after = datetime.strptime(not_after_str.rsplit(" ", 1)[0], "%b %d %H:%M:%S %Y").replace(tzinfo=timezone.utc)
             days = (not_after - datetime.now(timezone.utc)).days
             return host, {
                 "expires": cert["notAfter"],
