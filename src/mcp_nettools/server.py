@@ -550,7 +550,7 @@ def wake_on_lan(mac: str, broadcast: str = "255.255.255.255") -> dict:
     mac = mac.strip()
     if not _MAC_RE.match(mac):
         return {
-            "error": f"Invalid MAC address '{mac}'. Expected XX:XX:XX:XX:XX:XX or XX-XX-XX-XX-XX-XX",
+            "error": f"Invalid MAC address '{mac}'. Expected XX:XX:XX:XX:XX:XX, XX-XX-XX-XX-XX-XX, or XX.XX.XX.XX.XX.XX",
             "tool": "wake_on_lan",
             "mac": mac,
         }
@@ -621,7 +621,7 @@ async def mac_lookup(mac: str) -> dict:
     mac = mac.strip()
     if not _MAC_RE.match(mac):
         return {
-            "error": f"Invalid MAC address '{mac}'. Expected XX:XX:XX:XX:XX:XX or XX-XX-XX-XX-XX-XX",
+            "error": f"Invalid MAC address '{mac}'. Expected XX:XX:XX:XX:XX:XX, XX-XX-XX-XX-XX-XX, or XX.XX.XX.XX.XX.XX",
             "tool": "mac_lookup",
         }
     try:
