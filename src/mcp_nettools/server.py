@@ -1293,8 +1293,8 @@ def snmp_check(host: str, port: int = 161, timeout: int = 3, community: str = "p
     timeout = min(max(1, timeout), 30)
     community_bytes = community.encode()
     community_len = len(community_bytes)
-    if community_len > 120:
-        return {"error": f"community string too long ({community_len} bytes); max 120 for BER short-form encoding", "tool": "snmp_check"}
+    if community_len > 97:
+        return {"error": f"community string too long ({community_len} bytes); max 97 for BER short-form encoding", "tool": "snmp_check"}
     community_field = bytes([0x04, community_len]) + community_bytes
     msg_inner = bytes([0x02, 0x01, 0x01]) + community_field + bytes([0xa0, 0x19, 0x02, 0x01, 0x01, 0x02, 0x01, 0x00, 0x02, 0x01, 0x00, 0x30, 0x0e, 0x30, 0x0c, 0x06, 0x08, 0x2b, 0x06, 0x01, 0x02, 0x01, 0x01, 0x01, 0x00, 0x05, 0x00])
     msg = bytes([0x30, len(msg_inner)]) + msg_inner
@@ -6089,7 +6089,7 @@ def check_victoriametrics(host: str, port: int = 8428, timeout: int = 5, https: 
         return {"error": f"HTTP {e.code}: {e.reason}", "tool": "check_victoriametrics", "host": host}
     except Exception as e:
         return {"error": str(e), "tool": "check_victoriametrics", "host": host}
-    result: dict = {"host": host, "port": port, "healthy": healthy, "status": body}
+    result: dict = {"host": host, "port": port, "reachable": healthy, "healthy": healthy, "status": body}
     try:
         req2 = urllib.request.Request(f"{scheme}://{host}:{port}/api/v1/status/tsdb", headers={"Accept": "application/json"})
         with urllib.request.urlopen(req2, timeout=timeout, context=ctx) as resp2:
