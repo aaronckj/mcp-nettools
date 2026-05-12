@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import asyncio
 import concurrent.futures
 import hashlib
 import ipaddress
 import json
+import logging
 import re
 import smtplib
 import socket
@@ -17,6 +19,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from datetime import datetime, timezone
+from typing import Any, Dict, List, Optional
 
 import dns.resolver
 import speedtest as _speedtest_lib
@@ -24,7 +27,42 @@ from mac_vendor_lookup import AsyncMacLookup
 from mcp.server.fastmcp import FastMCP
 from wakeonlan import send_magic_packet
 
+# Setup structured logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
 mcp = FastMCP("nettools")
+
+class NetworkToolsError(Exception):
+    """Custom exception for network tools errors."""
+    def __init__(self, message: str, error_code: str = "UNKNOWN_ERROR", details: Optional[Dict] = None):
+        self.message = message
+        self.error_code = error_code
+        self.details = details or {}
+        super().__init__(self.message)
+
+
+def _err(e: Exception, tool: str, **kwargs) -> dict:
+    """Standardized error response using NetworkToolsError pattern."""
+    if isinstance(e, NetworkToolsError):
+        out: dict = {
+            "error": e.message,
+            "error_code": e.error_code,
+            "tool": tool,
+        }
+        out.update(e.details)
+        out.update(kwargs)
+        return out
+    out = {
+        "error": str(e),
+        "tool": tool,
+        "error_code": "UNKNOWN_ERROR",
+    }
+    out.update(kwargs)
+    return out
 
 _VALID_RECORD_TYPES = {"A", "AAAA", "MX", "TXT", "NS", "CNAME", "PTR", "SOA", "SRV", "CAA", "DNSKEY", "DS"}
 _mac_lookup_instance: AsyncMacLookup | None = None
@@ -33,10 +71,10 @@ _PING_LOSS_RE = re.compile(r"(\d+(?:\.\d+)?)%\s+packet loss")
 _PING_RTT_RE = re.compile(r"(?:rtt|round-trip)[^\d]*([\d.]+)/([\d.]+)/([\d.]+)/([\d.]+)")
 
 @mcp.tool()
-def ping(host: str, count: int = 4, timeout: int = 5) -> dict:
+async def ping(host: str, count: int = 4, timeout: int = 5) -> dict:
     """Ping a host and return reachability, packet loss %, and RTT stats. count: 1-30. timeout: 1-60 s per packet."""
     if not host or not host.strip():
-        return {"error": "host must not be empty", "tool": "ping"}
+        return _err(NetworkToolsError("host must not be empty", "VALIDATION_ERROR"), "ping")
     host = host.strip()
     count = min(max(1, count), 30)
     timeout = min(max(1, timeout), 60)
@@ -63,11 +101,13 @@ def ping(host: str, count: int = 4, timeout: int = 5) -> dict:
             out["rtt_avg_ms"] = float(rtt_m.group(2))
             out["rtt_max_ms"] = float(rtt_m.group(3))
         return {"result": out}
+    except NetworkToolsError:
+        raise
     except Exception as e:
-        return {"error": str(e), "tool": "ping", "host": host}
+        return _err(e, "ping", host=host)
 
 @mcp.tool()
-def dns_lookup(host: str, record_type: str = "A", nameserver: str = "") -> dict:
+async def dns_lookup(host: str, record_type: str = "A", nameserver: str = "") -> dict:
     """Look up DNS records for a hostname. record_type: A, AAAA, MX, TXT, NS, CNAME, PTR, SOA, SRV. nameserver: optional custom resolver IP (e.g., '8.8.8.8' for Google DNS, '1.1.1.1' for Cloudflare)."""
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "dns_lookup"}
@@ -7648,6 +7688,20 @@ def check_vector(host: str, port: int = 8686, timeout: int = 5, https: bool = Fa
         return {"result": {"host": host, "port": port, "reachable": reachable, "healthy": False, "http_code": e.code}}
     except Exception as e:
         return {"error": str(e), "tool": "check_vector", "host": host}
+
+@mcp.tool()
+async def test_tool() -> dict:
+    """Test tool to verify MCP server is working."""
+    try:
+        return {"result": {"status": "ok", "tool": "test_tool"}}
+    except Exception as e:
+        return {"error": str(e), "tool": "test_tool"}
+
+
+@mcp.tool()
+async def health_check() -> dict:
+    """Health check endpoint for container monitoring."""
+    return {"status": "healthy", "service": "nettools"}
 
 def main() -> None:
     mcp.run()

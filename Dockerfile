@@ -17,4 +17,7 @@ RUN uv pip install --system .
 # Pre-download OUI database so first run is instant
 RUN python -c "import asyncio; from mac_vendor_lookup import AsyncMacLookup; asyncio.run(AsyncMacLookup().load_vendors())" || true
 
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+  CMD curl -f http://localhost:8080/health || exit 1
+
 ENTRYPOINT ["mcp-nettools"]
