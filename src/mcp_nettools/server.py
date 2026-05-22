@@ -141,7 +141,7 @@ async def dns_lookup(host: str, record_type: str = "A", nameserver: str = "") ->
         return {"error": str(e), "tool": "dns_lookup", "host": host}
 
 @mcp.tool()
-def reverse_dns(ip: str) -> dict:
+async def reverse_dns(ip: str) -> dict:
     """Reverse DNS lookup for an IP address — returns the PTR hostname."""
     if not ip or not ip.strip():
         return {"error": "ip must not be empty", "tool": "reverse_dns"}
@@ -151,7 +151,8 @@ def reverse_dns(ip: str) -> dict:
     except ValueError:
         return {"error": f"Invalid IP address: '{ip}'. reverse_dns requires an IP, not a hostname. Use dns_lookup for forward lookups.", "tool": "reverse_dns"}
     try:
-        hostname, _, _ = socket.gethostbyaddr(ip)
+        # Use asyncio.to_thread to avoid blocking the event loop
+        hostname, _, _ = await asyncio.to_thread(socket.gethostbyaddr, ip)
         return {"result": {"ip": ip, "hostname": hostname}}
     except socket.herror as e:
         return {"error": str(e), "tool": "reverse_dns", "ip": ip}
@@ -159,7 +160,7 @@ def reverse_dns(ip: str) -> dict:
         return {"error": str(e), "tool": "reverse_dns", "ip": ip}
 
 @mcp.tool()
-def reverse_dns_bulk(ips: str) -> dict:
+async def reverse_dns_bulk(ips: str) -> dict:
     """Reverse DNS lookup for multiple IP addresses at once. ips: comma-separated IPv4 or IPv6 addresses (max 50). Returns PTR hostname for each IP, or an error if lookup fails."""
     if not ips or not ips.strip():
         return {"error": "ips must not be empty", "tool": "reverse_dns_bulk"}
@@ -178,19 +179,31 @@ def reverse_dns_bulk(ips: str) -> dict:
     if invalid:
         return {"error": f"Invalid IP addresses: {invalid[:5]}", "tool": "reverse_dns_bulk"}
 
-    def _rdns(ip: str) -> tuple[str, str | None, str | None]:
+    async def _rdns(ip: str) -> tuple[str, str | None, str | None]:
         try:
-            hostname, _, _ = socket.gethostbyaddr(ip)
+            hostname, _, _ = await asyncio.to_thread(socket.gethostbyaddr, ip)
             return ip, hostname, None
         except socket.herror as e:
             return ip, None, str(e)
         except Exception as e:
             return ip, None, str(e)
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=min(len(ip_list), 20)) as pool:
-        raw = list(pool.map(_rdns, ip_list))
+    # Use asyncio.gather to run tasks concurrently
+    tasks = [_rdns(ip) for ip in ip_list]
+    raw = await asyncio.gather(*tasks, return_exceptions=True)
 
-    results = {ip: {"hostname": h, "error": err} if err else {"hostname": h} for ip, h, err in raw}
+    # Handle exceptions that occurred during async execution
+    results = {}
+    for item in raw:
+        if isinstance(item, Exception):
+            # This shouldn't happen in our case, but handle gracefully
+            continue
+        ip, hostname, err = item
+        if err:
+            results[ip] = {"hostname": hostname, "error": err}
+        else:
+            results[ip] = {"hostname": hostname}
+
     resolved = sum(1 for r in results.values() if "hostname" in r and r["hostname"])
     return {"result": {"resolved": resolved, "total": len(ip_list), "ips": results}}
 
@@ -203,7 +216,7 @@ def _probe_port(host: str, port: int, timeout: float) -> bool:
         return False
 
 @mcp.tool()
-def port_check(host: str, port: int, timeout: int = 5) -> dict:
+async def port_check(host: str, port: int, timeout: int = 5) -> dict:
     """Check if a TCP port is open on a host. port: 1-65535. timeout: 1-300 s. Supports IPv4 and IPv6."""
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "port_check"}
@@ -212,8 +225,8 @@ def port_check(host: str, port: int, timeout: int = 5) -> dict:
         return {"error": f"Invalid port {port}: must be 1-65535", "tool": "port_check"}
     timeout = min(max(1, timeout), 300)
     try:
-        with socket.create_connection((host, port), timeout=timeout):
-            pass
+        # Use asyncio.to_thread to avoid blocking the event loop
+        await asyncio.to_thread(socket.create_connection, (host, port), timeout=timeout)
         return {"result": {"host": host, "port": port, "open": True}}
     except (ConnectionRefusedError, TimeoutError):
         return {"result": {"host": host, "port": port, "open": False}}
@@ -221,7 +234,7 @@ def port_check(host: str, port: int, timeout: int = 5) -> dict:
         return {"error": str(e), "tool": "port_check", "host": host, "port": port}
 
 @mcp.tool()
-def port_scan(host: str, ports: str, timeout: int = 3, open_only: bool = False) -> dict:
+async def port_scan(host: str, ports: str, timeout: int = 3, open_only: bool = False) -> dict:
     """Check multiple TCP ports on a host. ports: comma-separated or ranges (e.g., '22,80,443,8000-8080'). Max 500 ports. timeout: 1-30 s. open_only: if True, omit closed ports from the 'ports' dict (useful for large ranges)."""
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "port_scan"}
@@ -274,7 +287,7 @@ def port_scan(host: str, ports: str, timeout: int = 3, open_only: bool = False) 
     }
 
 @mcp.tool()
-def traceroute(host: str, max_hops: int = 30, timeout: int = 60, wait: int = 2) -> dict:
+async def traceroute(host: str, max_hops: int = 30, timeout: int = 60, wait: int = 2) -> dict:
     """Trace the network path to a host. max_hops: 1-64. timeout: overall timeout in seconds. wait: per-hop probe wait time in seconds (1-10, default 2; increase to 5-10 for high-latency satellite/VPN links)."""
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "traceroute"}
@@ -283,7 +296,8 @@ def traceroute(host: str, max_hops: int = 30, timeout: int = 60, wait: int = 2) 
     timeout = min(max(1, timeout), 300)
     wait = min(max(1, wait), 10)
     try:
-        result = subprocess.run(
+        # Use asyncio.to_thread to avoid blocking the event loop
+        result = await asyncio.to_thread(subprocess.run,
             ["traceroute", "-m", str(max_hops), "-w", str(wait), host],
             capture_output=True,
             text=True,
@@ -301,7 +315,7 @@ def traceroute(host: str, max_hops: int = 30, timeout: int = 60, wait: int = 2) 
         return {"error": str(e), "tool": "traceroute", "host": host}
 
 @mcp.tool()
-def cert_check(host: str, port: int = 443, timeout: int = 10) -> dict:
+async def cert_check(host: str, port: int = 443, timeout: int = 10) -> dict:
     """Check the SSL certificate on a host — expiry, issued date, issuer, SANs, and days remaining. timeout: 1-60 s."""
     if not host or not host.strip():
         return {"error": "host must not be empty", "tool": "cert_check"}
