@@ -4,8 +4,8 @@ build-backend = "hatchling.build"
 
 [project]
 name = "mcp-nettools"
-version = "0.1.0"
-description = "MCP server for network diagnostics — ping, DNS, port check, traceroute, speedtest, WoL, cert check, MAC lookup"
+version = "0.2.0"
+description = "MCP server for network diagnostics and service health checks — 235 tools spanning ping/DNS/port/traceroute/TLS plus reachability probes for ~180 self-hosted services (databases, queues, observability, *arr stack, and more)"
 readme = "README.md"
 requires-python = ">=3.12"
 license = {text = "MIT"}

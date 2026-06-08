@@ -9,29 +9,29 @@ import pytest
 from mcp_nettools.server import cert_check, dns_lookup, mac_lookup, ping, port_check, speedtest, traceroute, wake_on_lan
 
 
-def test_ping_reachable():
+async def test_ping_reachable():
     mock_result = MagicMock()
     mock_result.returncode = 0
     mock_result.stdout = "4 packets transmitted, 4 received"
     with patch("subprocess.run", return_value=mock_result):
-        result = ping("8.8.8.8")
+        result = await ping("8.8.8.8")
     assert result["result"]["reachable"] is True
     assert result["result"]["host"] == "8.8.8.8"
     assert "output" in result["result"]
 
 
-def test_ping_unreachable():
+async def test_ping_unreachable():
     mock_result = MagicMock()
     mock_result.returncode = 1
     mock_result.stdout = "4 packets transmitted, 0 received"
     with patch("subprocess.run", return_value=mock_result):
-        result = ping("192.0.2.1")
+        result = await ping("192.0.2.1")
     assert result["result"]["reachable"] is False
 
 
-def test_ping_timeout_error():
+async def test_ping_timeout_error():
     with patch("subprocess.run", side_effect=subprocess.TimeoutExpired("ping", 5)):
-        result = ping("192.0.2.1")
+        result = await ping("192.0.2.1")
     assert "error" in result
     assert result["tool"] == "ping"
     assert result["host"] == "192.0.2.1"
@@ -49,71 +49,71 @@ def _make_mock_resolver(records=None, error=None):
     return mock_resolver
 
 
-def test_dns_lookup_a_record():
+async def test_dns_lookup_a_record():
     mock_record = MagicMock()
     mock_record.__str__ = lambda self: "8.8.8.8"
     with patch("dns.resolver.Resolver", return_value=_make_mock_resolver(records=[mock_record])):
-        result = dns_lookup("google.com")
+        result = await dns_lookup("google.com")
     assert result["result"]["host"] == "google.com"
     assert result["result"]["record_type"] == "A"
     assert result["result"]["records"] == ["8.8.8.8"]
 
 
-def test_dns_lookup_custom_type():
+async def test_dns_lookup_custom_type():
     mock_record = MagicMock()
     mock_record.__str__ = lambda self: "v=spf1 include:_spf.google.com ~all"
     with patch("dns.resolver.Resolver", return_value=_make_mock_resolver(records=[mock_record])):
-        result = dns_lookup("google.com", record_type="TXT")
+        result = await dns_lookup("google.com", record_type="TXT")
     assert result["result"]["record_type"] == "TXT"
 
 
-def test_dns_lookup_nxdomain():
+async def test_dns_lookup_nxdomain():
     with patch("dns.resolver.Resolver", return_value=_make_mock_resolver(error=Exception("NXDOMAIN"))):
-        result = dns_lookup("nonexistent.invalid")
+        result = await dns_lookup("nonexistent.invalid")
     assert "error" in result
     assert result["tool"] == "dns_lookup"
     assert result["host"] == "nonexistent.invalid"
 
 
-def test_port_check_open():
+async def test_port_check_open():
     mock_conn = MagicMock()
     mock_conn.__enter__ = MagicMock(return_value=mock_conn)
     mock_conn.__exit__ = MagicMock(return_value=None)
     with patch("socket.create_connection", return_value=mock_conn):
-        result = port_check("8.8.8.8", 53)
+        result = await port_check("8.8.8.8", 53)
     assert result["result"]["open"] is True
     assert result["result"]["host"] == "8.8.8.8"
     assert result["result"]["port"] == 53
 
 
-def test_port_check_closed():
+async def test_port_check_closed():
     with patch("socket.create_connection", side_effect=ConnectionRefusedError()):
-        result = port_check("8.8.8.8", 9999)
+        result = await port_check("8.8.8.8", 9999)
     assert result["result"]["open"] is False
 
 
-def test_port_check_error():
+async def test_port_check_error():
     with patch("socket.create_connection", side_effect=OSError("Network unreachable")):
-        result = port_check("192.0.2.1", 80)
+        result = await port_check("192.0.2.1", 80)
     assert "error" in result
     assert result["tool"] == "port_check"
     assert result["port"] == 80
 
 
-def test_traceroute_success():
+async def test_traceroute_success():
     mock_result = MagicMock()
     mock_result.returncode = 0
-    mock_result.stdout = "traceroute to 8.8.8.8\n 1  10.0.0.1  1ms\n 2  8.8.8.8  5ms"
+    mock_result.stdout = "traceroute to 8.8.8.8\n 1  192.0.2.1  1ms\n 2  8.8.8.8  5ms"
     with patch("subprocess.run", return_value=mock_result):
-        result = traceroute("8.8.8.8")
+        result = await traceroute("8.8.8.8")
     assert result["result"]["host"] == "8.8.8.8"
     assert "output" in result["result"]
     assert result["result"]["returncode"] == 0
 
 
-def test_traceroute_timeout():
+async def test_traceroute_timeout():
     with patch("subprocess.run", side_effect=subprocess.TimeoutExpired("traceroute", 60)):
-        result = traceroute("192.0.2.1")
+        result = await traceroute("192.0.2.1")
     assert "error" in result
     assert result["tool"] == "traceroute"
     assert result["host"] == "192.0.2.1"
@@ -151,9 +151,9 @@ def test_wake_on_lan_default_broadcast():
 
 def test_wake_on_lan_custom_broadcast():
     with patch("mcp_nettools.server.send_magic_packet") as mock_wol:
-        result = wake_on_lan("aa:bb:cc:dd:ee:ff", broadcast="10.0.0.255")
-    mock_wol.assert_called_once_with("aa:bb:cc:dd:ee:ff", ip_address="10.0.0.255")
-    assert result["result"]["broadcast"] == "10.0.0.255"
+        result = wake_on_lan("aa:bb:cc:dd:ee:ff", broadcast="192.0.2.255")
+    mock_wol.assert_called_once_with("aa:bb:cc:dd:ee:ff", ip_address="192.0.2.255")
+    assert result["result"]["broadcast"] == "192.0.2.255"
 
 
 def test_wake_on_lan_invalid_mac():
@@ -164,7 +164,7 @@ def test_wake_on_lan_invalid_mac():
     assert result["mac"] == "not-a-mac"
 
 
-def test_cert_check_valid():
+async def test_cert_check_valid():
     mock_cert = {
         "notAfter": "Dec 31 23:59:59 2099 GMT",
         "notBefore": "Jan 01 00:00:00 2024 GMT",
@@ -184,7 +184,7 @@ def test_cert_check_valid():
     mock_ctx = MagicMock()
     mock_ctx.wrap_socket.return_value = mock_sock
     with patch("ssl.create_default_context", return_value=mock_ctx):
-        result = cert_check("example.com")
+        result = await cert_check("example.com")
     assert result["result"]["host"] == "example.com"
     assert result["result"]["port"] == 443
     assert result["result"]["valid"] is True
@@ -193,7 +193,7 @@ def test_cert_check_valid():
     assert result["result"]["issuer"] == {"organizationName": "Let's Encrypt"}
 
 
-def test_cert_check_custom_port():
+async def test_cert_check_custom_port():
     mock_cert = {
         "notAfter": "Dec 31 23:59:59 2099 GMT",
         "notBefore": "Jan 01 00:00:00 2024 GMT",
@@ -213,13 +213,13 @@ def test_cert_check_custom_port():
     mock_ctx = MagicMock()
     mock_ctx.wrap_socket.return_value = mock_sock
     with patch("ssl.create_default_context", return_value=mock_ctx):
-        result = cert_check("example.com", port=8443)
+        result = await cert_check("example.com", port=8443)
     assert result["result"]["port"] == 8443
 
 
-def test_cert_check_error():
+async def test_cert_check_error():
     with patch("ssl.create_default_context", side_effect=Exception("Connection refused")):
-        result = cert_check("nonexistent.invalid")
+        result = await cert_check("nonexistent.invalid")
     assert "error" in result
     assert result["tool"] == "cert_check"
     assert result["host"] == "nonexistent.invalid"

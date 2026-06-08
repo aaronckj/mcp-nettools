@@ -7704,15 +7704,6 @@ def check_vector(host: str, port: int = 8686, timeout: int = 5, https: bool = Fa
         return {"error": str(e), "tool": "check_vector", "host": host}
 
 @mcp.tool()
-async def test_tool() -> dict:
-    """Test tool to verify MCP server is working."""
-    try:
-        return {"result": {"status": "ok", "tool": "test_tool"}}
-    except Exception as e:
-        return {"error": str(e), "tool": "test_tool"}
-
-
-@mcp.tool()
 async def health_check() -> dict:
     """Health check endpoint for container monitoring."""
     return {"status": "healthy", "service": "nettools"}
